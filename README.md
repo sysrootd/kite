@@ -1,4 +1,4 @@
-# Nucleus RTOS (STM32F401x)
+# kite RTOS (STM32F401x)
 
 A minimal real-time operating system (RTOS) for the STM32F401x microcontrollers, written in C. This project demonstrates basic multitasking, GPIO control, and cooperative scheduling on ARM Cortex-M4 MCUs.
 
@@ -11,7 +11,7 @@ A minimal real-time operating system (RTOS) for the STM32F401x microcontrollers,
 
 ## Directory Structure
 
-nucleus/
+kite/
 ├── src/ # Source code
 ├── inc/ # Header files
 ├── build/ # Build output (created after compilation)
