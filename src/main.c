@@ -22,8 +22,8 @@ void task2(void *arg) {
 
 int main(void) {
 
-    gpio_init(GPIOb, 13, OUTPUT, PP, FAST, PU, 0);
-    gpio_init(GPIOb, 14, OUTPUT, PP, FAST, PU, 0);
+    gpio_init(GPIOB, 13, OUTPUT, PP, FAST, PU, 0);
+    gpio_init(GPIOB, 14, OUTPUT, PP, FAST, PU, 0);
 
     rtos_init();
     rtos_create_task(task1, 0, 2);

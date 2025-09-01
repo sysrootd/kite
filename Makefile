@@ -8,8 +8,12 @@ OBJCOPY = arm-none-eabi-objcopy
 OBJDUMP = arm-none-eabi-objdump
 SIZE    = arm-none-eabi-size
 
-CFLAGS  = -mcpu=cortex-m4 -mthumb -g -Wall -O2 \
-          -ffunction-sections -fdata-sections -fno-exceptions -fno-rtti
+# Base flags common to C and C++
+BASE_FLAGS = -mcpu=cortex-m4 -mthumb -g -Wall -O2 -ffunction-sections -fdata-sections
+
+# C and C++ specific flags
+CFLAGS  = $(BASE_FLAGS)
+CXXFLAGS = $(BASE_FLAGS) -fno-exceptions -fno-rtti
 
 ASFLAGS = -mcpu=cortex-m4 -mthumb
 
@@ -31,6 +35,7 @@ C_SRC   := $(shell find $(SRC_DIRS) -name '*.c')
 CPP_SRC := $(shell find $(SRC_DIRS) -name '*.cpp')
 ASM_SRC := $(shell find $(SRC_DIRS) -name '*.s')
 
+# Object file names will be placed in OBJDIR (flattened)
 OBJ = $(addprefix $(OBJDIR)/,$(notdir $(C_SRC:.c=.o))) \
       $(addprefix $(OBJDIR)/,$(notdir $(CPP_SRC:.cpp=.o))) \
       $(addprefix $(OBJDIR)/,$(notdir $(ASM_SRC:.s=.o)))
@@ -45,7 +50,7 @@ LST    = $(OBJDIR)/kernel.lst
 all: $(OBJDIR) $(TARGET)
 
 $(TARGET): $(OBJ)
-	$(CXX) $(CFLAGS) $(INCDIRS) $^ $(LDFLAGS) -o $@
+	$(CXX) $(CXXFLAGS) $^ $(LDFLAGS) -o $@
 	$(OBJCOPY) -O binary $@ $(BIN)
 	$(OBJDUMP) -D $@ > $(LST)
 	$(SIZE) $@
@@ -57,9 +62,9 @@ $(OBJDIR)/%.o: src/%.c | $(OBJDIR)
 $(OBJDIR)/%.o: system/%.c | $(OBJDIR)
 	$(CC) $(CFLAGS) $(INCDIRS) -c $< -o $@
 
-# Compile .cpp files (if any in src/)
+# Compile .cpp files
 $(OBJDIR)/%.o: src/%.cpp | $(OBJDIR)
-	$(CXX) $(CFLAGS) $(INCDIRS) -c $< -o $@
+	$(CXX) $(CXXFLAGS) $(INCDIRS) -c $< -o $@
 
 # Assemble .s files
 $(OBJDIR)/%.o: system/%.s | $(OBJDIR)

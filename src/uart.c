@@ -11,20 +11,20 @@ static UART_Context* get_ctx(USART_TypeDef *uart) {
 
 void uart_init(USART_TypeDef *uart, uint32_t pclk, uint32_t baud) {
     if (uart == USART1) {
-        RCC_APB2ENR |= (1U << 4);
+        RCC->APB2ENR |= (1U << 4);
         gpio_init(GPIOA, 9, AF, PP, FAST, PU, 7);   // TX
         gpio_init(GPIOA, 10, AF, PP, FAST, PU, 7);  // RX
-        NVIC_ISER1 |= (1U << (USART1_IRQn - 32));
+        NVIC->ISER[1] |= (1U << 5); // USART1 IRQ
     } else if (uart == USART2) {
-        RCC_APB1ENR |= (1U << 17);
+        RCC->APB1ENR |= (1U << 17);
         gpio_init(GPIOA, 2, AF, PP, FAST, PU, 7);   
         gpio_init(GPIOA, 3, AF, PP, FAST, PU, 7);  
-        NVIC_ISER1 |= (1U << (USART2_IRQn - 32));
+        NVIC->ISER[1] |= (1U << 6); // USART2 IRQ
     } else if (uart == USART6) {
-        RCC_APB2ENR |= (1U << 5);
+        RCC->APB2ENR |= (1U << 5);
         gpio_init(GPIOC, 6, AF, PP, FAST, PU, 8);   
         gpio_init(GPIOC, 7, AF, PP, FAST, PU, 8);   
-        NVIC_ISER2 |= (1U << (USART6_IRQn - 64));
+        NVIC->ISER[2] |= (1U << 7); // USART6 IRQ
     }
 
     UART_Context *ctx = get_ctx(uart);

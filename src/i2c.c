@@ -22,17 +22,17 @@ static inline I2C_Context* get_ctx(I2C_TypeDef *i2c) {
 
 void i2c_init(I2C_TypeDef *i2c, uint32_t pclk, uint32_t speed) {
     if (i2c == I2C1) {
-        RCC_APB1ENR |= (1U << 21); // I2C1 clock
+        RCC->APB1ENR |= (1U << 21); // I2C1 clock
         gpio_init(GPIOB, 6, AF, OD, FAST, PU, 4);
         gpio_init(GPIOB, 7, AF, OD, FAST, PU, 4);
-        NVIC_ISER1 |= (1U << (I2C1_EV_IRQn - 32));
-        NVIC_ISER1 |= (1U << (I2C1_ER_IRQn - 32));
+        NVIC->ISER[0] |= (1U << 31); // I2C1_EV IRQ
+        NVIC->ISER[1] |= (1U << 0);  // I2C1_ER IRQ
     } else if (i2c == I2C2) {
-        RCC_APB1ENR |= (1U << 22); // I2C2 clock
+        RCC->APB1ENR |= (1U << 22); // I2C2 clock
         gpio_init(GPIOB, 10, AF, OD, FAST, PU, 4);
         gpio_init(GPIOB, 11, AF, OD, FAST, PU, 4);
-        NVIC_ISER1 |= (1U << (I2C2_EV_IRQn - 32));
-        NVIC_ISER1 |= (1U << (I2C2_ER_IRQn - 32));
+        NVIC->ISER[1] |= (1U << 1);  // I2C2_EV IRQ
+        NVIC->ISER[1] |= (1U << 2);  // I2C2_ER IRQ
     }
 
     i2c->CR1 |= (1U << 15);
@@ -49,14 +49,14 @@ void i2c_init(I2C_TypeDef *i2c, uint32_t pclk, uint32_t speed) {
 void i2c_master_transmit_it(I2C_TypeDef *i2c, uint8_t addr, uint8_t *data, uint16_t size,
                             i2c_callback_t cb, i2c_error_callback_t err_cb) {
     I2C_Context *ctx = get_ctx(i2c);
-    *ctx = { i2c, data, size, 0, 0, (addr << 1), I2C_TX, cb, err_cb };
+    *ctx = (I2C_Context){ i2c, data, size, 0, 0, (addr << 1), I2C_TX, cb, err_cb };
     i2c->CR1 |= (1U << 8); // START
 }
 
 void i2c_master_receive_it(I2C_TypeDef *i2c, uint8_t addr, uint8_t *data, uint16_t size,
                            i2c_callback_t cb, i2c_error_callback_t err_cb) {
     I2C_Context *ctx = get_ctx(i2c);
-    *ctx = { i2c, 0, 0, data, size, (addr << 1) | 1, I2C_RX, cb, err_cb };
+    *ctx = (I2C_Context){ i2c, 0, 0, data, size, (addr << 1) | 1, I2C_RX, cb, err_cb };
     i2c->CR1 |= (1U << 8); // START
 }
 
@@ -65,7 +65,7 @@ void i2c_master_write_read_it(I2C_TypeDef *i2c, uint8_t addr,
                               uint8_t *rdata, uint16_t rsize,
                               i2c_callback_t cb, i2c_error_callback_t err_cb) {
     I2C_Context *ctx = get_ctx(i2c);
-    *ctx = { i2c, wdata, wsize, rdata, rsize, (addr << 1), I2C_TXRX, cb, err_cb };
+    *ctx = (I2C_Context){ i2c, wdata, wsize, rdata, rsize, (addr << 1), I2C_TXRX, cb, err_cb };
     i2c->CR1 |= (1U << 8); // START
 }
 

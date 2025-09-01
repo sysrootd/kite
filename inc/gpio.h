@@ -18,22 +18,22 @@
 /* ===============================
  * Config Options
  * =============================== */
-#define IN      0x0U
-#define OUT     0x1U
-#define AF      0x2U
-#define ANALOG  0x3U
+#define INPUT   0x0
+#define OUTPUT  0x1
+#define AF      0x2
+#define ANALOG  0x3
 
-#define PP      0x0U
-#define OD      0x1U
+#define PP      0x0
+#define OD      0x1
 
-#define LOW     0x0U
-#define MED     0x1U
-#define FAST    0x2U
-#define HIGH    0x3U
+#define LOW     0x0
+#define MEDIUM  0x1
+#define FAST    0x2
+#define HIGH    0x3
 
-#define NOPULL  0x0U
-#define PU      0x1U
-#define PD      0x2U
+#define NOPULL  0x0
+#define PU      0x1
+#define PD      0x2
 
 /* ===============================
  * GPIO Functions

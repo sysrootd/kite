@@ -17,7 +17,8 @@ void spi_init(SPI_TypeDef *spi, GPIO_TypeDef *cs_port, uint8_t cs_pin) {
         gpio_init(GPIOA, 6, AF, PP, FAST, PU, 5);
         gpio_init(GPIOA, 7, AF, PP, FAST, PU, 5);
 
-        NVIC->ISER0 |= (1U << SPI1_IRQn);
+        // SPI1 interrupt number = 35 → ISER[1] bit 3
+        NVIC->ISER[1] |= (1U << (35 - 32));
     } else if (spi == SPI2) {
         RCC->APB1ENR |= (1U << 14);
 
@@ -26,7 +27,8 @@ void spi_init(SPI_TypeDef *spi, GPIO_TypeDef *cs_port, uint8_t cs_pin) {
         gpio_init(GPIOB, 14, AF, PP, FAST, PU, 5);
         gpio_init(GPIOB, 15, AF, PP, FAST, PU, 5);
 
-        NVIC->ISER1 |= (1U << (SPI2_IRQn - 32));
+        // SPI2 interrupt number = 36 → ISER[1] bit 4
+        NVIC->ISER[1] |= (1U << (36 - 32));
     }
 
     SPI_Context *ctx = get_ctx(spi);
@@ -94,5 +96,6 @@ static void spi_irq_handler(SPI_Context *ctx) {
     }
 }
 
+// ISR wrappers (vector table expects these names)
 void SPI1_IRQHandler(void) { spi_irq_handler(&ctx1); }
 void SPI2_IRQHandler(void) { spi_irq_handler(&ctx2); }

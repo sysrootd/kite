@@ -13,9 +13,9 @@ void rtos_init(void) {
     for (int i = 0; i < MAX_TASKS; i++) tasks[i].active = 0;
 
     // Setup SysTick (1ms tick @ 16 MHz)
-    SYST->RVR = 16000 - 1;
-    SYST->CVR = 0;
-    SYST->CSR = 7; // ENABLE | TICKINT | CLKSOURCE
+    SysTick->LOAD = 16000 - 1;   // RVR equivalent
+    SysTick->VAL  = 0;           // CVR equivalent
+    SysTick->CTRL = 7;           // ENABLE | TICKINT | CLKSOURCE
 }
 
 void rtos_create_task(task_func_t func, void *arg, uint8_t priority) {
@@ -76,15 +76,14 @@ void rtos_start(void) {
         "MSR CONTROL, r0          \n"
         "ISB                      \n"
         "POP {r4-r11}             \n"
-        "POP {r0-r3, r12, lr, pc, xPSR} \n"
+        "POP {r0-r3, r12, lr}     \n"   // Remove xPSR and PC pop
+        "BX lr                    \n"   // branch to task using LR
     );
 }
-
 
 void SysTick_Handler(void) {
     sys_ticks++;
 
-    
     for (int i = 0; i < task_count; i++) {
         if (tasks[i].state == TASK_BLOCKED && tasks[i].delay_ticks > 0) {
             tasks[i].delay_ticks--;
@@ -94,7 +93,7 @@ void SysTick_Handler(void) {
         }
     }
 
-    SCB_ICSR |= (1 << 28); // trigger PendSV
+    SCB->ICSR |= (1 << 28); // trigger PendSV
 }
 
 void PendSV_Handler(void) {
@@ -110,18 +109,19 @@ void PendSV_Handler(void) {
         "ADD r1, r1, r3           \n"
         "STR r0, [r1]             \n"  // save PSP
 
-        // Call scheduler
+        // Pick next task
         "BL scheduler_pick_next   \n"
-        "STR r0, [r2]             \n"
+        "STR r0, [r2]             \n"  // update current
 
         // Load next task PSP
         "LDR r1, =tasks           \n"
-        "LSLS r0, r0, #6          \n"
+        "LSLS r0, r0, #6          \n"  // index * sizeof(TCB approx)
         "ADD r1, r1, r0           \n"
-        "LDR r0, [r1]             \n"
-        "LDMIA r0!, {r4-r11}      \n"
+        "LDR r0, [r1]             \n"  // load next PSP
+        "LDMIA r0!, {r4-r11}      \n"  // restore callee-saved registers
         "MSR psp, r0              \n"
 
-        "BX lr                    \n"
+        "BX lr                    \n"  // return to task (exception return uses PSP)
     );
 }
+
