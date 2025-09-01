@@ -7,15 +7,19 @@ static int current = -1;
 
 volatile uint32_t sys_ticks = 0;
 
-extern void PendSV_Handler(void);
-
 void rtos_init(void) {
-    for (int i = 0; i < MAX_TASKS; i++) tasks[i].active = 0;
+    for (int i = 0; i < MAX_TASKS; i++) {
+        tasks[i].active = 0;
+        tasks[i].stack_ptr = 0;
+    }
 
     // Setup SysTick (1ms tick @ 16 MHz)
-    SysTick->LOAD = 16000 - 1;   // RVR equivalent
-    SysTick->VAL  = 0;           // CVR equivalent
-    SysTick->CTRL = 7;           // ENABLE | TICKINT | CLKSOURCE
+    SysTick->LOAD = 16000 - 1;
+    SysTick->VAL  = 0;
+    SysTick->CTRL = 0x07;
+    
+    // Set PendSV priority to lowest
+    SCB->SHP[10] = 0xFF;
 }
 
 void rtos_create_task(task_func_t func, void *arg, uint8_t priority) {
@@ -23,12 +27,29 @@ void rtos_create_task(task_func_t func, void *arg, uint8_t priority) {
 
     TCB *t = &tasks[task_count];
 
-    // Initialize stack (descending)
-    uint32_t *sp = &(t->stack_mem[STACK_SIZE - 16]); // room for 16 regs
-    sp[8]  = 0x01000000;       // xPSR (Thumb state)
-    sp[9]  = (uint32_t)func;   // PC (task entry)
-    sp[10] = 0xFFFFFFFD;       // LR (return to thread mode)
-    sp[0]  = (uint32_t)arg;    // R0 (argument)
+    // Initialize stack properly - use the END of the stack memory
+    uint32_t *sp = (uint32_t *)((uint8_t *)t->stack_mem + STACK_SIZE);
+    
+    // Create initial stack frame for exception return
+    // Stack grows downward, so we decrement the pointer
+    *(--sp) = 0x01000000;       // xPSR (Thumb state)
+    *(--sp) = (uint32_t)func;   // PC (task entry point)
+    *(--sp) = 0xFFFFFFFD;       // LR (return to thread mode with PSP)
+    *(--sp) = 0;                // R12
+    *(--sp) = 0;                // R3
+    *(--sp) = 0;                // R2
+    *(--sp) = 0;                // R1
+    *(--sp) = (uint32_t)arg;    // R0 (argument)
+    
+    // Callee-saved registers (will be manually popped)
+    *(--sp) = 0;                // R11
+    *(--sp) = 0;                // R10
+    *(--sp) = 0;                // R9
+    *(--sp) = 0;                // R8
+    *(--sp) = 0;                // R7
+    *(--sp) = 0;                // R6
+    *(--sp) = 0;                // R5
+    *(--sp) = 0;                // R4
 
     t->stack_ptr = sp;
     t->priority = priority;
@@ -39,14 +60,15 @@ void rtos_create_task(task_func_t func, void *arg, uint8_t priority) {
     task_count++;
 }
 
-// Delay current task for ms ticks
 void rtos_delay(uint32_t ms) {
-    tasks[current].delay_ticks = ms;
-    tasks[current].state = TASK_BLOCKED;
-    SCB->ICSR |= (1 << 28); // trigger PendSV immediately
+    if (current >= 0 && current < MAX_TASKS) {
+        tasks[current].delay_ticks = ms;
+        tasks[current].state = TASK_BLOCKED;
+        SCB->ICSR |= (1 << 28);
+    }
 }
 
-static int scheduler_pick_next(void) {
+int scheduler_pick_next(void) {
     int best = -1;
     uint8_t best_prio = 0;
 
@@ -63,21 +85,25 @@ static int scheduler_pick_next(void) {
 
 void rtos_start(void) {
     current = scheduler_pick_next();
+    if (current < 0) return;
 
+    TCB *t = &tasks[current];
+    uint32_t *stack = (uint32_t *)t->stack_ptr;
+    
+    uint32_t func_addr = stack[7];  // PC is at index 7 (28 bytes)
+    uint32_t arg = stack[0];        // R0 is at index 0
+    
+    // Use the Cortex-M exception return mechanism
     __asm volatile(
-        "LDR r0, =tasks           \n"
-        "LDR r1, =current         \n"
-        "LDR r1, [r1]             \n"
-        "LSLS r1, r1, #6          \n"   // index * sizeof(TCB approx)
-        "ADD r0, r0, r1           \n"
-        "LDR r0, [r0]             \n"   // stack_ptr
-        "MSR psp, r0              \n"
-        "MOVS r0, #2              \n"
-        "MSR CONTROL, r0          \n"
+        "MSR psp, %0              \n"   // Set process stack pointer
+        "MOV r1, #2               \n"   // Switch to PSP
+        "MSR CONTROL, r1          \n"
         "ISB                      \n"
-        "POP {r4-r11}             \n"
-        "POP {r0-r3, r12, lr}     \n"   // Remove xPSR and PC pop
-        "BX lr                    \n"   // branch to task using LR
+        "MOV r0, %1               \n"   // Load argument into R0
+        "BX %2                    \n"   // Jump to task function
+        :
+        : "r" (t->stack_ptr), "r" (arg), "r" (func_addr)
+        : "r0", "r1", "memory"
     );
 }
 
@@ -93,35 +119,42 @@ void SysTick_Handler(void) {
         }
     }
 
-    SCB->ICSR |= (1 << 28); // trigger PendSV
+    // Only trigger PendSV if we need to switch tasks
+    int next = scheduler_pick_next();
+    if (next != current && next != -1) {
+        SCB->ICSR |= (1 << 28);
+    }
 }
 
-void PendSV_Handler(void) {
+__attribute__((naked)) void PendSV_Handler(void) {
     __asm volatile(
-        // Save context of current task
+        // Save current context
         "MRS r0, psp              \n"
         "STMDB r0!, {r4-r11}      \n"
-
+        
         "LDR r1, =tasks           \n"
         "LDR r2, =current         \n"
         "LDR r3, [r2]             \n"
-        "LSLS r3, r3, #6          \n"  // index * sizeof(TCB approx)
+        "MOV r4, #64              \n"   // sizeof(TCB)
+        "MUL r3, r3, r4           \n"
         "ADD r1, r1, r3           \n"
-        "STR r0, [r1]             \n"  // save PSP
-
-        // Pick next task
+        "STR r0, [r1]             \n"   // save stack pointer
+        
+        // Call scheduler
         "BL scheduler_pick_next   \n"
-        "STR r0, [r2]             \n"  // update current
-
-        // Load next task PSP
+        "LDR r2, =current         \n"
+        "STR r0, [r2]             \n"
+        
+        // Load next context
         "LDR r1, =tasks           \n"
-        "LSLS r0, r0, #6          \n"  // index * sizeof(TCB approx)
+        "MOV r4, #64              \n"
+        "MUL r0, r0, r4           \n"
         "ADD r1, r1, r0           \n"
-        "LDR r0, [r1]             \n"  // load next PSP
-        "LDMIA r0!, {r4-r11}      \n"  // restore callee-saved registers
+        "LDR r0, [r1]             \n"
+        "LDMIA r0!, {r4-r11}      \n"
         "MSR psp, r0              \n"
-
-        "BX lr                    \n"  // return to task (exception return uses PSP)
+        
+        // Return from exception
+        "BX lr                    \n"
     );
 }
-
