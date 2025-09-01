@@ -74,10 +74,13 @@ static inline void gpio_init(GPIO_TypeDef *port, int pin,
 
     /* alternate function */
     if (mode == AF) {
-        int idx = pin / 8;
-        int pos = (pin % 8) * 4;
-        port->AFR[idx] &= ~(0xFU << pos);
-        port->AFR[idx] |= (af << pos);
+        if (pin < 8) {
+            port->AFRL &= ~(0xFU << (pin * 4));
+            port->AFRL |= (af << (pin * 4));
+        } else {
+            port->AFRH &= ~(0xFU << ((pin - 8) * 4));
+            port->AFRH |= (af << ((pin - 8) * 4));
+        }
     }
 }
 

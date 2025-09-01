@@ -10,23 +10,23 @@ static SPI_Context* get_ctx(SPI_TypeDef *spi) {
 
 void spi_init(SPI_TypeDef *spi, GPIO_TypeDef *cs_port, uint8_t cs_pin) {
     if (spi == SPI1) {
-        RCC_APB2ENR |= (1U << 12);
+        RCC->APB2ENR |= (1U << 12);
 
         // PA5 = SCK, PA6 = MISO, PA7 = MOSI (AF5)
         gpio_init(GPIOA, 5, AF, PP, FAST, PU, 5);
         gpio_init(GPIOA, 6, AF, PP, FAST, PU, 5);
         gpio_init(GPIOA, 7, AF, PP, FAST, PU, 5);
 
-        NVIC_ISER0 |= (1U << SPI1_IRQn);
+        NVIC->ISER0 |= (1U << SPI1_IRQn);
     } else if (spi == SPI2) {
-        RCC_APB1ENR |= (1U << 14);
+        RCC->APB1ENR |= (1U << 14);
 
         // PB13 = SCK, PB14 = MISO, PB15 = MOSI (AF5)
         gpio_init(GPIOB, 13, AF, PP, FAST, PU, 5);
         gpio_init(GPIOB, 14, AF, PP, FAST, PU, 5);
         gpio_init(GPIOB, 15, AF, PP, FAST, PU, 5);
 
-        NVIC_ISER1 |= (1U << (SPI2_IRQn - 32));
+        NVIC->ISER1 |= (1U << (SPI2_IRQn - 32));
     }
 
     SPI_Context *ctx = get_ctx(spi);

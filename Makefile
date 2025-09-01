@@ -1,68 +1,80 @@
+####################################
 # Toolchain and flags
-CC = arm-none-eabi-g++
-AS = arm-none-eabi-as
+####################################
+CC      = arm-none-eabi-gcc
+CXX     = arm-none-eabi-g++
+AS      = arm-none-eabi-as
 OBJCOPY = arm-none-eabi-objcopy
 OBJDUMP = arm-none-eabi-objdump
+SIZE    = arm-none-eabi-size
 
-CFLAGS = -mcpu=cortex-m4 -mthumb -g -Wall -std=c++17 \
-         -ffunction-sections -fdata-sections -fno-exceptions -fno-rtti
+CFLAGS  = -mcpu=cortex-m4 -mthumb -g -Wall -O2 \
+          -ffunction-sections -fdata-sections -fno-exceptions -fno-rtti
 
 ASFLAGS = -mcpu=cortex-m4 -mthumb
 
 # Linker script and libraries
-LDFLAGS = -T linker.ld -nostartfiles -nodefaultlibs -lc -lgcc
+LDFLAGS = -T linker.ld -nostartfiles -Wl,--gc-sections -lc -lgcc
 
+####################################
 # Directories
-SRC_DIRS := src system system/cmsis
-INCLUDE_DIRS := include include/drivers system system/cmsis
-INCDIRS := $(addprefix -I, $(INCLUDE_DIRS))
+####################################
+SRC_DIRS     := src system
+INCLUDE_DIRS := inc system
+INCDIRS      := $(addprefix -I, $(INCLUDE_DIRS))
+OBJDIR       := build
 
-OBJDIR := build
-
+####################################
 # Source files
+####################################
+C_SRC   := $(shell find $(SRC_DIRS) -name '*.c')
 CPP_SRC := $(shell find $(SRC_DIRS) -name '*.cpp')
-ASM_SRC := $(shell find $(SRC_DIRS) \( -name '*.s' -o -name '*.asm' \))
+ASM_SRC := $(shell find $(SRC_DIRS) -name '*.s')
 
-# Object files
-CPP_OBJ := $(patsubst %.cpp,$(OBJDIR)/%.o,$(CPP_SRC))
-ASM_OBJ := $(patsubst %.s,$(OBJDIR)/%.o,$(filter %.s,$(ASM_SRC)))
-ASM_OBJ += $(patsubst %.asm,$(OBJDIR)/%.o,$(filter %.asm,$(ASM_SRC)))
-OBJ := $(sort $(CPP_OBJ) $(ASM_OBJ))
+OBJ = $(addprefix $(OBJDIR)/,$(notdir $(C_SRC:.c=.o))) \
+      $(addprefix $(OBJDIR)/,$(notdir $(CPP_SRC:.cpp=.o))) \
+      $(addprefix $(OBJDIR)/,$(notdir $(ASM_SRC:.s=.o)))
 
-TARGET = $(OBJDIR)/kernal.elf
-BIN = $(OBJDIR)/kernal.bin
-LST = $(OBJDIR)/kernal.lst
+####################################
+# Targets
+####################################
+TARGET = $(OBJDIR)/kernel.elf
+BIN    = $(OBJDIR)/kernel.bin
+LST    = $(OBJDIR)/kernel.lst
 
 all: $(OBJDIR) $(TARGET)
 
 $(TARGET): $(OBJ)
-	$(CC) $(OBJ) $(LDFLAGS) -o $@
+	$(CXX) $(CFLAGS) $(INCDIRS) $^ $(LDFLAGS) -o $@
 	$(OBJCOPY) -O binary $@ $(BIN)
 	$(OBJDUMP) -D $@ > $(LST)
+	$(SIZE) $@
 
-# Compile .cpp files
-$(OBJDIR)/%.o: %.cpp
-	@mkdir -p $(dir $@)
+# Compile .c files
+$(OBJDIR)/%.o: src/%.c | $(OBJDIR)
 	$(CC) $(CFLAGS) $(INCDIRS) -c $< -o $@
 
-# Assemble .s files
-$(OBJDIR)/%.o: %.s
-	@mkdir -p $(dir $@)
-	$(AS) $(ASFLAGS) $< -o $@
+$(OBJDIR)/%.o: system/%.c | $(OBJDIR)
+	$(CC) $(CFLAGS) $(INCDIRS) -c $< -o $@
 
-# Assemble .asm files
-$(OBJDIR)/%.o: %.asm
-	@mkdir -p $(dir $@)
+# Compile .cpp files (if any in src/)
+$(OBJDIR)/%.o: src/%.cpp | $(OBJDIR)
+	$(CXX) $(CFLAGS) $(INCDIRS) -c $< -o $@
+
+# Assemble .s files
+$(OBJDIR)/%.o: system/%.s | $(OBJDIR)
 	$(AS) $(ASFLAGS) $< -o $@
 
 $(OBJDIR):
 	mkdir -p $(OBJDIR)
 
+####################################
+# Flash and debug
+####################################
 burn: $(BIN)
-	sleep 1
 	st-flash --connect-under-reset write $(BIN) 0x08000000
 
-connect: $(TARGET)
+connect:
 	openocd -f /usr/share/openocd/scripts/interface/stlink-v2.cfg \
 	        -f /usr/share/openocd/scripts/target/stm32f4x.cfg
 

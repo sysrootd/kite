@@ -32,6 +32,7 @@
 #define I2C2_BASE             (APB1PERIPH_BASE + 0x5800UL)
 #define I2C3_BASE             (APB1PERIPH_BASE + 0x5C00UL)
 #define PWR_BASE              (APB1PERIPH_BASE + 0x7000UL)
+#define SPI2_BASE             (APB1PERIPH_BASE + 0x3800UL)
 
 /* --- APB2 --- */
 #define TIM1_BASE             (APB2PERIPH_BASE + 0x0000UL)
@@ -53,47 +54,47 @@
 
 /* GPIO */
 typedef struct {
-    volatile uint32_t MODER;
-    volatile uint32_t OTYPER;
-    volatile uint32_t OSPEEDR;
-    volatile uint32_t PUPDR;
-    volatile uint32_t IDR;
-    volatile uint32_t ODR;
-    volatile uint32_t BSRR;
-    volatile uint32_t LCKR;
-    volatile uint32_t AFRL;
-    volatile uint32_t AFRH;
+    volatile uint32_t MODER;    /*!< 0x00 */
+    volatile uint32_t OTYPER;   /*!< 0x04 */
+    volatile uint32_t OSPEEDR;  /*!< 0x08 */
+    volatile uint32_t PUPDR;    /*!< 0x0C */
+    volatile uint32_t IDR;      /*!< 0x10 */
+    volatile uint32_t ODR;      /*!< 0x14 */
+    volatile uint32_t BSRR;     /*!< 0x18 */
+    volatile uint32_t LCKR;     /*!< 0x1C */
+    volatile uint32_t AFRL;     /*!< 0x20 */
+    volatile uint32_t AFRH;     /*!< 0x24 */
 } GPIO_TypeDef;
 
 /* RCC */
 typedef struct {
-    volatile uint32_t CR;
-    volatile uint32_t PLLCFGR;
-    volatile uint32_t CFGR;
-    volatile uint32_t CIR;
-    volatile uint32_t AHB1RSTR;
-    volatile uint32_t AHB2RSTR;
-    uint32_t RESERVED0[2];
-    volatile uint32_t APB1RSTR;
-    volatile uint32_t APB2RSTR;
-    uint32_t RESERVED1[2];
-    volatile uint32_t AHB1ENR;
-    volatile uint32_t AHB2ENR;
-    uint32_t RESERVED2[2];
-    volatile uint32_t APB1ENR;
-    volatile uint32_t APB2ENR;
-    uint32_t RESERVED3[2];
-    volatile uint32_t AHB1LPENR;
-    volatile uint32_t AHB2LPENR;
-    uint32_t RESERVED4[2];
-    volatile uint32_t APB1LPENR;
-    volatile uint32_t APB2LPENR;
-    uint32_t RESERVED5[2];
-    volatile uint32_t BDCR;
-    volatile uint32_t CSR;
-    uint32_t RESERVED6[2];
-    volatile uint32_t SSCGR;
-    volatile uint32_t PLLI2SCFGR;
+    volatile uint32_t CR;           /*!< 0x00 */
+    volatile uint32_t PLLCFGR;      /*!< 0x04 */
+    volatile uint32_t CFGR;         /*!< 0x08 */
+    volatile uint32_t CIR;          /*!< 0x0C */
+    volatile uint32_t AHB1RSTR;     /*!< 0x10 */
+    volatile uint32_t AHB2RSTR;     /*!< 0x14 */
+    uint32_t RESERVED0[2];          /*!< 0x18,0x1C */
+    volatile uint32_t APB1RSTR;     /*!< 0x20 */
+    volatile uint32_t APB2RSTR;     /*!< 0x24 */
+    uint32_t RESERVED1[2];          /*!< 0x28,0x2C */
+    volatile uint32_t AHB1ENR;      /*!< 0x30 */
+    volatile uint32_t AHB2ENR;      /*!< 0x34 */
+    uint32_t RESERVED2[2];          /*!< 0x38,0x3C */
+    volatile uint32_t APB1ENR;      /*!< 0x40 */
+    volatile uint32_t APB2ENR;      /*!< 0x44 */
+    uint32_t RESERVED3[2];          /*!< 0x48,0x4C */
+    volatile uint32_t AHB1LPENR;    /*!< 0x50 */
+    volatile uint32_t AHB2LPENR;    /*!< 0x54 */
+    uint32_t RESERVED4[2];          /*!< 0x58,0x5C */
+    volatile uint32_t APB1LPENR;    /*!< 0x60 */
+    volatile uint32_t APB2LPENR;    /*!< 0x64 */
+    uint32_t RESERVED5[2];          /*!< 0x68,0x6C */
+    volatile uint32_t BDCR;         /*!< 0x70 */
+    volatile uint32_t CSR;          /*!< 0x74 */
+    uint32_t RESERVED6[2];          /*!< 0x78,0x7C */
+    volatile uint32_t SSCGR;        /*!< 0x80 */
+    volatile uint32_t PLLI2SCFGR;   /*!< 0x84 */
 } RCC_TypeDef;
 
 /* EXTI */
@@ -205,7 +206,7 @@ typedef struct {
  *   Cortex-M4 Core Registers (NVIC, SysTick, SCB)
  * ===================================================================== */
 
-#define SCS_BASE             (0xE000E000UL)     /* System Control Space */
+#define SCS_BASE             (0xE000E000UL)
 #define SysTick_BASE         (SCS_BASE + 0x0010UL)
 #define NVIC_BASE            (SCS_BASE + 0x0100UL)
 #define SCB_BASE             (SCS_BASE + 0x0D00UL)
@@ -280,6 +281,7 @@ typedef struct {
 
 /* SPI */
 #define SPI1                ((SPI_TypeDef *) SPI1_BASE)
+#define SPI2                ((SPI_TypeDef *) SPI2_BASE)
 #define SPI4                ((SPI_TypeDef *) SPI4_BASE)
 
 /* I2C */
@@ -301,5 +303,3 @@ typedef struct {
 #define SysTick             ((SysTick_Type *) SysTick_BASE)
 #define NVIC                ((NVIC_Type *) NVIC_BASE)
 #define SCB                 ((SCB_Type *) SCB_BASE)
-
-#endif /* STM32F401_H */
