@@ -1,6 +1,6 @@
 # Nucleus RTOS (STM32F401x)
 
-A minimal real-time operating system (RTOS) for the STM32F401x microcontrollers, written in C++. This project demonstrates basic multitasking, GPIO control, and cooperative scheduling on ARM Cortex-M4 MCUs.
+A minimal real-time operating system (RTOS) for the STM32F401x microcontrollers, written in C. This project demonstrates basic multitasking, GPIO control, and cooperative scheduling on ARM Cortex-M4 MCUs.
 
 ## Features
 
@@ -13,7 +13,7 @@ A minimal real-time operating system (RTOS) for the STM32F401x microcontrollers,
 
 nucleus/
 ├── src/ # Source code
-├── include/ # Header files
+├── inc/ # Header files
 ├── build/ # Build output (created after compilation)
 ├── system/ # CMSIS and device files
 ├── tools/ # Code quality tools
