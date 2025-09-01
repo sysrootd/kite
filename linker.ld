@@ -1,69 +1,53 @@
-_estack = ORIGIN(SRAM) + LENGTH(SRAM);
-ENTRY(Reset_Handler)
+/* STM32F401RBT6 linker script */
 
+/* Memory regions */
 MEMORY
 {
-  FLASH(rx) : ORIGIN = 0x08000000, LENGTH = 128K
-  SRAM(rwx) : ORIGIN = 0x20000000, LENGTH = 64K
+    FLASH (rx)  : ORIGIN = 0x08000000, LENGTH = 128K
+    RAM   (xrw) : ORIGIN = 0x20000000, LENGTH = 64K
 }
+
+/* Entry point */
+ENTRY(Reset_Handler)
 
 SECTIONS
 {
-  /* Code and read-only data go to FLASH */
-  .text :
-  {
-    KEEP(*(.isr_vector))        /* Interrupt vectors */
-    *(.text)                    /* Code */
-    *(.text.*)
-    *(.init)
-    *(.fini)
-    *(.rodata)                  /* Read-only data */
-    *(.rodata.*)
-    KEEP(*(.init_array))        /* C++ global constructors */
-    . = ALIGN(4);
-    _etext = .;                 /* End of text section */
-  } > FLASH
+    /* Vector table and code */
+    .text :
+    {
+        KEEP(*(.isr_vector))    /* interrupt vector table */
+        *(.text*)               /* program code */
+        *(.rodata*)             /* read-only data */
+        KEEP(*(.init))
+        KEEP(*(.fini))
+        . = ALIGN(4);
+        _etext = .;             /* end of code */
+    } > FLASH
 
-  /* Initialized data copied from FLASH to SRAM */
-  _la_data = LOADADDR(.data);
+    /* Initialized data (will be copied to RAM) */
+    .data : AT (ADDR(.text) + SIZEOF(.text))
+    {
+        _sidata = LOADADDR(.data); /* start of init values in flash */
 
-  .data : AT(_la_data)
-  {
-    _sdata = .;                 /* Start of data section in RAM */
-    *(.data)
-    *(.data.*)
-    . = ALIGN(4);
-    _edata = .;                 /* End of data section */
-  } > SRAM
+        _sdata = .;               /* start of data in RAM */
+        *(.data*)
+        . = ALIGN(4);
+        _edata = .;               /* end of data in RAM */
+    } > RAM
 
-  /* Uninitialized data (zero-initialized) */
-  .bss (NOLOAD) :
-  {
-    _sbss = .;
-    __bss_start__ = _sbss;
-    *(.bss)
-    *(.bss.*)
-    *(COMMON)
-    . = ALIGN(4);
-    _ebss = .;
-    __bss_end__ = _ebss;
-  } > SRAM
+    /* Uninitialized data (BSS) */
+    .bss (NOLOAD) :
+    {
+        _sbss = .;                /* start of bss */
+        *(.bss*)
+        *(COMMON)
+        . = ALIGN(4);
+        _ebss = .;                /* end of bss */
+    } > RAM
 
-  /* Heap (optional) */
-  .heap (NOLOAD) :
-  {
-    _sheap = .;
-    . = . + 0x1000;
-    _eheap = .;
-  } > SRAM
+    /* End of RAM used by program */
+    _end = .;
 
-  /* Exception tables (optional) */
-  .ARM.exidx :
-  {
-    *(.ARM.exidx* .gnu.linkonce.armexidx.*)
-  } > FLASH
-
-  /* Provide symbols for end of memory */
-  PROVIDE(end = _ebss);
-  PROVIDE(__end__ = _ebss);
+    /* Top of stack (used in startup) */
+    PROVIDE(_estack = ORIGIN(RAM) + LENGTH(RAM));
 }
