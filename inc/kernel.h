@@ -15,7 +15,6 @@ void ThreadYield(void);
 void SemPost(int32_t *semaphore);
 
 void SemWait(volatile int32_t *semaphore);													 
-//#define PERIOD		100
 
 #endif
 													 						 

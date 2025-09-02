@@ -1,7 +1,5 @@
 #include "kernel.h"
 
-#define SYSPRI3         (*((volatile uint32_t *)0xE000ED20))
-
 
 void  SchedulerLaunch(void);
 
@@ -57,34 +55,26 @@ void KernelInit(void)
 }
 void KernelLaunch(uint32_t quanta)
 {
-	SysTick->CTRL =0;
-	SysTick->VAL=0;
-	SysTick->LOAD = (quanta* MILLIS_PRESCALER)-1;
-        //SYSPRI3 =(SYSPRI3&0x00FFFFFF)|0x70000000; // priority 7
-	NVIC_SetPriority(SysTick_IRQn, 0x00000000);
+    SysTick->CTRL = 0;
+    SysTick->VAL  = 0;
+    SysTick->LOAD = (quanta * MILLIS_PRESCALER) - 1;
 
-	SysTick->CTRL =0x00000007;
-	osSchedulerLaunch();
+    // Exception priorities
+    SCB->SHP[10] = 0xFF; // PendSV lowest
+    SCB->SHP[11] = 0x80; // SysTick medium
+    SCB->SHP[7]  = 0x00; // SVCall highest
+
+    SysTick->CTRL = 0x07;
+    SchedulerLaunch();
 }
 
-#define ICSR         (*((volatile uint32_t *)0xE000ED04))
-	
 void ThreadYield(void)
-{ 
-	SysTick->VAL = 0;
-        ICSR = 0x04000000; // trigger SysTick
+{
+    SysTick->VAL = 0;
+    SCB->ICSR = SCB_ICSR_PENDSVSET_Msk;
 }
 
 uint32_t period_tick;
-
-//void osSchedulerRoundRobin(void)
-//{
-//	if((++period_tick)==PERIOD){
-//	(*Task3)();
-//		period_tick=0;
-//	}
-//	currentPt =  currentPt->nextPt;
-//}
 
 void SemInit(int32_t *semaphore, int32_t value)
 {
@@ -100,15 +90,15 @@ void SemPost(int32_t *semaphore)
 
 void SemWait(volatile int32_t *semaphore)
 {
-	__disable_irq();
-	while(*semaphore <=0)
-	{	
-		__enable_irq();
-		//osThreadYield();  // Non-preemptive method
-		__disable_irq();			
-	}
-	*semaphore -= 0x01;
-	__enable_irq();
+    __disable_irq();
+    while (*semaphore <= 0)
+    {   
+        __enable_irq();
+        ThreadYield();
+        __disable_irq();
+    }
+    *semaphore -= 1;
+    __enable_irq();
 }
 
 
