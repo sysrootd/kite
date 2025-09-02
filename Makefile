@@ -66,6 +66,9 @@ $(OBJDIR)/%.o: system/%.c | $(OBJDIR)
 ####################################
 # Assemble .s files
 ####################################
+$(OBJDIR)/%.o: src/%.s | $(OBJDIR)
+	$(AS) $(ASFLAGS) $< -o $@
+
 $(OBJDIR)/%.o: system/%.s | $(OBJDIR)
 	$(AS) $(ASFLAGS) $< -o $@
 

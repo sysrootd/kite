@@ -1,32 +1,46 @@
-#include "rtos.h"
+#include "stm32f401.h"
+#include "kernel.h"
 #include "gpio.h"
-#include "uart.h"
 
-void task1(void *arg) {
+void task1(void) {
     while (1) {
         gpio_write(GPIOB, 13, 1);
-        rtos_delay(500); 
+        for (volatile int i = 0; i < 100000; i++); // crude delay
         gpio_write(GPIOB, 13, 0);
-        rtos_delay(500);
+        for (volatile int i = 0; i < 100000; i++);
     }
 }
 
-void task2(void *arg) {
-        while (1) {
+void task2(void) {
+    while (1) {
         gpio_write(GPIOB, 14, 1);
-        rtos_delay(500); 
+        for (volatile int i = 0; i < 100000; i++);
         gpio_write(GPIOB, 14, 0);
-        rtos_delay(500);
+        for (volatile int i = 0; i < 100000; i++);
+    }
+}
+
+void task3(void) {
+    while (1) {
+        gpio_write(GPIOB, 15, 1);
+        for (volatile int i = 0; i < 100000; i++);
+        gpio_write(GPIOB, 15, 0);
+        for (volatile int i = 0; i < 100000; i++);
     }
 }
 
 int main(void) {
-
+    // Initialize GPIOs
     gpio_init(GPIOB, 13, OUTPUT, PP, FAST, PU, 0);
     gpio_init(GPIOB, 14, OUTPUT, PP, FAST, PU, 0);
+    gpio_init(GPIOB, 15, OUTPUT, PP, FAST, PU, 0);
 
-    rtos_init();
-    rtos_create_task(task1, 0, 2);
-    rtos_create_task(task2, 0, 1);
-    rtos_start();
+    // Initialize kernel
+    KernelInit();
+
+    KernelAddThreads(&task1, &task2, &task3);
+
+    KernelLaunch(1);
+
+    while (1);
 }

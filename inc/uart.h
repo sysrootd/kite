@@ -3,7 +3,6 @@
 
 #include "stm32f401.h"
 #include "gpio.h"
-#include <stdint.h>
 
 #define UART_TX_BUF_SIZE   128
 #define UART_RX_BUF_SIZE   128

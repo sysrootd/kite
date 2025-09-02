@@ -1,11 +1,105 @@
 #ifndef STM32F401_H
 #define STM32F401_H
+/**
+  ******************************************************************************
+  * @file    stm32f401.h
+  * @brief   CMSIS Cortex-M4 Device Peripheral Access Layer Header File.
+  *          This file contains all the peripheral register's definitions,
+  *          bits definitions and memory mapping for STM32F401 devices.
+  *
+  * @note    Based on CMSIS 5.8.0 and STM32F401xC_DFP_V1.6.0
+  ******************************************************************************
+  */
 
 #include <stdint.h>
 
-/* =====================================================================
- *   Base Addresses
- * ===================================================================== */
+/* ==========================================================================
+ * Cortex-M4 Processor Configuration
+ * ========================================================================== */
+#define __CM4_REV              0x0001U   /*!< Core revision r0p1 */
+#define __MPU_PRESENT          1U        /*!< MPU present */
+#define __NVIC_PRIO_BITS       4U        /*!< STM32F4 uses 4 bits for NVIC priority levels */
+#define __Vendor_SysTickConfig 0U        /*!< Use default SysTick config */
+
+/* ==========================================================================
+ * Interrupt Number Definition
+ * ========================================================================== */
+typedef enum {
+    /* Cortex-M4 Processor Exceptions Numbers */
+    NonMaskableInt_IRQn   = -14, /*!< 2 Non Maskable Interrupt */
+    MemoryManagement_IRQn = -12, /*!< 4 Memory Management Interrupt */
+    BusFault_IRQn         = -11, /*!< 5 Bus Fault Interrupt */
+    UsageFault_IRQn       = -10, /*!< 6 Usage Fault Interrupt */
+    SVCall_IRQn           = -5,  /*!< 11 SV Call Interrupt */
+    DebugMonitor_IRQn     = -4,  /*!< 12 Debug Monitor Interrupt */
+    PendSV_IRQn           = -2,  /*!< 14 Pend SV Interrupt */
+    SysTick_IRQn          = -1,  /*!< 15 System Tick Interrupt */
+
+    /* STM32F401 Peripheral Interrupt Numbers */
+    WWDG_IRQn             = 0,   /*!< Window WatchDog */
+    PVD_IRQn              = 1,   /*!< PVD through EXTI Line detection */
+    TAMP_STAMP_IRQn       = 2,   /*!< Tamper and TimeStamp interrupts */
+    RTC_WKUP_IRQn         = 3,   /*!< RTC Wakeup interrupt */
+    FLASH_IRQn            = 4,   /*!< FLASH global interrupt */
+    RCC_IRQn              = 5,   /*!< RCC global interrupt */
+    EXTI0_IRQn            = 6,   /*!< EXTI Line0 interrupt */
+    EXTI1_IRQn            = 7,   /*!< EXTI Line1 interrupt */
+    EXTI2_IRQn            = 8,   /*!< EXTI Line2 interrupt */
+    EXTI3_IRQn            = 9,   /*!< EXTI Line3 interrupt */
+    EXTI4_IRQn            = 10,  /*!< EXTI Line4 interrupt */
+    DMA1_Stream0_IRQn     = 11,  /*!< DMA1 Stream0 global interrupt */
+    DMA1_Stream1_IRQn     = 12,  /*!< DMA1 Stream1 global interrupt */
+    DMA1_Stream2_IRQn     = 13,  /*!< DMA1 Stream2 global interrupt */
+    DMA1_Stream3_IRQn     = 14,  /*!< DMA1 Stream3 global interrupt */
+    DMA1_Stream4_IRQn     = 15,  /*!< DMA1 Stream4 global interrupt */
+    DMA1_Stream5_IRQn     = 16,  /*!< DMA1 Stream5 global interrupt */
+    DMA1_Stream6_IRQn     = 17,  /*!< DMA1 Stream6 global interrupt */
+    ADC_IRQn              = 18,  /*!< ADC1 global interrupt */
+    EXTI9_5_IRQn          = 23,  /*!< External Line[9:5] interrupts */
+    TIM1_BRK_TIM9_IRQn    = 24,  /*!< TIM1 Break and TIM9 global interrupt */
+    TIM1_UP_TIM10_IRQn    = 25,  /*!< TIM1 Update and TIM10 global interrupt */
+    TIM1_TRG_COM_TIM11_IRQn = 26,/*!< TIM1 Trigger/Commutation and TIM11 global interrupt */
+    TIM1_CC_IRQn          = 27,  /*!< TIM1 Capture Compare interrupt */
+    TIM2_IRQn             = 28,  /*!< TIM2 global interrupt */
+    TIM3_IRQn             = 29,  /*!< TIM3 global interrupt */
+    TIM4_IRQn             = 30,  /*!< TIM4 global interrupt */
+    I2C1_EV_IRQn          = 31,  /*!< I2C1 Event interrupt */
+    I2C1_ER_IRQn          = 32,  /*!< I2C1 Error interrupt */
+    I2C2_EV_IRQn          = 33,  /*!< I2C2 Event interrupt */
+    I2C2_ER_IRQn          = 34,  /*!< I2C2 Error interrupt */
+    SPI1_IRQn             = 35,  /*!< SPI1 global interrupt */
+    SPI2_IRQn             = 36,  /*!< SPI2 global interrupt */
+    USART1_IRQn           = 37,  /*!< USART1 global interrupt */
+    USART2_IRQn           = 38,  /*!< USART2 global interrupt */
+    EXTI15_10_IRQn        = 40,  /*!< External Line[15:10] interrupts */
+    RTC_Alarm_IRQn        = 41,  /*!< RTC Alarm interrupt */
+    OTG_FS_WKUP_IRQn      = 42,  /*!< USB OTG FS Wakeup interrupt */
+    DMA1_Stream7_IRQn     = 47,  /*!< DMA1 Stream7 global interrupt */
+    SDIO_IRQn             = 49,  /*!< SDIO global interrupt */
+    TIM5_IRQn             = 50,  /*!< TIM5 global interrupt */
+    SPI3_IRQn             = 51,  /*!< SPI3 global interrupt */
+    DMA2_Stream0_IRQn     = 56,  /*!< DMA2 Stream0 global interrupt */
+    DMA2_Stream1_IRQn     = 57,  /*!< DMA2 Stream1 global interrupt */
+    DMA2_Stream2_IRQn     = 58,  /*!< DMA2 Stream2 global interrupt */
+    DMA2_Stream3_IRQn     = 59,  /*!< DMA2 Stream3 global interrupt */
+    DMA2_Stream4_IRQn     = 60,  /*!< DMA2 Stream4 global interrupt */
+    OTG_FS_IRQn           = 67,  /*!< USB OTG FS global interrupt */
+    DMA2_Stream5_IRQn     = 68,  /*!< DMA2 Stream5 global interrupt */
+    DMA2_Stream6_IRQn     = 69,  /*!< DMA2 Stream6 global interrupt */
+    DMA2_Stream7_IRQn     = 70,  /*!< DMA2 Stream7 global interrupt */
+    USART6_IRQn           = 71,  /*!< USART6 global interrupt */
+    I2C3_EV_IRQn          = 72,  /*!< I2C3 event interrupt */
+    I2C3_ER_IRQn          = 73,  /*!< I2C3 error interrupt */
+    FPU_IRQn              = 81,  /*!< FPU global interrupt */
+    SPI4_IRQn             = 84   /*!< SPI4 global interrupt */
+} IRQn_Type;
+
+/* CMSIS Core Peripheral Access */
+#include "core_cm4.h"
+
+/* ==========================================================================
+ * Base Addresses
+ * ========================================================================== */
 #define PERIPH_BASE           0x40000000UL
 #define APB1PERIPH_BASE       PERIPH_BASE
 #define APB2PERIPH_BASE       (PERIPH_BASE + 0x10000UL)
@@ -48,53 +142,53 @@
 #define TIM10_BASE            (APB2PERIPH_BASE + 0x4400UL)
 #define TIM11_BASE            (APB2PERIPH_BASE + 0x4800UL)
 
-/* =====================================================================
- *   Peripheral Structs
- * ===================================================================== */
+/* ==========================================================================
+ * Peripheral Register Structures
+ * ========================================================================== */
 
 /* GPIO */
 typedef struct {
-    volatile uint32_t MODER;    /*!< 0x00 */
-    volatile uint32_t OTYPER;   /*!< 0x04 */
-    volatile uint32_t OSPEEDR;  /*!< 0x08 */
-    volatile uint32_t PUPDR;    /*!< 0x0C */
-    volatile uint32_t IDR;      /*!< 0x10 */
-    volatile uint32_t ODR;      /*!< 0x14 */
-    volatile uint32_t BSRR;     /*!< 0x18 */
-    volatile uint32_t LCKR;     /*!< 0x1C */
-    volatile uint32_t AFRL;     /*!< 0x20 */
-    volatile uint32_t AFRH;     /*!< 0x24 */
+    volatile uint32_t MODER;
+    volatile uint32_t OTYPER;
+    volatile uint32_t OSPEEDR;
+    volatile uint32_t PUPDR;
+    volatile uint32_t IDR;
+    volatile uint32_t ODR;
+    volatile uint32_t BSRR;
+    volatile uint32_t LCKR;
+    volatile uint32_t AFRL;
+    volatile uint32_t AFRH;
 } GPIO_TypeDef;
 
 /* RCC */
 typedef struct {
-    volatile uint32_t CR;           /*!< 0x00 */
-    volatile uint32_t PLLCFGR;      /*!< 0x04 */
-    volatile uint32_t CFGR;         /*!< 0x08 */
-    volatile uint32_t CIR;          /*!< 0x0C */
-    volatile uint32_t AHB1RSTR;     /*!< 0x10 */
-    volatile uint32_t AHB2RSTR;     /*!< 0x14 */
-    uint32_t RESERVED0[2];          /*!< 0x18,0x1C */
-    volatile uint32_t APB1RSTR;     /*!< 0x20 */
-    volatile uint32_t APB2RSTR;     /*!< 0x24 */
-    uint32_t RESERVED1[2];          /*!< 0x28,0x2C */
-    volatile uint32_t AHB1ENR;      /*!< 0x30 */
-    volatile uint32_t AHB2ENR;      /*!< 0x34 */
-    uint32_t RESERVED2[2];          /*!< 0x38,0x3C */
-    volatile uint32_t APB1ENR;      /*!< 0x40 */
-    volatile uint32_t APB2ENR;      /*!< 0x44 */
-    uint32_t RESERVED3[2];          /*!< 0x48,0x4C */
-    volatile uint32_t AHB1LPENR;    /*!< 0x50 */
-    volatile uint32_t AHB2LPENR;    /*!< 0x54 */
-    uint32_t RESERVED4[2];          /*!< 0x58,0x5C */
-    volatile uint32_t APB1LPENR;    /*!< 0x60 */
-    volatile uint32_t APB2LPENR;    /*!< 0x64 */
-    uint32_t RESERVED5[2];          /*!< 0x68,0x6C */
-    volatile uint32_t BDCR;         /*!< 0x70 */
-    volatile uint32_t CSR;          /*!< 0x74 */
-    uint32_t RESERVED6[2];          /*!< 0x78,0x7C */
-    volatile uint32_t SSCGR;        /*!< 0x80 */
-    volatile uint32_t PLLI2SCFGR;   /*!< 0x84 */
+    volatile uint32_t CR;
+    volatile uint32_t PLLCFGR;
+    volatile uint32_t CFGR;
+    volatile uint32_t CIR;
+    volatile uint32_t AHB1RSTR;
+    volatile uint32_t AHB2RSTR;
+    uint32_t RESERVED0[2];
+    volatile uint32_t APB1RSTR;
+    volatile uint32_t APB2RSTR;
+    uint32_t RESERVED1[2];
+    volatile uint32_t AHB1ENR;
+    volatile uint32_t AHB2ENR;
+    uint32_t RESERVED2[2];
+    volatile uint32_t APB1ENR;
+    volatile uint32_t APB2ENR;
+    uint32_t RESERVED3[2];
+    volatile uint32_t AHB1LPENR;
+    volatile uint32_t AHB2LPENR;
+    uint32_t RESERVED4[2];
+    volatile uint32_t APB1LPENR;
+    volatile uint32_t APB2LPENR;
+    uint32_t RESERVED5[2];
+    volatile uint32_t BDCR;
+    volatile uint32_t CSR;
+    uint32_t RESERVED6[2];
+    volatile uint32_t SSCGR;
+    volatile uint32_t PLLI2SCFGR;
 } RCC_TypeDef;
 
 /* EXTI */
@@ -116,7 +210,7 @@ typedef struct {
     volatile uint32_t CMPCR;
 } SYSCFG_TypeDef;
 
-/* ADC */
+/* ADC (simplified) */
 typedef struct {
     volatile uint32_t SR;
     volatile uint32_t CR1;
@@ -202,69 +296,9 @@ typedef struct {
     volatile uint32_t DMAR;
 } TIM_TypeDef;
 
-/* =====================================================================
- *   Cortex-M4 Core Registers (NVIC, SysTick, SCB)
- * ===================================================================== */
-
-#define SCS_BASE             (0xE000E000UL)
-#define SysTick_BASE         (SCS_BASE + 0x0010UL)
-#define NVIC_BASE            (SCS_BASE + 0x0100UL)
-#define SCB_BASE             (SCS_BASE + 0x0D00UL)
-
-/* SysTick */
-typedef struct {
-    volatile uint32_t CTRL;
-    volatile uint32_t LOAD;
-    volatile uint32_t VAL;
-    volatile uint32_t CALIB;
-} SysTick_Type;
-
-/* NVIC */
-typedef struct {
-    volatile uint32_t ISER[8];
-    uint32_t RESERVED0[24];
-    volatile uint32_t ICER[8];
-    uint32_t RESERVED1[24];
-    volatile uint32_t ISPR[8];
-    uint32_t RESERVED2[24];
-    volatile uint32_t ICPR[8];
-    uint32_t RESERVED3[24];
-    volatile uint32_t IABR[8];
-    uint32_t RESERVED4[56];
-    volatile uint8_t  IP[240];
-    uint32_t RESERVED5[644];
-    volatile uint32_t STIR;
-} NVIC_Type;
-
-/* SCB */
-typedef struct
-{
-    volatile uint32_t CPUID;     // 0x00
-    volatile uint32_t ICSR;      // 0x04
-    volatile uint32_t VTOR;      // 0x08
-    volatile uint32_t AIRCR;     // 0x0C
-    volatile uint32_t SCR;       // 0x10
-    volatile uint32_t CCR;       // 0x14
-    volatile uint8_t  SHP[12];   // 0x18-0x23
-    volatile uint32_t SHCSR;     // 0x24
-    volatile uint32_t CFSR;      // 0x28
-    volatile uint32_t HFSR;      // 0x2C
-    volatile uint32_t DFSR;      // 0x30
-    volatile uint32_t MMFAR;     // 0x34
-    volatile uint32_t BFAR;      // 0x38
-    volatile uint32_t AFSR;      // 0x3C
-    volatile uint32_t PFR[2];    // 0x40–0x47
-    volatile uint32_t DFR;       // 0x48
-    volatile uint32_t ADR;       // 0x4C
-    volatile uint32_t MMFR[4];   // 0x50–0x5F
-    volatile uint32_t ISAR[5];   // 0x60–0x73
-    uint32_t RESERVED0[5];
-    volatile uint32_t CPACR;     // 0x88
-} SCB_Type;
-
-/* =====================================================================
- *   Peripheral Instances
- * ===================================================================== */
+/* ==========================================================================
+ * Peripheral Declarations
+ * ========================================================================== */
 
 /* GPIO */
 #define GPIOA               ((GPIO_TypeDef *) GPIOA_BASE)
@@ -306,10 +340,5 @@ typedef struct
 #define TIM9                ((TIM_TypeDef *) TIM9_BASE)
 #define TIM10               ((TIM_TypeDef *) TIM10_BASE)
 #define TIM11               ((TIM_TypeDef *) TIM11_BASE)
-
-/* Cortex-M4 Core */
-#define SysTick             ((SysTick_Type *) SysTick_BASE)
-#define NVIC                ((NVIC_Type *) NVIC_BASE)
-#define SCB                 ((SCB_Type *) SCB_BASE)
 
 #endif /* STM32F401_H */
