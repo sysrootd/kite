@@ -78,9 +78,9 @@ void KernelLaunch(uint32_t quanta) {
     SysTick->LOAD = (quanta * MILLIS_PRESCALER) - 1;
 
     // Exception priorities
-    SCB->SHP[10] = 0xFF; // PendSV lowest
-    SCB->SHP[11] = 0x80; // SysTick medium
-    SCB->SHP[7]  = 0x00; // SVCall highest
+    SCB->SHPR[10] = 0xFF; // PendSV lowest
+    SCB->SHPR[11] = 0x80; // SysTick medium
+    SCB->SHPR[7]  = 0x00; // SVCall highest
 
     SysTick->CTRL = 0x07;
     SchedulerLaunch();
