@@ -3,7 +3,7 @@
 
 void SchedulerLaunch(void);
 
-#define NUM_OF_THREADS  3        
+#define NUM_OF_THREADS  2        
 #define STACKSIZE       100      
 
 #define BUS_FREQ        16000000
@@ -49,17 +49,13 @@ uint8_t KernelAddThreads(void(*task0)(void), void(*task1)(void), void(*task2)(vo
     __disable_irq();
 
     tcbs[0].nextPt = &tcbs[1]; 
-    tcbs[1].nextPt = &tcbs[2]; 
-    tcbs[2].nextPt = &tcbs[0]; 
+    tcbs[1].nextPt = &tcbs[2];  
 
     KernelStackInit(0);
     TCB_STACK[0][STACKSIZE - 2] = (int32_t)(task0);  // PC
 
     KernelStackInit(1);
     TCB_STACK[1][STACKSIZE - 2] = (int32_t)(task1);  // PC
-
-    KernelStackInit(2);
-    TCB_STACK[2][STACKSIZE - 2] = (int32_t)(task2);  // PC
 
     currentPt = &tcbs[0];
     __enable_irq();
