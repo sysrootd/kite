@@ -8,7 +8,7 @@
       "request": "launch",
       "servertype": "openocd",
       "cwd": "${workspaceFolder}",
-      "executable": "${workspaceFolder}/build/kernal.elf",
+      "executable": "${workspaceFolder}/build/kernel.elf",
       "device": "STM32F401RBTx",
       "configFiles": [
         "interface/stlink.cfg",
