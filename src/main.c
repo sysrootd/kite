@@ -33,3 +33,15 @@ int main(void) {
 
     while (1);
 }
+
+
+void HardFault_Handler(void) {
+    __asm volatile(
+        "tst lr, #4\n"
+        "ite eq\n"
+        "mrseq r0, msp\n"
+        "mrsne r0, psp\n"
+        "ldr r1, [r0, #24]\n"
+        "b .\n"
+    );
+}

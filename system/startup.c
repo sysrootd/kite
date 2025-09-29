@@ -1,6 +1,7 @@
 /* startup.c - STM32F401x bare-metal startup code with configurable SystemInit */
 
 #include <stdint.h>
+#include "stm32f401.h"
 
 int main(void);
 
@@ -11,15 +12,6 @@ extern uint32_t _edata;
 extern uint32_t _sbss;
 extern uint32_t _ebss;
 extern uint32_t _estack;
-
-/* RCC and Flash registers */
-#define RCC_BASE        0x40023800UL
-#define RCC_CR          (*(volatile uint32_t *)(RCC_BASE + 0x00))
-#define RCC_PLLCFGR     (*(volatile uint32_t *)(RCC_BASE + 0x04))
-#define RCC_CFGR        (*(volatile uint32_t *)(RCC_BASE + 0x08))
-
-#define FLASH_BASE      0x40023C00UL
-#define FLASH_ACR       (*(volatile uint32_t *)(FLASH_BASE + 0x00))
 
 /* RCC_CR bits */
 #define RCC_CR_HSION    (1U << 0)
@@ -204,60 +196,60 @@ void SystemInit(void) {
 
 #if SYSCLK_CONFIG == SYSCLK_HSI_16MHZ
     /* --- Run from HSI (16 MHz) --- */
-    RCC_CR |= RCC_CR_HSION;
-    while (!(RCC_CR & RCC_CR_HSIRDY));
+    RCC->CR |= RCC_CR_HSION;
+    while (!(RCC->CR & RCC_CR_HSIRDY));
 
-    RCC_CFGR &= ~0x3U;
-    RCC_CFGR |= RCC_CFGR_SW_HSI;
-    while ((RCC_CFGR & RCC_CFGR_SWS) != RCC_CFGR_SW_HSI);
+    RCC->CFGR &= ~0x3U;
+    RCC->CFGR |= RCC_CFGR_SW_HSI;
+    while ((RCC->CFGR & RCC_CFGR_SWS) != RCC_CFGR_SW_HSI);
 
 #elif SYSCLK_CONFIG == SYSCLK_PLL_84MHZ
     /* --- Configure PLL for 84 MHz --- */
     /* Disable PLL */
-    RCC_CR &= ~RCC_CR_PLLON;
+    RCC->CR &= ~RCC_CR_PLLON;
     while (RCC_CR & RCC_CR_PLLRDY);
 
     /* PLLM=16, PLLN=336, PLLP=4, PLLQ=7 */
-    RCC_PLLCFGR = (16U << 0)   |   /* PLLM */
+    RCC->PLLCFGR = (16U << 0)   |   /* PLLM */
                   (336U << 6)  |   /* PLLN */
                   (1U << 16)   |   /* PLLP=4 (01) */
                   (7U << 24)   |   /* PLLQ */
                   (0U << 22);      /* HSI as source */
 
-    RCC_CR |= RCC_CR_PLLON;
-    while (!(RCC_CR & RCC_CR_PLLRDY));
+    RCC->CR |= RCC_CR_PLLON;
+    while (!(RCC->CR & RCC_CR_PLLRDY));
 
     /* Flash wait states: 2WS for 84MHz */
-    FLASH_ACR = (2U << FLASH_ACR_LATENCY_Pos) |
+    FLASH->ACR = (2U << FLASH_ACR_LATENCY_Pos) |
                 FLASH_ACR_ICEN | FLASH_ACR_DCEN | FLASH_ACR_PRFTEN;
 
-    RCC_CFGR &= ~0x3U;
-    RCC_CFGR |= RCC_CFGR_SW_PLL;
-    while ((RCC_CFGR & RCC_CFGR_SWS) != RCC_CFGR_SWS_PLL);
+    RCC->CFGR &= ~0x3U;
+    RCC->CFGR |= RCC_CFGR_SW_PLL;
+    while ((RCC->CFGR & RCC_CFGR_SWS) != RCC_CFGR_SWS_PLL);
 
 #elif SYSCLK_CONFIG == SYSCLK_PLL_50MHZ
     /* --- Configure PLL for ~50 MHz --- */
     /* Disable PLL */
-    RCC_CR &= ~RCC_CR_PLLON;
-    while (RCC_CR & RCC_CR_PLLRDY);
+    RCC->CR &= ~RCC_CR_PLLON;
+    while (RCC->CR & RCC_CR_PLLRDY);
 
     /* PLLM=16, PLLN=200, PLLP=4 -> 200/4=50 MHz */
-    RCC_PLLCFGR = (16U << 0)   |   /* PLLM */
+    RCC->PLLCFGR = (16U << 0)   |   /* PLLM */
                   (200U << 6)  |   /* PLLN */
                   (1U << 16)   |   /* PLLP=4 */
                   (4U << 24)   |   /* PLLQ=4 */
                   (0U << 22);      /* HSI source */
 
-    RCC_CR |= RCC_CR_PLLON;
-    while (!(RCC_CR & RCC_CR_PLLRDY));
+    RCC->CR |= RCC_CR_PLLON;
+    while (!(RCC->CR & RCC_CR_PLLRDY));
 
     /* Flash wait states: 1WS for 50MHz */
-    FLASH_ACR = (1U << FLASH_ACR_LATENCY_Pos) |
+    FLASH->ACR = (1U << FLASH_ACR_LATENCY_Pos) |
                 FLASH_ACR_ICEN | FLASH_ACR_DCEN | FLASH_ACR_PRFTEN;
 
-    RCC_CFGR &= ~0x3U;
-    RCC_CFGR |= RCC_CFGR_SW_PLL;
-    while ((RCC_CFGR & RCC_CFGR_SWS) != RCC_CFGR_SWS_PLL);
+    RCC->CFGR &= ~0x3U;
+    RCC->CFGR |= RCC_CFGR_SW_PLL;
+    while ((RCC->CFGR & RCC_CFGR_SWS) != RCC_CFGR_SWS_PLL);
 
 #else
 # error "Invalid SYSCLK_CONFIG value!"

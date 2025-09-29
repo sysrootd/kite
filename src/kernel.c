@@ -22,7 +22,7 @@ int32_t TCB_STACK[NUM_OF_THREADS][STACKSIZE];
 
 void KernelStackInit(int i) {
     // Each thread stack pointer starts 16 registers below top
-    tcbs[i].stackPt = &TCB_STACK[i][STACKSIZE - 16];
+    tcbs[i].stackPt = (int32_t*)((uint32_t)&TCB_STACK[i][STACKSIZE - 16] & ~0x7);
 
     // Simulated exception stack frame (auto-popped on thread start)
     TCB_STACK[i][STACKSIZE - 1] = 0x01000000;  // xPSR (Thumb bit set)
@@ -49,13 +49,13 @@ uint8_t KernelAddThreads(void(*task0)(void), void(*task1)(void)) {
     __disable_irq();
 
     tcbs[0].nextPt = &tcbs[1]; 
-    tcbs[1].nextPt = &tcbs[2];  
+    tcbs[1].nextPt = &tcbs[0];
 
     KernelStackInit(0);
-    TCB_STACK[0][STACKSIZE - 2] = (int32_t)(task0);  // PC
+    TCB_STACK[0][STACKSIZE - 2] = (int32_t)task0;
 
     KernelStackInit(1);
-    TCB_STACK[1][STACKSIZE - 2] = (int32_t)(task1);  // PC
+    TCB_STACK[1][STACKSIZE - 2] = (int32_t)task1;
 
     currentPt = &tcbs[0];
     __enable_irq();
