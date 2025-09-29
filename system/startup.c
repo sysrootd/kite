@@ -66,7 +66,7 @@ void DebugMon_Handler(void)             __attribute__((weak, alias("Default_Hand
 void PendSV_Handler(void)               __attribute__((weak, alias("Default_Handler")));
 void SysTick_Handler(void)              __attribute__((weak, alias("Default_Handler")));
 
-/* External interrupt handlers (STM32F401RBT6) */
+/* External interrupt handlers */
 void WWDG_IRQHandler(void)              __attribute__((weak, alias("Default_Handler")));
 void PVD_IRQHandler(void)               __attribute__((weak, alias("Default_Handler")));
 void TAMP_STAMP_IRQHandler(void)        __attribute__((weak, alias("Default_Handler")));
@@ -200,8 +200,8 @@ void (* const g_pfnVectors[])(void) = {
     SPI4_IRQHandler,
 };
 
-/* ===================== SystemInit ===================== */
 void SystemInit(void) {
+
 #if SYSCLK_CONFIG == SYSCLK_HSI_16MHZ
     /* --- Run from HSI (16 MHz) --- */
     RCC_CR |= RCC_CR_HSION;
@@ -264,9 +264,8 @@ void SystemInit(void) {
 #endif
 }
 
-/* ====================================================== */
-
 void Reset_Handler(void) {
+
     uint32_t *src, *dst;
 
     /* Copy .data from Flash to SRAM */
