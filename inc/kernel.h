@@ -2,6 +2,8 @@
 #define _OS_KERNEL_H
 #include "stm32f401.h"
 
+void DebugStackFrame(void);
+
 void KernelLaunch(uint32_t quanta);
 
 void KernelInit(void);
