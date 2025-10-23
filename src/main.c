@@ -29,27 +29,8 @@ int main(void) {
     KernelInit();
     
     KernelAddThreads(task0, task1);
-
-    DebugStackFrame();
     
     KernelLaunch(1);
     
     while (1);
-}
-
-void HardFault_Handler(void) {
-    volatile uint32_t *sp;
-    volatile uint32_t fault_pc;
-    
-    __asm volatile(
-        "tst lr, #4\n"
-        "ite eq\n"
-        "mrseq %0, msp\n"
-        "mrsne %0, psp\n"
-        : "=r"(sp)
-    );
-    
-    fault_pc = sp[6];  // PC is at offset 24 (6 * 4) in stack frame
- 
-    while(1);
 }

@@ -29,7 +29,6 @@ OBJDIR       := build
 C_SRC   := $(shell find $(SRC_DIRS) -name '*.c')
 ASM_SRC := $(shell find $(SRC_DIRS) -name '*.s')
 
-# Object file names (flattened in OBJDIR)
 OBJ = $(addprefix $(OBJDIR)/,$(notdir $(C_SRC:.c=.o))) \
       $(addprefix $(OBJDIR)/,$(notdir $(ASM_SRC:.s=.o)))
 
