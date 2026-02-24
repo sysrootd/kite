@@ -39,9 +39,6 @@ Debugging
 
     Press F5 or select Run > Start Debugging in VS Code
 
-Code Formatting & Static Analysis
-Prerequisites
-bash
 
 ## Formatting
 
