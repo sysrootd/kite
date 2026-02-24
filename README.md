@@ -21,23 +21,15 @@ A minimal real-time operating system (RTOS) for the STM32F401x microcontrollers,
 
 ## Building
 
-From the project root, run:
-```sh
-make
+From the project root, run:  make
 
 This will generate build/kernal.elf and build/kernal.bin.
 
-To clean:
-sh
-
-make clean
+To clean: make clean
 
 Flashing
 
-Use OpenOCD and ST-Link to flash the binary:
-sh
-
-openocd -f interface/stlink.cfg -f target/stm32f4x.cfg -c "program build/kernal.elf verify reset exit"
+Use OpenOCD and ST-Link to flash the binary: openocd -f interface/stlink.cfg -f target/stm32f4x.cfg -c "program build/kernal.elf verify reset exit"
 
 Debugging
 
@@ -59,26 +51,22 @@ sudo apt-get install clang-format clang-tidy
 Formatting Commands
 
 Format all source files (run from project root):
-bash
 
 python3 tools/run-clang-format.py -i -r --style=LLVM ./src ./include
 
 Static Analysis
 
 First generate compilation database:
-bash
 
 cd build && cmake -DCMAKE_EXPORT_COMPILE_COMMANDS=ON .. && cd ..
 
 Then run clang-tidy:
-bash
 
 python3 tools/run-clang-tidy.py -p ./build ./src ./include
 
 Recommended Checks
 
 For embedded development, consider these checks:
-bash
 
 -checks='-*,modernize-*,bugprone-*,readability-*,misc-*,-modernize-use-trailing-return-type'
 
