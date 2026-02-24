@@ -1,7 +1,7 @@
 #ifndef SPI_H
 #define SPI_H
 
-#include "stm32f401.h"
+#include "stm32f4xx.h"
 #include "gpio.h"
 
 #define SPI_TX_BUF_SIZE 128

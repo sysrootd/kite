@@ -13,13 +13,14 @@ CFLAGS  = -mcpu=cortex-m4 -mthumb -g -Wall -O2 -ffunction-sections -fdata-sectio
 ASFLAGS = -mcpu=cortex-m4 -mthumb
 
 # Linker script and libraries
-LDFLAGS = -T linker.ld -nostartfiles -Wl,--gc-sections -lc -lgcc
+LDFLAGS = -T linker.ld -nostartfiles -Wl,--gc-sections \
+          --specs=nano.specs -lc -lgcc
 
 ####################################
 # Directories
 ####################################
 SRC_DIRS     := src system
-INCLUDE_DIRS := inc system
+INCLUDE_DIRS := inc system system/cmsis
 INCDIRS      := $(addprefix -I,$(INCLUDE_DIRS))
 OBJDIR       := build
 

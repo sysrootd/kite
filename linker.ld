@@ -1,4 +1,3 @@
-/* STM32F401RBT6 linker script (C-only bare-metal) */
 
 ENTRY(Reset_Handler)
 

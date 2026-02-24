@@ -1,7 +1,7 @@
 /* startup.c - STM32F401x bare-metal startup code with configurable SystemInit */
 
 #include <stdint.h>
-#include "stm32f401.h"
+#include "stm32f4xx.h"
 
 int main(void);
 
@@ -44,7 +44,9 @@ extern uint32_t _estack;
 /* =============================================================== */
 
 /* Default handler */
-void Default_Handler(void) { while (1) {} }
+void Default_Handler(void) { 
+    while (1) {} 
+}
 
 /* Core handlers */
 void Reset_Handler(void);

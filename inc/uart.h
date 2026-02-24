@@ -1,7 +1,7 @@
 #ifndef UART_H
 #define UART_H
 
-#include "stm32f401.h"
+#include "stm32f4xx.h"
 #include "gpio.h"
 
 #define UART_TX_BUF_SIZE   128

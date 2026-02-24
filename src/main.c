@@ -1,36 +1,45 @@
 #include "kernel.h"
 #include "gpio.h"
 
-void task0(void) {
+void task1_handler(void) {
     while (1) {
         gpio_write(GPIOB, 14, 1);
-        for (volatile int i = 0; i < 100000; i++);
+        task_delay(500);
         gpio_write(GPIOB, 14, 0);
-        for (volatile int i = 0; i < 100000; i++);
-        ThreadYield();  // Add explicit yield
+        task_delay(500);
     }
 }
 
-void task1(void) {
+void task2_handler(void) {
     while (1) {
         gpio_write(GPIOB, 13, 1);
-        for (volatile int i = 0; i < 100000; i++);
+        task_delay(500);
         gpio_write(GPIOB, 13, 0);
-        for (volatile int i = 0; i < 100000; i++);
-        ThreadYield();  // Add explicit yield
+        task_delay(500);
     }
 }
 
 int main(void) {
 
+	enable_processor_faults();
+
+	init_scheduler_stack(SCHED_STACK_START);
+
     gpio_init(GPIOB, 14, OUTPUT, PP, FAST, PU, 0);
     gpio_init(GPIOB, 13, OUTPUT, PP, FAST, PU, 0);
-    
-    KernelInit();
-    
-    KernelAddThreads(task0, task1);
-    
-    KernelLaunch(1);
-    
-    while (1);
+
+	init_tasks_stack();
+
+	init_systick_timer(TICK_HZ);
+
+	switch_sp_to_psp();
+
+	task1_handler();
+
+	for(;;);
 }
+
+
+
+
+

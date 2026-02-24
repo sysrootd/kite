@@ -1,8 +1,8 @@
-#ifndef STM32F401_H
-#define STM32F401_H
+#ifndef STM32F4XX_H
+#define STM32F4XX_H
 /**
   ******************************************************************************
-  * @file    stm32f401.h
+  * @file    stm32f4xx.h
   * @brief   CMSIS Cortex-M4 Device Peripheral Access Layer Header File.
   *          This file contains all the peripheral register's definitions,
   *          bits definitions and memory mapping for STM32F401 devices.
@@ -341,4 +341,4 @@ typedef struct {
 #define TIM10               ((TIM_TypeDef *) TIM10_BASE)
 #define TIM11               ((TIM_TypeDef *) TIM11_BASE)
 
-#endif /* STM32F401_H */
+#endif /* STM32F4XX_H */

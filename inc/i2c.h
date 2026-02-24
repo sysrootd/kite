@@ -1,7 +1,7 @@
 #ifndef I2C_H
 #define I2C_H
 
-#include "stm32f401.h"
+#include "stm32f4xx.h"
 #include "gpio.h"
 
 typedef void (*i2c_callback_t)(void);
