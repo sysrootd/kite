@@ -9,22 +9,6 @@ A minimal real-time operating system (RTOS) for the STM32F401x microcontrollers,
 - SysTick-based timing
 - GPIO abstraction for STM32
 
-## Directory Structure
-
-kite/
-├── src/ # Source code
-├── inc/ # Header files
-├── build/ # Build output (created after compilation)
-├── system/ # CMSIS and device files
-├── tools/ # Code quality tools
-│ ├── run-clang-format.py
-│ └── run-clang-tidy.py
-├── .vscode/ # VS Code configuration
-├── Makefile # Build script
-├── CMakeLists.txt
-└── README.md
-text
-
 
 ## Requirements
 
