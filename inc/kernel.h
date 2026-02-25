@@ -3,6 +3,7 @@
 #define KERNEL_H_
 
 #include <stdint.h>
+#include "../system/cmsis/cmsis_gcc.h"
 
 #define MAX_TASKS   3
 
@@ -11,7 +12,7 @@
 #define SIZE_SCHED_STACK         1024U
 
 #define SRAM_START               0x20000000U
-#define SIZE_SRAM                ( (128) * (1024))
+#define SIZE_SRAM                ( (64) * (1024))
 #define SRAM_END                 ((SRAM_START) + (SIZE_SRAM) )
 
 #define T1_STACK_START           SRAM_END
@@ -42,7 +43,7 @@ void task2_handler(void); //this is task2
 void init_systick_timer(uint32_t tick_hz);
 __attribute__((naked)) void init_scheduler_stack(uint32_t sched_top_of_stack);
 void init_tasks_stack(void);
-void enable_processor_faults(void);
+void processor_faults_init(void);
 __attribute__((naked)) void switch_sp_to_psp(void);
 uint32_t get_psp_value(void);
 

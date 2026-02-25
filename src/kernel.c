@@ -81,7 +81,7 @@ void init_tasks_stack(void)
 
 }
 
-void enable_processor_faults(void)
+void processor_faults_init(void)
 {
 	SCB->SHCSR |= SCB_SHCSR_MEMFAULTENA_Msk;
 	SCB->SHCSR |= SCB_SHCSR_BUSFAULTENA_Msk;

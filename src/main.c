@@ -21,7 +21,7 @@ void task2_handler(void) {
 
 int main(void) {
 
-	enable_processor_faults();
+	processor_faults_init();
 
 	init_scheduler_stack(SCHED_STACK_START);
 
