@@ -3,15 +3,23 @@
 #include <stdint.h>
 #include "stm32f4xx.h"
 
+/* CMSIS clock variable (normally provided by system_*.c in HAL projects) */
+uint32_t SystemCoreClock = 16000000U; /* default reset value (HSI)
+                                       * will be updated by SystemInit() */
+
 int main(void);
 
 /* Symbols defined in linker script */
-extern uint32_t _sidata;
-extern uint32_t _sdata;
-extern uint32_t _edata;
-extern uint32_t _sbss;
-extern uint32_t _ebss;
-extern uint32_t _estack;
+extern uint32_t _sidata;      /* start of initialized data in FLASH */
+extern uint32_t _sdata;       /* start of data section in RAM */
+extern uint32_t _edata;       /* end of data section in RAM */
+extern uint32_t _sbss;        /* start of bss section in RAM */
+extern uint32_t _ebss;        /* end of bss section in RAM */
+extern uint32_t _estack;      /* top of stack (from linker script) */
+
+/* optional linker-provided heap/stack size symbols used by runtime */
+extern uint32_t _Min_Heap_Size;   /* configured minimum heap size */
+extern uint32_t _Min_Stack_Size;  /* configured minimum stack size */
 
 /* RCC_CR bits */
 #define RCC_CR_HSION    (1U << 0)
@@ -205,11 +213,15 @@ void SystemInit(void) {
     RCC->CFGR |= RCC_CFGR_SW_HSI;
     while ((RCC->CFGR & RCC_CFGR_SWS) != RCC_CFGR_SW_HSI);
 
+    /* update CMSIS variable */
+    SystemCoreClock = 16000000U;
+
 #elif SYSCLK_CONFIG == SYSCLK_PLL_84MHZ
     /* --- Configure PLL for 84 MHz --- */
     /* Disable PLL */
     RCC->CR &= ~RCC_CR_PLLON;
-    while (RCC_CR & RCC_CR_PLLRDY);
+    /* wait until PLL turned off; use register pointer not macro alone */
+    while (RCC->CR & RCC_CR_PLLRDY);
 
     /* PLLM=16, PLLN=336, PLLP=4, PLLQ=7 */
     RCC->PLLCFGR = (16U << 0)   |   /* PLLM */
@@ -228,6 +240,9 @@ void SystemInit(void) {
     RCC->CFGR &= ~0x3U;
     RCC->CFGR |= RCC_CFGR_SW_PLL;
     while ((RCC->CFGR & RCC_CFGR_SWS) != RCC_CFGR_SWS_PLL);
+
+    /* update CMSIS variable */
+    SystemCoreClock = 84000000U;
 
 #elif SYSCLK_CONFIG == SYSCLK_PLL_50MHZ
     /* --- Configure PLL for ~50 MHz --- */
@@ -252,6 +267,9 @@ void SystemInit(void) {
     RCC->CFGR &= ~0x3U;
     RCC->CFGR |= RCC_CFGR_SW_PLL;
     while ((RCC->CFGR & RCC_CFGR_SWS) != RCC_CFGR_SWS_PLL);
+
+    /* update CMSIS variable */
+    SystemCoreClock = 50000000U;
 
 #else
 # error "Invalid SYSCLK_CONFIG value!"

@@ -4,18 +4,18 @@
 void task1_handler(void) {
     while (1) {
         gpio_write(GPIOB, 14, 1);
-        task_delay(500);
+        task_delay(1000);
         gpio_write(GPIOB, 14, 0);
-        task_delay(500);
+        task_delay(1000);
     }
 }
 
 void task2_handler(void) {
     while (1) {
         gpio_write(GPIOB, 13, 1);
-        task_delay(500);
+        task_delay(200);
         gpio_write(GPIOB, 13, 0);
-        task_delay(500);
+        task_delay(200);
     }
 }
 

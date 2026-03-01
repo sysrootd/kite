@@ -2,6 +2,9 @@
 #include "kernel.h"
 
 #include "stm32f4xx.h"
+#include "gpio.h"  /* needed for debug toggle in SysTick_Handler */
+
+extern uint32_t SystemCoreClock;
 
 
 //-----------------------------------------------------------------------------------
@@ -19,10 +22,9 @@ void idle_task(void)
 void init_systick_timer(uint32_t tick_hz)
 {
 
-    uint32_t ticks = (SYSTICK_TIM_CLK/tick_hz)-1;
+    uint32_t ticks = (SystemCoreClock / tick_hz) - 1U;
 
     SysTick_Config(ticks);
-
 }
 
 
@@ -125,26 +127,36 @@ void update_next_task(void)
 
 __attribute__((naked)) void switch_sp_to_psp(void)
 {
-    //1. initialize the PSP with TASK1 stack start address
+    /* initialise PSP from the current task's saved pointer */
+    __asm volatile ("PUSH {LR}");              /* save return address */
+    __asm volatile ("BL get_psp_value");
+    __asm volatile ("MSR PSP,R0");              /* set PSP */
+    __asm volatile ("POP {LR}");               /* restore LR */
 
-	//get the value of psp of current_task
-	__asm volatile ("PUSH {LR}"); //preserve LR which connects back to main()
-	__asm volatile ("BL get_psp_value");
-	__asm volatile ("MSR PSP,R0"); //initialize psp
-	__asm volatile ("POP {LR}");  //pops back LR value
-
-	//2. change SP to PSP using CONTROL register
-	__asm volatile ("MOV R0,#0X02");
-	__asm volatile ("MSR CONTROL,R0");
-	__asm volatile ("BX LR");
+    /* switch to PSP and optionally run unprivileged (bit1 = 1).  the
+       previous version wrote 0x02 which left SPSEL=0, so MSP remained
+       active; tasks were still stacking on MSP and clobbered each other's
+       state. */
+    __asm volatile ("MOV R0,#0x03");            /* SPSEL=1, nPRIV=1 */
+    __asm volatile ("MSR CONTROL,R0");
+    __asm volatile ("ISB");                        /* ensure update takes effect */
+    __asm volatile ("BX LR");
 }
 
 
-void schedule(void)
+/* schedule a context switch from an unprivileged task.  writing to
+   SCB->ICSR is a privileged operation and will fault if executed from
+   unprivileged code, so we perform it in the SVC handler instead. */
+__attribute__((naked)) void schedule(void)
 {
-	//pend the pendsv exception
-	SCB->ICSR |= SCB_ICSR_PENDSVSET_Msk;
+    __asm volatile("svc #0\n"
+                   "bx lr\n");
+}
 
+/* SVC handler invoked when a task calls schedule().  run privileged. */
+void SVC_Handler(void)
+{
+    SCB->ICSR |= SCB_ICSR_PENDSVSET_Msk;
 }
 
 
@@ -152,18 +164,24 @@ void schedule(void)
 
 void task_delay(uint32_t tick_count)
 {
-	//disable interrupt
-	INTERRUPT_DISABLE();
+    /* do not delay idle task; it stays ready forever */
+    if (current_task == 0U || tick_count == 0U) {
+        /* zero‑delay still yields once to other tasks */
+        if (current_task != 0U) {
+            schedule();
+        }
+        return;
+    }
 
-	if(current_task)
-	{
-	   user_tasks[current_task].block_count = g_tick_count + tick_count;
-	   user_tasks[current_task].current_state = TASK_BLOCKED_STATE;
-	   schedule();
-	}
+    /* update block count atomically, but keep interrupts enabled so the
+       scheduler may preempt immediately after we mark the task blocked. */
+    INTERRUPT_DISABLE();
+    user_tasks[current_task].block_count = g_tick_count + tick_count;
+    user_tasks[current_task].current_state = TASK_BLOCKED_STATE;
+    INTERRUPT_ENABLE();
 
-	//enable interrupt
-	INTERRUPT_ENABLE();
+    /* request a context switch now that the task is blocked */
+    schedule();
 }
 
 
@@ -214,29 +232,29 @@ void update_global_tick_count(void)
 
 void unblock_tasks(void)
 {
-	for(int i = 1 ; i < MAX_TASKS ; i++)
-	{
-		if(user_tasks[i].current_state != TASK_READY_STATE)
-		{
-			if(user_tasks[i].block_count == g_tick_count)
-			{
-				user_tasks[i].current_state = TASK_READY_STATE;
-			}
-		}
-
-	}
-
+    /* wake up any blocked task whose timeout has passed.  use signed
+       comparison so that wraparound of g_tick_count is handled correctly. */
+    for (int i = 1; i < MAX_TASKS; i++) {
+        if (user_tasks[i].current_state == TASK_BLOCKED_STATE) {
+            if ((int32_t)(g_tick_count - user_tasks[i].block_count) >= 0) {
+                user_tasks[i].current_state = TASK_READY_STATE;
+            }
+        }
+    }
 }
 
 
 void  SysTick_Handler(void)
 {
+    /* debug toggle to allow measurement of tick rate (PB12 must be
+       initialised in main). */
+    gpio_toggle(GPIOB, 12);
 
     update_global_tick_count();
 
     unblock_tasks();
 
-    //pend the pendsv exception
+    /* pend the pendsv exception for context switching */
     SCB->ICSR |= SCB_ICSR_PENDSVSET_Msk;
 }
 
@@ -254,8 +272,11 @@ void MemManage_Handler(void)
 	while(1);
 }
 
+volatile uint32_t busfault_addr;
+volatile uint32_t busfault_cfsr;
+
 void BusFault_Handler(void)
 {
-	// printf("Exception : BusFault\n");
-	while(1);
+
+    while (1);
 }
