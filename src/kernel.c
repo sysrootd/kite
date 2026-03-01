@@ -2,7 +2,7 @@
 #include "kernel.h"
 
 #include "stm32f4xx.h"
-#include "gpio.h"  /* needed for debug toggle in SysTick_Handler */
+#include "gpio.h"
 
 extern uint32_t SystemCoreClock;
 
@@ -60,7 +60,7 @@ void init_tasks_stack(void)
 		pPSP = (uint32_t*) user_tasks[i].psp_value;
 
 		pPSP--;
-		*pPSP = DUMMY_XPSR;//0x01000000
+		*pPSP = XPSR;//0x01000000
 
 		pPSP--; //PC
 		*pPSP = (uint32_t) user_tasks[i].task_handler;
@@ -153,7 +153,7 @@ __attribute__((naked)) void schedule(void)
                    "bx lr\n");
 }
 
-/* SVC handler invoked when a task calls schedule().  run privileged. */
+/* SVC handler invoked when a task calls schedule()*/
 void SVC_Handler(void)
 {
     SCB->ICSR |= SCB_ICSR_PENDSVSET_Msk;
@@ -164,17 +164,7 @@ void SVC_Handler(void)
 
 void task_delay(uint32_t tick_count)
 {
-    /* do not delay idle task; it stays ready forever */
-    if (current_task == 0U || tick_count == 0U) {
-        /* zero‑delay still yields once to other tasks */
-        if (current_task != 0U) {
-            schedule();
-        }
-        return;
-    }
-
-    /* update block count atomically, but keep interrupts enabled so the
-       scheduler may preempt immediately after we mark the task blocked. */
+	
     INTERRUPT_DISABLE();
     user_tasks[current_task].block_count = g_tick_count + tick_count;
     user_tasks[current_task].current_state = TASK_BLOCKED_STATE;
@@ -271,9 +261,6 @@ void MemManage_Handler(void)
 	// printf("Exception : MemManage\n");
 	while(1);
 }
-
-volatile uint32_t busfault_addr;
-volatile uint32_t busfault_cfsr;
 
 void BusFault_Handler(void)
 {

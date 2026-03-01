@@ -4,9 +4,9 @@
 void task1_handler(void) {
     while (1) {
         gpio_write(GPIOB, 14, 1);
-        task_delay(1000);
+        task_delay(1000000);
         gpio_write(GPIOB, 14, 0);
-        task_delay(1000);
+        task_delay(1000000);
     }
 }
 
