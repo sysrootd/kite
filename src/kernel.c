@@ -1,6 +1,8 @@
-#include <sched.h>
 #include <stdlib.h>
-#include <stm32f4xx.h>
+
+#include "kernel.h"
+#include "stm32f4xx.h"
+
 
 /*----------------------------global section------------------------------*/
 uint32_t global_tick;
@@ -106,7 +108,7 @@ __attribute__((naked)) void PendSV_Handler(void)
 
         // Retrieve the context of next task
 
-        "BL Round_Robin        \n" // 1. Decide next task to run
+        "BL cooperative_sched  \n" // 1. Decide next task to run
 
         "BL __get_psp          \n" // 2. Get next task's PSP value
 
@@ -261,9 +263,9 @@ void __set_psp(uint32_t current_psp_value)
 }
 
 /*--------------------------------Scheduler Algorithm---------------------------*/
-/*------------------------------------Round Robin-----------------------------------*/
+/*------------------------------Cooperative Non Prempt-----------------------------------*/
 
-void Round_Robin(void)
+void cooperative_sched(void)
 {
 
     TCB_t *candidate = current_running_node->next_tcb_node;

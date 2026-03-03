@@ -21,22 +21,18 @@ void task2_handler(void) {
 
 int main(void) {
 
-	processor_faults_init();
-
-	init_scheduler_stack(SCHED_STACK_START);
-
     gpio_init(GPIOB, 14, OUTPUT, PP, FAST, PU, 0);
     gpio_init(GPIOB, 13, OUTPUT, PP, FAST, PU, 0);
 
-	init_tasks_stack();
+	create_task(0, task1_handler, 256U);
+	create_task(0, task2_handler, 256U);
 
-	init_systick_timer(TICK_HZ);
+	scheduler_init();
+	scheduler_start();
 
-	switch_sp_to_psp();
 
-	task1_handler();
-
-	for(;;);
+    for (;;);
+    
 }
 
 
