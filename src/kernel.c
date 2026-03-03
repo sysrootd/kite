@@ -1,69 +1,159 @@
-#include <stdio.h>
-#include "kernel.h"
+#include <sched.h>
+#include <stdlib.h>
+#include <stm32f4xx.h>
 
-#include "stm32f4xx.h"
-#include "gpio.h"
+/*----------------------------global section------------------------------*/
+uint32_t global_tick;
 
-extern uint32_t SystemCoreClock;
+TCB_t *current_running_node;
+TCB_t *head_node;
+TCB_t *link_node;
+
+uint32_t *new_task_psp = STACK_START;
+uint32_t *next_task_psp = STACK_START;
+uint32_t msp_start;
 
 
-//-----------------------------------------------------------------------------------
-uint8_t current_task = 1;
-uint32_t g_tick_count = 0;
-TCB_t user_tasks[MAX_TASKS];
-//-----------------------------------------------------------------------------------
-
+/*-----------------------idle_task----------------------------------------*/
 void idle_task(void)
 {
-	while(1);
+    while(1)
+    {
+        __asm volatile ("WFI");
+    }
+}
+/*------------------------------------------------------------------------*/
+
+void core_faults_init(void)
+{
+    SCB->SHCSR |= (1U << 16);  // Enable MemManage fault
+    SCB->SHCSR |= (1U << 17);  // Enable BusFault
+    SCB->SHCSR |= (1U << 18);  // Enable UsageFault
 }
 
 
-void init_systick_timer(uint32_t tick_hz)
+__attribute__((naked)) void scheduler_init(void)
 {
+	msp_start = (uint32_t)next_task_psp;
+	link_node->next_tcb_node = head_node;
 
-    uint32_t ticks = (SystemCoreClock / tick_hz) - 1U;
+    __asm volatile(
+        "PUSH {LR}                    \n" // Save LR
 
-    SysTick_Config(ticks);
+        "BL   core_faults_init        \n" // Enable faults
+
+        "POP  {LR}                    \n" // Restore LR
+
+        "LDR  R0, =msp_start          \n" // Load address of msp_start
+        "LDR  R0, [R0]                \n" // R0 = next_task_psp value
+
+        "MSR  MSP, R0                 \n" // Set MSP = next_task_psp
+    	"ISB                          \n" // Instruction sync barrier
+
+        "PUSH {LR}                    \n" // Save LR
+        "BL   tasks_stack_init        \n" // Initialize task stacks
+        "POP  {LR}                    \n" // Restore LR
+
+        "BX   LR                      \n" // Return
+    );
+}
+
+void scheduler_start(void)
+{
+    systick_init();
+    __asm volatile ("svc 0");
 }
 
 
-__attribute__((naked)) void init_scheduler_stack(uint32_t sched_top_of_stack)
+void systick_init(void)
 {
-     __set_MSP(sched_top_of_stack);
-     __asm volatile("BX LR");
+    uint32_t count_value = (HSI_CLOCK / TICK_HZ) - 1;
 
+    SYSTICK->LOAD = count_value;      // Load reload value
+
+    SCB->SHP[10] = 0xFF;              // PendSV (exception 14) lowest priority
+    SCB->SHP[11] = 0x00;              // SysTick (exception 15) higher priority
+
+    SYSTICK->CTRL = (1 << 2) | (1 << 1) | (1 << 0);  // Enable SysTick
+}
+
+__attribute__((naked)) void SVC_Handler(void)
+{
+    __asm volatile(
+        "BL __get_psp        \n"  // R0 = current task PSP
+        "MSR PSP, R0         \n"
+
+        "LDMIA R0!, {R4-R11} \n"  // Restore R4-R11 (same as PendSV restore path)
+        "MSR PSP, R0         \n"
+
+        "LDR LR, =0xFFFFFFFD \n"  // Set EXC_RETURN value
+
+        "BX LR               \n"  // Exception return
+    );
+}
+
+__attribute__((naked)) void PendSV_Handler(void)
+{
+    __asm volatile (
+        // Save the context of current task
+
+        "MRS R0, PSP           \n" // 1. Get current running task's PSP value
+        "STMDB R0!, {R4-R11}   \n" // 2. Store R4-R11 on current task stack
+
+        "PUSH {LR}             \n" // Preserve LR
+
+        "BL __set_psp          \n" // 3. Save updated PSP value
+
+        // Retrieve the context of next task
+
+        "BL Round_Robin        \n" // 1. Decide next task to run
+
+        "BL __get_psp          \n" // 2. Get next task's PSP value
+
+        "LDMIA R0!, {R4-R11}   \n" // 3. Restore R4-R11 of next task
+
+        "MSR PSP, R0           \n" // 4. Update PSP
+
+        "POP {LR}              \n" // Restore LR
+
+        "BX LR                 \n" // Return from exception
+    );
+}
+
+void SysTick_Handler(void)
+{
+	global_tick++;
+	task_wake();
+    SCB->ICSR |= (1UL << 28);
 }
 
 
 
-void init_tasks_stack(void)
+void schedule(void)
 {
+    SCB->ICSR |= (1UL << 28);
+}
 
-	user_tasks[0].current_state = TASK_READY_STATE;
-	user_tasks[1].current_state = TASK_READY_STATE;
-	user_tasks[2].current_state = TASK_READY_STATE;
+void tasks_stack_init(void)
+{
+    TCB_t *iter = head_node;
+    uint32_t *pPSP;
 
-	user_tasks[0].psp_value = IDLE_STACK_START;
-	user_tasks[1].psp_value = T1_STACK_START;
-	user_tasks[2].psp_value = T2_STACK_START;
+    if (head_node == NULL) return;
 
-	user_tasks[0].task_handler = idle_task;
-	user_tasks[1].task_handler = task1_handler;
-	user_tasks[2].task_handler = task2_handler;
+    do {
+        // Ensure 8-byte stack alignment
+        if (((uint32_t)iter->psp_value & 0x7) != 0) {
+            iter->psp_value = (uint32_t*)((uint32_t)iter->psp_value & ~0x7);
+        }
 
-
-	uint32_t *pPSP;
-
-	for(int i = 0 ; i < MAX_TASKS ;i++)
-	{
-		pPSP = (uint32_t*) user_tasks[i].psp_value;
+        pPSP = iter->psp_value;
 
 		pPSP--;
-		*pPSP = XPSR;//0x01000000
+		*pPSP = 0x01000000;
 
 		pPSP--; //PC
-		*pPSP = (uint32_t) user_tasks[i].task_handler;
+		*pPSP = (uint32_t)iter->task_handler;
 
 
 		pPSP--; //LR
@@ -76,194 +166,153 @@ void init_tasks_stack(void)
 
 		}
 
-		user_tasks[i].psp_value = (uint32_t)pPSP;
+        iter->psp_value = pPSP;
+        iter = iter->next_tcb_node;
+
+    } while (iter != head_node);
+}
 
 
+uint32_t *find_stack_area(uint32_t stack_size_in_words)
+{
+    //8-byte alignment
+    if (stack_size_in_words & 0x1u) {
+    	stack_size_in_words++;
+    }
+
+    new_task_psp = next_task_psp;
+    next_task_psp -= stack_size_in_words;
+
+    return new_task_psp;
+}
+
+
+TCB_t *alloc_new_tcb_node(void)
+{
+    TCB_t *new_tcb_node = (TCB_t *)malloc(sizeof(TCB_t));
+
+    if (new_tcb_node == NULL) {
+        return NULL;
+    }
+
+    new_tcb_node->next_tcb_node = NULL;
+    return new_tcb_node;
+}
+
+void create_idle_task(void)
+{
+	TCB_t *idle_tcb_node = alloc_new_tcb_node();
+
+    if (idle_tcb_node == NULL) {
+        return;
+    }
+
+    uint32_t *task_stack_start = find_stack_area(IDLE_TASK_STACK_WORDS);
+
+    idle_tcb_node->block_count = 0;
+    idle_tcb_node->current_state = TASK_WAKE;
+    idle_tcb_node->psp_value = task_stack_start;
+    idle_tcb_node->task_handler = idle_task;
+
+    current_running_node = idle_tcb_node;
+    link_node = idle_tcb_node;
+    head_node = idle_tcb_node;
+
+
+}
+
+void create_task(uint8_t task_priority, void (*task_handle)(void), uint32_t stack_size)
+{
+	if(new_task_psp == next_task_psp) {
+		create_idle_task();
 	}
 
+	TCB_t *tcb_node = alloc_new_tcb_node();
+
+    if (tcb_node == NULL) {
+        return;
+    }
+
+    uint32_t *task_stack_start = find_stack_area(stack_size);
+
+    tcb_node->block_count = 0;
+    tcb_node->current_state = TASK_WAKE;
+    tcb_node->psp_value = task_stack_start;
+    tcb_node->task_handler = task_handle;
+
+    link_node->next_tcb_node = tcb_node;
+    link_node = tcb_node;
+
+
 }
 
-void processor_faults_init(void)
+uint32_t __get_psp(void)
 {
-	SCB->SHCSR |= SCB_SHCSR_MEMFAULTENA_Msk;
-	SCB->SHCSR |= SCB_SHCSR_BUSFAULTENA_Msk;
-	SCB->SHCSR |= SCB_SHCSR_USGFAULTENA_Msk;
+
+	return (uint32_t)current_running_node->psp_value;
 
 }
 
-
-uint32_t get_psp_value(void)
+void __set_psp(uint32_t current_psp_value)
 {
 
-	return user_tasks[current_task].psp_value;
+	current_running_node->psp_value = (uint32_t *)current_psp_value;
+
 }
 
+/*--------------------------------Scheduler Algorithm---------------------------*/
+/*------------------------------------Round Robin-----------------------------------*/
 
-void save_psp_value(uint32_t current_psp_value)
+void Round_Robin(void)
 {
-	user_tasks[current_task].psp_value = current_psp_value;
+
+    TCB_t *candidate = current_running_node->next_tcb_node;
+    uint32_t loop_counter = 0;
+    const uint32_t MAX_LOOPS = 100;  // Prevent infinite loop
+
+    // Find next ready task
+    while (candidate->current_state != TASK_WAKE) {
+        candidate = candidate->next_tcb_node;
+        loop_counter++;
+
+        if (candidate == current_running_node ||
+            loop_counter >= MAX_LOOPS) {
+            // No ready task found, return to idle task
+            candidate = head_node;  // Point to idle task
+            break;
+        }
+    }
+
+    current_running_node = candidate;
 }
 
-
-void update_next_task(void)
-{
-	int state = TASK_BLOCKED_STATE;
-
-	for(int i= 0 ; i < (MAX_TASKS) ; i++)
-	{
-		current_task++;
-	    current_task %= MAX_TASKS;
-		state = user_tasks[current_task].current_state;
-		if( (state == TASK_READY_STATE) && (current_task != 0) )
-			break;
-	}
-
-	if(state != TASK_READY_STATE)
-		current_task = 0;
-}
-
-
-
-
-__attribute__((naked)) void switch_sp_to_psp(void)
-{
-    /* initialise PSP from the current task's saved pointer */
-    __asm volatile ("PUSH {LR}");              /* save return address */
-    __asm volatile ("BL get_psp_value");
-    __asm volatile ("MSR PSP,R0");              /* set PSP */
-    __asm volatile ("POP {LR}");               /* restore LR */
-
-    /* switch to PSP and optionally run unprivileged (bit1 = 1).  the
-       previous version wrote 0x02 which left SPSEL=0, so MSP remained
-       active; tasks were still stacking on MSP and clobbered each other's
-       state. */
-    __asm volatile ("MOV R0,#0x03");            /* SPSEL=1, nPRIV=1 */
-    __asm volatile ("MSR CONTROL,R0");
-    __asm volatile ("ISB");                        /* ensure update takes effect */
-    __asm volatile ("BX LR");
-}
-
-
-/* schedule a context switch from an unprivileged task.  writing to
-   SCB->ICSR is a privileged operation and will fault if executed from
-   unprivileged code, so we perform it in the SVC handler instead. */
-__attribute__((naked)) void schedule(void)
-{
-    __asm volatile("svc #0\n"
-                   "bx lr\n");
-}
-
-/* SVC handler invoked when a task calls schedule()*/
-void SVC_Handler(void)
-{
-    SCB->ICSR |= SCB_ICSR_PENDSVSET_Msk;
-}
-
-
-
+/*------------------------------------------------------------------------------------*/
 
 void task_delay(uint32_t tick_count)
 {
-	
-    INTERRUPT_DISABLE();
-    user_tasks[current_task].block_count = g_tick_count + tick_count;
-    user_tasks[current_task].current_state = TASK_BLOCKED_STATE;
-    INTERRUPT_ENABLE();
+	ENTER_CRITICAL();
 
-    /* request a context switch now that the task is blocked */
-    schedule();
+    if (current_running_node != NULL) {
+        current_running_node->block_count = global_tick + tick_count;
+        current_running_node->current_state = TASK_SLEEP;
+        schedule();
+    }
+
+    EXIT_CRITICAL();
 }
 
-
-__attribute__((naked)) void PendSV_Handler(void)
+void task_wake(void)
 {
+    TCB_t *iter = head_node;
 
-	/*Save the context of current task */
-
-	//1. Get current running task's PSP value
-	__asm volatile("MRS R0,PSP");
-	//2. Using that PSP value store SF2( R4 to R11)
-	__asm volatile("STMDB R0!,{R4-R11}");
-
-	__asm volatile("PUSH {LR}");
-
-	//3. Save the current value of PSP
-    __asm volatile("BL save_psp_value");
-
-
-
-	/*Retrieve the context of next task */
-
-	//1. Decide next task to run
-    __asm volatile("BL update_next_task");
-
-	//2. get its past PSP value
-	__asm volatile ("BL get_psp_value");
-
-	//3. Using that PSP value retrieve SF2(R4 to R11)
-	__asm volatile ("LDMIA R0!,{R4-R11}");
-
-	//4. update PSP and exit
-	__asm volatile("MSR PSP,R0");
-
-	__asm volatile("POP {LR}");
-
-	__asm volatile("BX LR");
-
-
-
-}
-
-
-void update_global_tick_count(void)
-{
-	g_tick_count++;
-}
-
-void unblock_tasks(void)
-{
-    /* wake up any blocked task whose timeout has passed.  use signed
-       comparison so that wraparound of g_tick_count is handled correctly. */
-    for (int i = 1; i < MAX_TASKS; i++) {
-        if (user_tasks[i].current_state == TASK_BLOCKED_STATE) {
-            if ((int32_t)(g_tick_count - user_tasks[i].block_count) >= 0) {
-                user_tasks[i].current_state = TASK_READY_STATE;
+    do {
+        if (iter->current_state == TASK_SLEEP) {
+            if (iter->block_count <= global_tick) {
+                iter->current_state = TASK_WAKE;
             }
         }
-    }
+        iter = iter->next_tcb_node;
+    } while (iter != head_node && iter != NULL);
 }
 
 
-void  SysTick_Handler(void)
-{
-    /* debug toggle to allow measurement of tick rate (PB12 must be
-       initialised in main). */
-    gpio_toggle(GPIOB, 12);
-
-    update_global_tick_count();
-
-    unblock_tasks();
-
-    /* pend the pendsv exception for context switching */
-    SCB->ICSR |= SCB_ICSR_PENDSVSET_Msk;
-}
-
-//2. implement the fault handlers
-void HardFault_Handler(void)
-{
-	// printf("Exception : Hardfault\n");
-	while(1);
-}
-
-
-void MemManage_Handler(void)
-{
-	// printf("Exception : MemManage\n");
-	while(1);
-}
-
-void BusFault_Handler(void)
-{
-
-    while (1);
-}

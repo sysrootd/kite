@@ -1,55 +1,80 @@
-#ifndef KERNEL_H_
-#define KERNEL_H_
-
 #include <stdint.h>
-#include "../system/cmsis/cmsis_gcc.h"
-
-#define MAX_TASKS   3
-
-/* some stack memory calculations */
-#define SIZE_TASK_STACK          1024U
-#define SIZE_SCHED_STACK         1024U
-
-/*--- memory layout provided by linker ---*/
-extern uint32_t _estack;           /* top of RAM (initial MSP) */
-
-#define RAM_END   			((uint32_t)(&_estack))
-#define T1_STACK_START   	RAM_END
-#define T2_STACK_START   	(RAM_END - SIZE_TASK_STACK)
-#define IDLE_STACK_START 	(RAM_END - 2 * SIZE_TASK_STACK)
-#define SCHED_STACK_START 	(RAM_END - 3 * SIZE_TASK_STACK)
-
-#define TICK_HZ 1000U
-
-#define XPSR  	0x01000000U
-
-#define TASK_READY_STATE  0x00
-#define TASK_BLOCKED_STATE  0XFF
-
-#define INTERRUPT_DISABLE()  do{__asm volatile ("MOV R0,#0x1"); asm volatile("MSR PRIMASK,R0"); } while(0)
-
-#define INTERRUPT_ENABLE()  do{__asm volatile ("MOV R0,#0x0"); asm volatile("MSR PRIMASK,R0"); } while(0)
 
 
-void task1_handler(void); //This is task1
-void task2_handler(void); //this is task2
+#define SRAM_START_ADDR   0x20000000UL
+#define SRAM_SIZE_BYTES   (64UL * 1024UL)
+#define SRAM_END_ADDR     (SRAM_START_ADDR + SRAM_SIZE_BYTES)
+
+#define STACK_START       ((uint32_t *)SRAM_END_ADDR)
+#define IDLE_TASK_STACK_WORDS  	256
+
+#define TICK_HZ					1000U
+#define HSI_CLOCK             	16000000U
+#define SYSTICK_TIM_CLK       	HSI_CLOCK
+
+#define TASK_SLEEP     	0x00
+#define TASK_WAKE    	0xFF
+
+/* PRIMASK manipulation */
+#define ENTER_CRITICAL()  __asm volatile("CPSID i" ::: "memory")
+#define EXIT_CRITICAL()   __asm volatile("CPSIE i" ::: "memory")
+
+/* ------------------ Forward Declaration ------------------ */
+
+struct TCB;
+typedef struct TCB TCB_t;
+
+struct semaphore;
+typedef struct semaphore semaphore_t;
 
 
-void init_systick_timer(uint32_t tick_hz);
-__attribute__((naked)) void init_scheduler_stack(uint32_t sched_top_of_stack);
-void init_tasks_stack(void);
-void processor_faults_init(void);
-__attribute__((naked)) void switch_sp_to_psp(void);
-uint32_t get_psp_value(void);
+/* ---------------------- Structures ------------------------ */
 
+struct semaphore
+{
+    int32_t count;
+    struct TCB_t *wait_list;   //linked list of blocked tasks
+};
+
+struct TCB
+{
+    uint32_t *psp_value;
+    uint32_t block_count;
+    uint8_t  current_state;
+    void (*task_handler)(void);
+    uint8_t state;
+    TCB_t *next_tcb_node;
+};
+
+/* ------------------- System / Scheduler APIs ------------------ */
+
+void systick_init();
+
+__attribute__((naked)) void scheduler_init(void);
+
+__attribute__((naked)) void scheduler_start(void);
+
+/* scheduler API */
 void task_delay(uint32_t tick_count);
 
-typedef struct
-{
-	uint32_t psp_value;
-	uint32_t block_count;
-	uint8_t  current_state;
-	void (*task_handler)(void);
-}TCB_t;
+/* stack allocator*/
+uint32_t *find_stack_area(uint32_t stack_size_in_words);
 
-#endif
+/* tcb allocator */
+TCB_t *alloc_new_tcb_node(void);
+
+/* task creation routines */
+void create_idle_task(void);
+
+void create_task(uint8_t task_priority, void (*task_handler)(void), uint32_t stack_size);
+
+/* trigger PendSV */
+void schedule(void);
+
+/* tick-unblocking */
+void task_wake(void);
+
+void idle_task();
+
+
+
