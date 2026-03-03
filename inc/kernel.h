@@ -4,9 +4,9 @@
 #include <stdint.h>
 
 // Symbols from linker script - SRAM configuration
-extern uint32_t _sram_start;   // SRAM start address (0x20000000)
-extern uint32_t _sram_size;    // Total SRAM size (64KB)
-extern uint32_t _estack;       // End of SRAM (top of stack)
+extern uint32_t _sram_start;
+extern uint32_t _sram_size;
+extern uint32_t _estack;
 
 // Derive SRAM addresses from linker symbols
 #define SRAM_START_ADDR   ((uint32_t)&_sram_start)
@@ -15,7 +15,7 @@ extern uint32_t _estack;       // End of SRAM (top of stack)
 
 // Stack and task configuration
 #define STACK_START       ((uint32_t *)SRAM_END_ADDR)
-#define IDLE_TASK_STACK_WORDS  256
+#define IDLE_TASK_STACK_WORDS  256U
 
 // Timing and clock configuration
 #define TICK_HZ           1000U

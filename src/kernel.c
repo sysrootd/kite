@@ -94,14 +94,14 @@ void SysTick_Handler(void)
 {
 	global_tick++;
 	task_wake();
-    SCB->ICSR |= (1UL << 28);
+    SCB->ICSR |= SCB_ICSR_PENDSVSET_Msk;
 }
 
 
 
 void schedule(void)
 {
-    SCB->ICSR |= (1UL << 28);
+    SCB->ICSR |= SCB_ICSR_PENDSVSET_Msk;
 }
 
 void tasks_stack_init(void)
