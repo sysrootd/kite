@@ -1,77 +1,93 @@
 # kite RTOS (STM32F401x)
 
-A minimal real-time operating system (RTOS) for the STM32F401x microcontrollers, written in C. This project demonstrates basic multitasking, GPIO control, and cooperative scheduling on ARM Cortex-M4 MCUs.
+A small cooperative RTOS written in C for the STM32F401x family. It provides a simple
+scheduler, task APIs, and peripheral support, making it ideal for learning bare‑metal
+programming on Cortex‑M4 devices.
+
+---
 
 ## Features
 
-- Cooperative thread scheduler
-- Thread stack management
-- SysTick-based timing
-- GPIO abstraction for STM32
+- Cooperative thread scheduler (PendSV‑based)
+- Task creation, delay and wake APIs
+- Automatic stack allocation from RAM (linker‑script defined)
+- SysTick timer for tick interrupts
+- GPIO helper functions for STM32
+- CMSIS‑compatible register access
 
+---
 
 ## Requirements
 
-- STM32F401x board (or compatible STM32F4)
+- STM32F401x (or other STM32F4) development board
 - ARM GCC toolchain (`arm-none-eabi-gcc`)
-- Make
-- OpenOCD
-- ST-Link programmer/debugger
-- [Cortex-Debug VS Code extension](https://marketplace.visualstudio.com/items?itemName=marus25.cortex-debug)
+- `make` utility
+- OpenOCD and ST‑Link hardware
+- Cortex‑Debug extension for VS Code (optional, for debugging)
+
+---
 
 ## Building
 
-From the project root, run:  make
+```sh
+# compile everything
+make
 
-This will generate build/kernal.elf and build/kernal.bin.
+# clean build products
+make clean
+```
 
-To clean: make clean
+Generated artifacts appear in `build/`:
+- `kernel.elf` – ELF executable
+- `kernel.bin` – flashable binary
 
-Flashing
+### Flashing
 
-Use OpenOCD and ST-Link to flash the binary: openocd -f interface/stlink.cfg -f target/stm32f4x.cfg -c "program build/kernal.elf verify reset exit"
+```sh
+openocd -f interface/stlink.cfg \
+        -f target/stm32f4x.cfg \
+        -c "program build/kernel.elf verify reset exit"
+```
 
-Debugging
+### Debugging
 
-    Install the Cortex-Debug extension in VS Code
+1. Launch VS Code (with Cortex‑Debug installed)
+2. Connect the ST‑Link to your board
+3. Press **F5** or choose **Run › Start Debugging**
 
-    Connect your ST-Link to the board
+Pre‑configured `.vscode/launch.json` and `tasks.json` are included.
 
-    Press F5 or select Run > Start Debugging in VS Code
+---
 
+## Formatting & Analysis
 
-## Formatting
+Install on Ubuntu/Debian:
 
-# Ubuntu/Debian
+```sh
 sudo apt-get install clang-format clang-tidy
+```
 
-Formatting Commands
+Format sources:
 
-Format all source files (run from project root):
+```sh
+python3 tools/run-clang-format.py -i -r --style=LLVM ./src ./inc
+```
 
-python3 tools/run-clang-format.py -i -r --style=LLVM ./src ./include
+Generate compile database then run clang‑tidy:
 
-Static Analysis
-
-First generate compilation database:
-
+```sh
 cd build && cmake -DCMAKE_EXPORT_COMPILE_COMMANDS=ON .. && cd ..
+python3 tools/run-clang-tidy.py -p ./build ./src ./inc
+```
 
-Then run clang-tidy:
-
-python3 tools/run-clang-tidy.py -p ./build ./src ./include
-
-Recommended Checks
-
-For embedded development, consider these checks:
-
+Suggested checks:
+```
 -checks='-*,modernize-*,bugprone-*,readability-*,misc-*,-modernize-use-trailing-return-type'
+```
 
-VS Code Integration
+VS Code settings snippet:
 
-Add to .vscode/settings.json:
-json
-
+```json
 {
   "editor.formatOnSave": true,
   "C_Cpp.clang_format_path": "clang-format",
@@ -79,17 +95,23 @@ json
   "C_Cpp.codeAnalysis.clangTidy.enabled": true,
   "C_Cpp.codeAnalysis.clangTidy.path": "clang-tidy"
 }
+```
 
-VS Code Configuration
+---
 
-    .vscode/tasks.json: Build and clean tasks
+## VS Code Configuration Files
 
-    .vscode/launch.json: Debug configuration for STM32F401RBT6 with OpenOCD
+- `.vscode/tasks.json` – build/clean tasks
+- `.vscode/launch.json` – debug configuration for STM32F401RBT6
+- `.vscode/settings.json` – toolchain and file association settings
 
-    .vscode/settings.json: Toolchain and file association settings
-MIT License
+---
 
-Copyright (c) 2025
+## License
+
+This project is licensed under the **MIT License**.
+
+Copyright © 2025
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the “Software”), to deal
@@ -98,8 +120,8 @@ to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 copies of the Software, and to permit persons to whom the Software is
 furnished to do so, subject to the following conditions:
 
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
+> The above copyright notice and this permission notice shall be included in
+> all copies or substantial portions of the Software.
 
 THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
