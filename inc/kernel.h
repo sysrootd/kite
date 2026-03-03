@@ -89,5 +89,5 @@ void task_wake(void);
 // Idle task handler
 void idle_task(void);
 
-#endif  // KERNEL_H
+#endif
 

@@ -3,8 +3,8 @@
 #include <stdint.h>
 #include "stm32f4xx.h"
 
-// CMSIS clock variable (normally provided by system_*.c in HAL projects)
-uint32_t SystemCoreClock = 16000000U;  // Default reset value (HSI), updated by SystemInit()
+// CMSIS clock 
+uint32_t SystemCoreClock = 16000000U;  // Default reset value (HSI)
 
 // Main function
 int main(void);

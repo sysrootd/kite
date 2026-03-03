@@ -227,6 +227,7 @@ void __set_psp(uint32_t current_psp_value)
 
 }
 
+//Cooperative scheduler algorithm
 void cooperative_sched(void)
 {
     TCB_t *candidate = current_running_node->next_tcb_node;
