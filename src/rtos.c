@@ -1,6 +1,6 @@
 #include <stdlib.h>
 
-#include "kernel.h"
+#include "rtos.h"
 #include "stm32f4xx.h"
 
 uint32_t global_tick;
