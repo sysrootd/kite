@@ -1,46 +1,47 @@
-/* startup.c - STM32F401x bare-metal startup code with configurable SystemInit */
+// Startup code for STM32F401x bare-metal with configurable clock
 
 #include <stdint.h>
 #include "stm32f4xx.h"
 
-/* CMSIS clock variable (normally provided by system_*.c in HAL projects) */
-uint32_t SystemCoreClock = 16000000U; /* default reset value (HSI)
-                                       * will be updated by SystemInit() */
+// CMSIS clock variable (normally provided by system_*.c in HAL projects)
+uint32_t SystemCoreClock = 16000000U;  // Default reset value (HSI), updated by SystemInit()
 
+// Main function
 int main(void);
 
-/* Symbols defined in linker script */
-extern uint32_t _sidata;      /* start of initialized data in FLASH */
-extern uint32_t _sdata;       /* start of data section in RAM */
-extern uint32_t _edata;       /* end of data section in RAM */
-extern uint32_t _sbss;        /* start of bss section in RAM */
-extern uint32_t _ebss;        /* end of bss section in RAM */
-extern uint32_t _estack;      /* top of stack (from linker script) */
+// Symbols defined in linker script
+extern uint32_t _sidata;      // Start of initialized data in FLASH
+extern uint32_t _sdata;       // Start of data section in RAM
+extern uint32_t _edata;       // End of data section in RAM
+extern uint32_t _sbss;        // Start of BSS section in RAM
+extern uint32_t _ebss;        // End of BSS section in RAM
+extern uint32_t _estack;      // Top of stack (from linker script)
+extern uint32_t _sram_start;  // Start of SRAM (from linker script)
+extern uint32_t _sram_size;   // Total SRAM size (from linker script)
 
-/* optional linker-provided heap/stack size symbols used by runtime */
-extern uint32_t _Min_Heap_Size;   /* configured minimum heap size */
-extern uint32_t _Min_Stack_Size;  /* configured minimum stack size */
+// Linker-provided heap/stack size symbols used by runtime
+extern uint32_t _Min_Heap_Size;   // Configured minimum heap size
+extern uint32_t _Min_Stack_Size;  // Configured minimum stack size
 
-/* RCC_CR bits */
+// RCC_CR bits for clock configuration
 #define RCC_CR_HSION    (1U << 0)
 #define RCC_CR_HSIRDY   (1U << 1)
 #define RCC_CR_PLLON    (1U << 24)
 #define RCC_CR_PLLRDY   (1U << 25)
 
-/* RCC_CFGR bits */
+// RCC_CFGR bits for clock source selection
 #define RCC_CFGR_SW_HSI 0x0U
 #define RCC_CFGR_SW_PLL 0x2U
 #define RCC_CFGR_SWS    (3U << 2)
 #define RCC_CFGR_SWS_PLL (0x8U)
 
-/* FLASH bits */
+// FLASH access control register bits
 #define FLASH_ACR_LATENCY_Pos 0
 #define FLASH_ACR_ICEN  (1U << 9)
 #define FLASH_ACR_DCEN  (1U << 10)
 #define FLASH_ACR_PRFTEN (1U << 8)
 
-/* ===================== CLOCK CONFIG MACROS ===================== */
-
+// Clock configuration options
 #define SYSCLK_HSI_16MHZ   0
 #define SYSCLK_PLL_84MHZ   1
 #define SYSCLK_PLL_50MHZ   2
@@ -49,26 +50,24 @@ extern uint32_t _Min_Stack_Size;  /* configured minimum stack size */
 #define SYSCLK_CONFIG SYSCLK_HSI_16MHZ
 #endif
 
-/* =============================================================== */
-
-/* Default handler */
-void Default_Handler(void) { 
-    while (1) {} 
+// Default handler for unimplemented exceptions
+void Default_Handler(void) {
+    while (1) {}
 }
 
-/* Core handlers */
+// Cortex-M4 core handlers
 void Reset_Handler(void);
-void NMI_Handler(void)                  __attribute__((weak, alias("Default_Handler")));
-void HardFault_Handler(void)            __attribute__((weak, alias("Default_Handler")));
-void MemManage_Handler(void)            __attribute__((weak, alias("Default_Handler")));
-void BusFault_Handler(void)             __attribute__((weak, alias("Default_Handler")));
-void UsageFault_Handler(void)           __attribute__((weak, alias("Default_Handler")));
-void SVC_Handler(void)                  __attribute__((weak, alias("Default_Handler")));
-void DebugMon_Handler(void)             __attribute__((weak, alias("Default_Handler")));
-void PendSV_Handler(void)               __attribute__((weak, alias("Default_Handler")));
-void SysTick_Handler(void)              __attribute__((weak, alias("Default_Handler")));
+void NMI_Handler(void)                   __attribute__((weak, alias("Default_Handler")));
+void HardFault_Handler(void)             __attribute__((weak, alias("Default_Handler")));
+void MemManage_Handler(void)             __attribute__((weak, alias("Default_Handler")));
+void BusFault_Handler(void)              __attribute__((weak, alias("Default_Handler")));
+void UsageFault_Handler(void)            __attribute__((weak, alias("Default_Handler")));
+void SVC_Handler(void)                   __attribute__((weak, alias("Default_Handler")));
+void DebugMon_Handler(void)              __attribute__((weak, alias("Default_Handler")));
+void PendSV_Handler(void)                __attribute__((weak, alias("Default_Handler")));
+void SysTick_Handler(void)               __attribute__((weak, alias("Default_Handler")));
 
-/* External interrupt handlers */
+// External interrupt handlers
 void WWDG_IRQHandler(void)              __attribute__((weak, alias("Default_Handler")));
 void PVD_IRQHandler(void)               __attribute__((weak, alias("Default_Handler")));
 void TAMP_STAMP_IRQHandler(void)        __attribute__((weak, alias("Default_Handler")));
@@ -127,7 +126,7 @@ void FPU_IRQHandler(void)               __attribute__((weak, alias("Default_Hand
 void SPI4_IRQHandler(void)              __attribute__((weak, alias("Default_Handler")));
 
 
-/* Vector table */
+// Vector table
 __attribute__((section(".isr_vector")))
 void (* const g_pfnVectors[])(void) = {
     (void (*)(void))(&_estack),
@@ -143,7 +142,7 @@ void (* const g_pfnVectors[])(void) = {
     0,
     PendSV_Handler,
     SysTick_Handler,
-    /* External interrupts */
+    // External interrupts
     WWDG_IRQHandler,
     PVD_IRQHandler,
     TAMP_STAMP_IRQHandler,
@@ -205,7 +204,7 @@ void (* const g_pfnVectors[])(void) = {
 void SystemInit(void) {
 
 #if SYSCLK_CONFIG == SYSCLK_HSI_16MHZ
-    /* --- Run from HSI (16 MHz) --- */
+    // Run from HSI (16 MHz)
     RCC->CR |= RCC_CR_HSION;
     while (!(RCC->CR & RCC_CR_HSIRDY));
 
@@ -213,27 +212,27 @@ void SystemInit(void) {
     RCC->CFGR |= RCC_CFGR_SW_HSI;
     while ((RCC->CFGR & RCC_CFGR_SWS) != RCC_CFGR_SW_HSI);
 
-    /* update CMSIS variable */
+    // Update CMSIS variable
     SystemCoreClock = 16000000U;
 
 #elif SYSCLK_CONFIG == SYSCLK_PLL_84MHZ
-    /* --- Configure PLL for 84 MHz --- */
-    /* Disable PLL */
+    // Configure PLL for 84 MHz
+    // Disable PLL
     RCC->CR &= ~RCC_CR_PLLON;
-    /* wait until PLL turned off; use register pointer not macro alone */
+    // Wait until PLL turned off; use register pointer not macro alone
     while (RCC->CR & RCC_CR_PLLRDY);
 
-    /* PLLM=16, PLLN=336, PLLP=4, PLLQ=7 */
-    RCC->PLLCFGR = (16U << 0)   |   /* PLLM */
-                  (336U << 6)  |   /* PLLN */
-                  (1U << 16)   |   /* PLLP=4 (01) */
-                  (7U << 24)   |   /* PLLQ */
-                  (0U << 22);      /* HSI as source */
+    // PLLM=16, PLLN=336, PLLP=4, PLLQ=7
+    RCC->PLLCFGR = (16U << 0)   |   // PLLM
+                  (336U << 6)  |   // PLLN
+                  (1U << 16)   |   // PLLP=4 (01)
+                  (7U << 24)   |   // PLLQ
+                  (0U << 22);      // HSI as source
 
     RCC->CR |= RCC_CR_PLLON;
     while (!(RCC->CR & RCC_CR_PLLRDY));
 
-    /* Flash wait states: 2WS for 84MHz */
+    // Flash wait states: 2WS for 84MHz
     FLASH->ACR = (2U << FLASH_ACR_LATENCY_Pos) |
                 FLASH_ACR_ICEN | FLASH_ACR_DCEN | FLASH_ACR_PRFTEN;
 
@@ -241,26 +240,26 @@ void SystemInit(void) {
     RCC->CFGR |= RCC_CFGR_SW_PLL;
     while ((RCC->CFGR & RCC_CFGR_SWS) != RCC_CFGR_SWS_PLL);
 
-    /* update CMSIS variable */
+    // Update CMSIS variable
     SystemCoreClock = 84000000U;
 
 #elif SYSCLK_CONFIG == SYSCLK_PLL_50MHZ
-    /* --- Configure PLL for ~50 MHz --- */
-    /* Disable PLL */
+    // Configure PLL for ~50 MHz
+    // Disable PLL
     RCC->CR &= ~RCC_CR_PLLON;
     while (RCC->CR & RCC_CR_PLLRDY);
 
-    /* PLLM=16, PLLN=200, PLLP=4 -> 200/4=50 MHz */
-    RCC->PLLCFGR = (16U << 0)   |   /* PLLM */
-                  (200U << 6)  |   /* PLLN */
-                  (1U << 16)   |   /* PLLP=4 */
-                  (4U << 24)   |   /* PLLQ=4 */
-                  (0U << 22);      /* HSI source */
+    // PLLM=16, PLLN=200, PLLP=4 -> 200/4=50 MHz
+    RCC->PLLCFGR = (16U << 0)   |   // PLLM
+                  (200U << 6)  |   // PLLN
+                  (1U << 16)   |   // PLLP=4
+                  (4U << 24)   |   // PLLQ=4
+                  (0U << 22);      // HSI source
 
     RCC->CR |= RCC_CR_PLLON;
     while (!(RCC->CR & RCC_CR_PLLRDY));
 
-    /* Flash wait states: 1WS for 50MHz */
+    // Flash wait states: 1WS for 50MHz
     FLASH->ACR = (1U << FLASH_ACR_LATENCY_Pos) |
                 FLASH_ACR_ICEN | FLASH_ACR_DCEN | FLASH_ACR_PRFTEN;
 
@@ -268,7 +267,7 @@ void SystemInit(void) {
     RCC->CFGR |= RCC_CFGR_SW_PLL;
     while ((RCC->CFGR & RCC_CFGR_SWS) != RCC_CFGR_SWS_PLL);
 
-    /* update CMSIS variable */
+    // Update CMSIS variable
     SystemCoreClock = 50000000U;
 
 #else
@@ -280,12 +279,12 @@ void Reset_Handler(void) {
 
     uint32_t *src, *dst;
 
-    /* Copy .data from Flash to SRAM */
+    // Copy .data from Flash to SRAM
     src = &_sidata;
     for (dst = &_sdata; dst < &_edata; )
         *(dst++) = *(src++);
 
-    /* Zero-fill .bss */
+    // Zero-fill .bss
     for (dst = &_sbss; dst < &_ebss; )
         *(dst++) = 0;
 
