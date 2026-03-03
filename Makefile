@@ -8,13 +8,14 @@ OBJDUMP = arm-none-eabi-objdump
 SIZE    = arm-none-eabi-size
 
 # Base flags for C only
-CFLAGS  = -mcpu=cortex-m4 -mthumb -g -Wall -O2 -ffunction-sections -fdata-sections -fno-unwind-tables -fno-asynchronous-unwind-tables
+CFLAGS  = -mcpu=cortex-m4 -mthumb -g3 -Wall -O0 \
+          -ffunction-sections -fdata-sections
 
-ASFLAGS = -mcpu=cortex-m4 -mthumb
+ASFLAGS = -mcpu=cortex-m4 -mthumb -g3
 
 # Linker script and libraries
-LDFLAGS = -T linker.ld -nostartfiles -Wl,--gc-sections \
-          --specs=nano.specs -lc -lgcc
+LDFLAGS = -T linker.ld -Wl,--gc-sections \
+          --specs=nano.specs
 
 ####################################
 # Directories
@@ -46,11 +47,7 @@ all: $(OBJDIR) $(TARGET)
 $(TARGET): $(OBJ)
 	$(CC) $(CFLAGS) $^ $(LDFLAGS) -o $@
 	# Only include flash sections to avoid huge .bin
-	$(OBJCOPY) -O binary \
-        --only-section=.isr_vector \
-        --only-section=.text \
-        --only-section=.rodata \
-        $@ $(BIN)
+	$(OBJCOPY) -O binary $@ $(BIN)
 	$(OBJDUMP) -D $@ > $(LST)
 	$(SIZE) $@
 

@@ -66,17 +66,12 @@ void scheduler_start(void)
     __asm volatile ("svc 0");
 }
 
-
 void systick_init(void)
 {
-    uint32_t count_value = (HSI_CLOCK / TICK_HZ) - 1;
+    SysTick_Config(HSI_CLOCK / TICK_HZ);
 
-    SYSTICK->LOAD = count_value;      // Load reload value
-
-    SCB->SHP[10] = 0xFF;              // PendSV (exception 14) lowest priority
-    SCB->SHP[11] = 0x00;              // SysTick (exception 15) higher priority
-
-    SYSTICK->CTRL = (1 << 2) | (1 << 1) | (1 << 0);  // Enable SysTick
+    NVIC_SetPriority(PendSV_IRQn, 0xFF);
+    NVIC_SetPriority(SysTick_IRQn, 0x00);
 }
 
 __attribute__((naked)) void SVC_Handler(void)
