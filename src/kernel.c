@@ -3,8 +3,6 @@
 #include "kernel.h"
 #include "stm32f4xx.h"
 
-
-/*----------------------------global section------------------------------*/
 uint32_t global_tick;
 
 TCB_t *current_running_node;
@@ -15,22 +13,18 @@ uint32_t *new_task_psp = STACK_START;
 uint32_t *next_task_psp = STACK_START;
 uint32_t msp_start;
 
-
-/*-----------------------idle_task----------------------------------------*/
 void idle_task(void)
 {
-    while(1)
-    {
-        __asm volatile ("WFI");
+    while (1) {
+        __asm volatile("WFI");
     }
 }
-/*------------------------------------------------------------------------*/
 
 void core_faults_init(void)
 {
-    SCB->SHCSR |= (1U << 16);  // Enable MemManage fault
-    SCB->SHCSR |= (1U << 17);  // Enable BusFault
-    SCB->SHCSR |= (1U << 18);  // Enable UsageFault
+    SCB->SHCSR |= SCB_SHCSR_MEMFAULTENA_Msk;
+    SCB->SHCSR |= SCB_SHCSR_BUSFAULTENA_Msk;
+    SCB->SHCSR |= SCB_SHCSR_USGFAULTENA_Msk;
 }
 
 
@@ -40,23 +34,17 @@ __attribute__((naked)) void scheduler_init(void)
 	link_node->next_tcb_node = head_node;
 
     __asm volatile(
-        "PUSH {LR}                    \n" // Save LR
-
-        "BL   core_faults_init        \n" // Enable faults
-
-        "POP  {LR}                    \n" // Restore LR
-
-        "LDR  R0, =msp_start          \n" // Load address of msp_start
-        "LDR  R0, [R0]                \n" // R0 = next_task_psp value
-
-        "MSR  MSP, R0                 \n" // Set MSP = next_task_psp
-    	"ISB                          \n" // Instruction sync barrier
-
-        "PUSH {LR}                    \n" // Save LR
-        "BL   tasks_stack_init        \n" // Initialize task stacks
-        "POP  {LR}                    \n" // Restore LR
-
-        "BX   LR                      \n" // Return
+        "PUSH {LR}                    \n"
+        "BL   core_faults_init        \n"
+        "POP  {LR}                    \n"
+        "LDR  R0, =msp_start          \n"
+        "LDR  R0, [R0]                \n"
+        "MSR  MSP, R0                 \n"
+        "ISB                          \n"
+        "PUSH {LR}                    \n"
+        "BL   tasks_stack_init        \n"
+        "POP  {LR}                    \n"
+        "BX   LR                      \n"
     );
 }
 
@@ -77,43 +65,28 @@ void systick_init(void)
 __attribute__((naked)) void SVC_Handler(void)
 {
     __asm volatile(
-        "BL __get_psp        \n"  // R0 = current task PSP
+        "BL __get_psp        \n"
         "MSR PSP, R0         \n"
-
-        "LDMIA R0!, {R4-R11} \n"  // Restore R4-R11 (same as PendSV restore path)
+        "LDMIA R0!, {R4-R11} \n"
         "MSR PSP, R0         \n"
-
-        "LDR LR, =0xFFFFFFFD \n"  // Set EXC_RETURN value
-
-        "BX LR               \n"  // Exception return
+        "LDR LR, =0xFFFFFFFD \n"
+        "BX LR               \n"
     );
 }
 
 __attribute__((naked)) void PendSV_Handler(void)
 {
     __asm volatile (
-        // Save the context of current task
-
-        "MRS R0, PSP           \n" // 1. Get current running task's PSP value
-        "STMDB R0!, {R4-R11}   \n" // 2. Store R4-R11 on current task stack
-
-        "PUSH {LR}             \n" // Preserve LR
-
-        "BL __set_psp          \n" // 3. Save updated PSP value
-
-        // Retrieve the context of next task
-
-        "BL cooperative_sched  \n" // 1. Decide next task to run
-
-        "BL __get_psp          \n" // 2. Get next task's PSP value
-
-        "LDMIA R0!, {R4-R11}   \n" // 3. Restore R4-R11 of next task
-
-        "MSR PSP, R0           \n" // 4. Update PSP
-
-        "POP {LR}              \n" // Restore LR
-
-        "BX LR                 \n" // Return from exception
+        "MRS R0, PSP           \n"
+        "STMDB R0!, {R4-R11}   \n"
+        "PUSH {LR}             \n"
+        "BL __set_psp          \n"
+        "BL cooperative_sched  \n"
+        "BL __get_psp          \n"
+        "LDMIA R0!, {R4-R11}   \n"
+        "MSR PSP, R0           \n"
+        "POP {LR}              \n"
+        "BX LR                 \n"
     );
 }
 
@@ -136,32 +109,30 @@ void tasks_stack_init(void)
     TCB_t *iter = head_node;
     uint32_t *pPSP;
 
-    if (head_node == NULL) return;
+    if (head_node == NULL) {
+        return;
+    }
 
     do {
-        // Ensure 8-byte stack alignment
-        if (((uint32_t)iter->psp_value & 0x7) != 0) {
-            iter->psp_value = (uint32_t*)((uint32_t)iter->psp_value & ~0x7);
-        }
+        uint32_t aligned_psp = (uint32_t)iter->psp_value;
+        aligned_psp &= ~STACK_ALIGN_8BYTE;
+        iter->psp_value = (uint32_t *)aligned_psp;
 
         pPSP = iter->psp_value;
 
-		pPSP--;
-		*pPSP = 0x01000000;
+        pPSP--;
+        *pPSP = STACK_FRAME_XPSR;
 
-		pPSP--; //PC
-		*pPSP = (uint32_t)iter->task_handler;
+        pPSP--;
+        *pPSP = (uint32_t)iter->task_handler;
 
+        pPSP--;
+        *pPSP = STACK_FRAME_LR;
 
-		pPSP--; //LR
-		*pPSP = 0xFFFFFFFD;
-
-		for(int j = 0 ; j < 13 ; j++)
-		{
-			pPSP--;
-		    *pPSP = 0;
-
-		}
+        for (int j = 0; j < NUM_GP_REGS; j++) {
+            pPSP--;
+            *pPSP = 0;
+        }
 
         iter->psp_value = pPSP;
         iter = iter->next_tcb_node;
@@ -172,7 +143,6 @@ void tasks_stack_init(void)
 
 uint32_t *find_stack_area(uint32_t stack_size_in_words)
 {
-    //8-byte alignment
     if (stack_size_in_words & 0x1u) {
     	stack_size_in_words++;
     }
@@ -257,33 +227,25 @@ void __set_psp(uint32_t current_psp_value)
 
 }
 
-/*--------------------------------Scheduler Algorithm---------------------------*/
-/*------------------------------Cooperative Non Prempt-----------------------------------*/
-
 void cooperative_sched(void)
 {
-
     TCB_t *candidate = current_running_node->next_tcb_node;
     uint32_t loop_counter = 0;
-    const uint32_t MAX_LOOPS = 100;  // Prevent infinite loop
+    const uint32_t MAX_LOOPS = 100;
 
-    // Find next ready task
     while (candidate->current_state != TASK_WAKE) {
         candidate = candidate->next_tcb_node;
         loop_counter++;
 
         if (candidate == current_running_node ||
             loop_counter >= MAX_LOOPS) {
-            // No ready task found, return to idle task
-            candidate = head_node;  // Point to idle task
+            candidate = head_node;
             break;
         }
     }
 
     current_running_node = candidate;
 }
-
-/*------------------------------------------------------------------------------------*/
 
 void task_delay(uint32_t tick_count)
 {

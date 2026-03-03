@@ -10,7 +10,7 @@ extern uint32_t _estack;       // End of SRAM (top of stack)
 
 // Derive SRAM addresses from linker symbols
 #define SRAM_START_ADDR   ((uint32_t)&_sram_start)
-#define SRAM_SIZE_BYTES   ((uint32_t)&_sram_size)
+#define SRAM_SIZE         ((uint32_t)&_sram_size)
 #define SRAM_END_ADDR     ((uint32_t)&_estack)
 
 // Stack and task configuration
@@ -25,6 +25,12 @@ extern uint32_t _estack;       // End of SRAM (top of stack)
 // Task state definitions
 #define TASK_SLEEP        0x00
 #define TASK_WAKE         0xFF
+
+// Stack frame constants for ARM Cortex-M4
+#define STACK_FRAME_XPSR        0x01000000UL  // xPSR with Thumb bit set
+#define STACK_FRAME_LR          0xFFFFFFFDUL  // Return to Thread mode using PSP
+#define NUM_GP_REGS             13            // Number of GP registers (R0-R12)
+#define STACK_ALIGN_8BYTE       0x7U          // 8-byte alignment mask
 
 // Critical section protection
 #define ENTER_CRITICAL()  __asm volatile("CPSID i" ::: "memory")

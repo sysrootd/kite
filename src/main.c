@@ -21,8 +21,8 @@ void task2_handler(void) {
 
 int main(void) {
 
-    gpio_init(GPIOB, 14, OUTPUT, PP, FAST, PU, 1);
-    gpio_init(GPIOB, 13, OUTPUT, PP, FAST, PU, 1);
+    gpio_init(GPIOB, 14, OUTPUT, PP, FAST, PU, 0);
+    gpio_init(GPIOB, 13, OUTPUT, PP, FAST, PU, 0);
 
 	create_task(0, task1_handler, 256U);
 	create_task(0, task2_handler, 256U);
