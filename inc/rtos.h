@@ -25,6 +25,7 @@ extern uint32_t _estack;
 // Task state definitions
 #define TASK_SLEEP        0x00
 #define TASK_WAKE         0xFF
+#define TASK_BLOCKED        2
 
 // Stack frame constants for ARM Cortex-M4
 #define STACK_FRAME_XPSR        0x01000000UL  // xPSR with Thumb bit set
@@ -43,20 +44,29 @@ typedef struct TCB TCB_t;
 struct semaphore;
 typedef struct semaphore semaphore_t;
 
+struct mutex;
+typedef struct mutex mutex_t;
+
 // Semaphore structure
 struct semaphore {
-    int32_t         count;
-    struct TCB_t  *wait_list;  // Linked list of blocked tasks
+    int32_t  count;
+};
+
+// Mutex structures
+struct mutex
+{
+    uint8_t  locked;
+    TCB_t   *owner;
 };
 
 // Task Control Block (TCB) structure
 struct TCB {
-    uint32_t       *psp_value;        // Process stack pointer value
-    uint32_t        block_count;      // Block/sleep count
-    uint8_t         current_state;    // Current task state
-    void          (*task_handler)(void); // Task function pointer
-    uint8_t         state;            // Task state flag
-    TCB_t          *next_tcb_node;    // Next TCB in linked list
+    uint32_t       *psp_value;         
+    uint32_t        block_count;       
+    uint8_t         current_state;     
+    void          (*task_handler)(void);
+    TCB_t          *next_tcb_node;
+    void           *waiting_on;     
 };
 
 // System and scheduler APIs
@@ -88,6 +98,18 @@ void task_wake(void);
 
 // Idle task handler
 void idle_task(void);
+
+void semaphore_init(semaphore_t *sem, int32_t initial_count);
+
+void semaphore_wait(semaphore_t *sem);
+
+void semaphore_post(semaphore_t *sem);
+
+void mutex_init(mutex_t *m);
+
+void mutex_lock(mutex_t *m);
+
+void mutex_unlock(mutex_t *m);
 
 #endif
 

@@ -180,6 +180,7 @@ void create_idle_task(void)
     idle_tcb_node->current_state = TASK_WAKE;
     idle_tcb_node->psp_value = task_stack_start;
     idle_tcb_node->task_handler = idle_task;
+    idle_tcb_node->waiting_on = NULL;
 
     current_running_node = idle_tcb_node;
     link_node = idle_tcb_node;
@@ -206,6 +207,7 @@ void create_task(uint8_t task_priority, void (*task_handle)(void), uint32_t stac
     tcb_node->current_state = TASK_WAKE;
     tcb_node->psp_value = task_stack_start;
     tcb_node->task_handler = task_handle;
+    tcb_node->waiting_on = NULL;
 
     link_node->next_tcb_node = tcb_node;
     link_node = tcb_node;
@@ -276,3 +278,101 @@ void task_wake(void)
 }
 
 
+void semaphore_init(semaphore_t *sem, int32_t initial_count)
+{
+    sem->count = initial_count;
+}
+
+void semaphore_wait(semaphore_t *sem)
+{
+    ENTER_CRITICAL();
+
+    sem->count--;
+
+    if (sem->count < 0)
+    {
+        current_running_node->waiting_on = sem;
+        current_running_node->current_state = TASK_BLOCKED;
+        schedule();
+    }
+
+    EXIT_CRITICAL();
+}
+
+void semaphore_post(semaphore_t *sem)
+{
+    ENTER_CRITICAL();
+
+    sem->count++;
+
+    if (sem->count <= 0)
+    {
+        TCB_t *iter = head_node;
+
+        do
+        {
+            if (iter->current_state == TASK_BLOCKED)
+            {
+                iter->waiting_on = NULL;
+                iter->current_state = TASK_WAKE;
+                break;
+            }
+
+            iter = iter->next_tcb_node;
+
+        } while (iter != head_node);
+    }
+
+    EXIT_CRITICAL();
+}
+
+void mutex_init(mutex_t *m)
+{
+    m->locked = 0;
+    m->owner  = NULL;
+}
+
+void mutex_lock(mutex_t *m)
+{
+    ENTER_CRITICAL();
+
+    if (m->locked == 0)
+    {
+        m->locked = 1;
+        m->owner  = current_running_node;
+    }
+    else
+    {
+        current_running_node->current_state = TASK_BLOCKED;
+        schedule();
+    }
+
+    EXIT_CRITICAL();
+}
+
+void mutex_unlock(mutex_t *m)
+{
+    ENTER_CRITICAL();
+
+    if (m->owner == current_running_node)
+    {
+        m->locked = 0;
+        m->owner  = NULL;
+
+        TCB_t *iter = head_node;
+
+        do
+        {
+            if (iter->current_state == TASK_BLOCKED)
+            {
+                iter->current_state = TASK_WAKE;
+                break;
+            }
+
+            iter = iter->next_tcb_node;
+
+        } while (iter != head_node);
+    }
+
+    EXIT_CRITICAL();
+}
