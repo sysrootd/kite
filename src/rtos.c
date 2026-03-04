@@ -291,6 +291,7 @@ void semaphore_wait(semaphore_t *sem)
 
     if (sem->count < 0)
     {
+        //remember which object the task is blocked on so the poster can wake the correct task
         current_running_node->waiting_on = sem;
         current_running_node->current_state = TASK_BLOCKED;
         schedule();
@@ -307,11 +308,13 @@ void semaphore_post(semaphore_t *sem)
 
     if (sem->count <= 0)
     {
+        //wake the first task that was actually waiting on *this* semaphore; other blocked tasks should remain blocked
         TCB_t *iter = head_node;
 
         do
         {
-            if (iter->current_state == TASK_BLOCKED)
+            if (iter->current_state == TASK_BLOCKED &&
+                iter->waiting_on == sem)
             {
                 iter->waiting_on = NULL;
                 iter->current_state = TASK_WAKE;
@@ -338,13 +341,18 @@ void mutex_lock(mutex_t *m)
 
     if (m->locked == 0)
     {
+        // acquire immediately
         m->locked = 1;
         m->owner  = current_running_node;
     }
     else
     {
+        // block and remember which mutex we are waiting for
+        current_running_node->waiting_on = m;
         current_running_node->current_state = TASK_BLOCKED;
         schedule();
+
+        // when we resume we have been given ownership by unlock
     }
 
     EXIT_CRITICAL();
@@ -356,22 +364,36 @@ void mutex_unlock(mutex_t *m)
 
     if (m->owner == current_running_node)
     {
-        m->locked = 0;
-        m->owner  = NULL;
-
+        // look for a task waiting on this mutex
         TCB_t *iter = head_node;
+        TCB_t *next_owner = NULL;
 
         do
         {
-            if (iter->current_state == TASK_BLOCKED)
+            if (iter->current_state == TASK_BLOCKED &&
+                iter->waiting_on == m)
             {
-                iter->current_state = TASK_WAKE;
+                next_owner = iter;
                 break;
             }
 
             iter = iter->next_tcb_node;
-
         } while (iter != head_node);
+
+        if (next_owner)
+        {
+            // transfer ownership straight to the woken task
+            next_owner->waiting_on = NULL;
+            next_owner->current_state = TASK_WAKE;
+            m->owner = next_owner;
+            // keep locked == 1 so other tasks will still block
+        }
+        else
+        {
+            // no one was waiting, fully release
+            m->locked = 0;
+            m->owner  = NULL;
+        }
     }
 
     EXIT_CRITICAL();
