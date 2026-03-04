@@ -277,7 +277,7 @@ void task_wake(void)
     } while (iter != head_node && iter != NULL);
 }
 
-
+//--------------------------------------------------------------Sync mechanisums------------------------------------------------//
 void semaphore_init(semaphore_t *sem, int32_t initial_count)
 {
     sem->count = initial_count;

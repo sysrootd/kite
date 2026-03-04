@@ -21,7 +21,7 @@ void task2_handler(void) {
     while (1) {
         semaphore_wait(&sem_green);
         gpio_write(GPIOB, GREEN_LED, 1);
-        task_delay(200);
+        task_delay(500);
         gpio_write(GPIOB, GREEN_LED, 0);
         semaphore_post(&sem_red);
     }
@@ -32,7 +32,6 @@ int main(void) {
     gpio_init(GPIOB, RED_LED, OUTPUT, PP, FAST, PU, 0);
     gpio_init(GPIOB, GREEN_LED, OUTPUT, PP, FAST, PU, 0);
 
-    /* alternating start: red semaphore initially available */
     semaphore_init(&sem_red, 1);
     semaphore_init(&sem_green, 0);
 

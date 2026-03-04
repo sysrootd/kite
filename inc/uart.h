@@ -25,6 +25,9 @@ void uart_init(USART_TypeDef *uart, uint32_t pclk, uint32_t baud);
 void uart_write(USART_TypeDef *uart, const uint8_t *data, uint16_t len);
 int  uart_read(USART_TypeDef *uart);   // returns -1 if no data available
 
+/* formatted output; returns number of bytes queued */
+int uart_printf(USART_TypeDef *uart, const char *fmt, ...);
+
 void USART1_IRQHandler(void);
 void USART2_IRQHandler(void);
 void USART6_IRQHandler(void);

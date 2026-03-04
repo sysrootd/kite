@@ -1,4 +1,6 @@
 #include "uart.h"
+#include <stdarg.h>
+#include <stdio.h>
 
 static UART_Context ctx1, ctx2, ctx6;
 
@@ -58,11 +60,32 @@ int uart_read(USART_TypeDef *uart) {
     return d;
 }
 
+int uart_printf(USART_TypeDef *uart, const char *fmt, ...)
+{
+    // temporary buffer
+    char buf[128];
+    va_list ap;
+    va_start(ap, fmt);
+    int len = vsnprintf(buf, sizeof(buf), fmt, ap);
+    va_end(ap);
+
+    if (len <= 0) {
+        return 0;
+    }
+    // truncate if too long
+    if (len > (int)sizeof(buf) - 1) {
+        len = sizeof(buf) - 1;
+    }
+
+    uart_write(uart, (const uint8_t *)buf, (uint16_t)len);
+    return len;
+}
+
 static void uart_irq_handler(UART_Context *ctx) {
     USART_TypeDef *uart = ctx->inst;
 
     // RX
-    if ((uart->SR & (1U << 5))) {
+    if (uart->SR & (1U << 5)) {
         uint8_t d = uart->DR;
         uint16_t next = (ctx->rx_head + 1) % UART_RX_BUF_SIZE;
         if (next != ctx->rx_tail) { // drop if full
