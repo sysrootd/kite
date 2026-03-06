@@ -81,34 +81,6 @@ VS Code settings snippet:
 
 ---
 
----
-
-## Formatting & Analysis
-
-Install on Ubuntu/Debian:
-
-```sh
-sudo apt-get install clang-format clang-tidy
-```
-
-Format sources:
-
-```sh
-python3 tools/run-clang-format.py -i -r --style=LLVM ./src ./inc
-```
-
-Generate compile database then run clang‑tidy:
-
-```sh
-cd build && cmake -DCMAKE_EXPORT_COMPILE_COMMANDS=ON .. && cd ..
-python3 tools/run-clang-tidy.py -p ./build ./src ./inc
-```
-
-Suggested checks:
-```
--checks='-*,modernize-*,bugprone-*,readability-*,misc-*,-modernize-use-trailing-return-type'
-```
-
 ## License
 
 This project is licensed under the **MIT License**.
