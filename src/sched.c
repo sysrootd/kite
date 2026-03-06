@@ -228,8 +228,8 @@ void __set_psp(uint32_t current_psp_value)
 	current_running_node->psp_value = (uint32_t *)current_psp_value;
 
 }
-
-//Cooperative scheduler algorithm
+//-----------------------------------------------------------------------------sched Alogo---------------------------------------------
+//Cooperative scheduler
 void cooperative_sched(void)
 {
     TCB_t *candidate = current_running_node->next_tcb_node;
@@ -249,7 +249,7 @@ void cooperative_sched(void)
 
     current_running_node = candidate;
 }
-
+//--------------------------------------------------------------------------------------------------------------------------------------
 void task_delay(uint32_t tick_count)
 {
 	ENTER_CRITICAL();
@@ -277,7 +277,7 @@ void task_wake(void)
     } while (iter != head_node && iter != NULL);
 }
 
-//--------------------------------------------------------------Sync mechanisums------------------------------------------------//
+//--------------------------------------------------------------Synco mechanisum------------------------------------------------//
 void semaphore_init(semaphore_t *sem, int32_t initial_count)
 {
     sem->count = initial_count;

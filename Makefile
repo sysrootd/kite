@@ -11,8 +11,6 @@ SIZE    = arm-none-eabi-size
 CFLAGS  = -mcpu=cortex-m4 -mthumb -g3 -Wall -O0 \
           -ffunction-sections -fdata-sections
 
-ASFLAGS = -mcpu=cortex-m4 -mthumb -g3
-
 # Linker script and libraries
 LDFLAGS = -T linker.ld -Wl,--gc-sections \
           --specs=nano.specs

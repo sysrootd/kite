@@ -1,16 +1,16 @@
 # kite RTOS (STM32F401x)
 
 A small cooperative RTOS written in C for the STM32F401x family. It provides a simple
-scheduler, task APIs, and peripheral support, making it ideal for learning bare‑metal
+scheduler and task APIs making it ideal for learning bare‑metal RTOS
 programming on Cortex‑M4 devices.
 
 ---
 
 ## Features
 
-- Cooperative thread scheduler (PendSV‑based)
+- Cooperative thread scheduler, you can impliment your own sched API if you want 
 - Task creation, delay and wake APIs
-- Automatic stack allocation from RAM (linker‑script defined)
+- Automatic stack allocation from RAM
 - SysTick timer for tick interrupts
 - GPIO helper functions for STM32
 - CMSIS‑compatible register access
@@ -19,11 +19,13 @@ programming on Cortex‑M4 devices.
 
 ## Requirements
 
-- STM32F401x (or other STM32F4) development board
+- STM32F401x development board
+- If you don't have similar series, copy linker script from stm32cubeide
+  or cubemx and tweak startup file
 - ARM GCC toolchain (`arm-none-eabi-gcc`)
 - `make` utility
 - OpenOCD and ST‑Link hardware
-- Cortex‑Debug extension for VS Code (optional, for debugging)
+- Cortex‑Debug extension for VS Code for debugging
 
 ---
 
@@ -37,7 +39,7 @@ make
 make clean
 ```
 
-Generated artifacts appear in `build/`:
+Compiled binaries appear in `build/`:
 - `kernel.elf` – ELF executable
 - `kernel.bin` – flashable binary
 
@@ -51,11 +53,33 @@ openocd -f interface/stlink.cfg \
 
 ### Debugging
 
-1. Launch VS Code (with Cortex‑Debug installed)
+1. Launch VS Code, install Cortex‑Debug extension
 2. Connect the ST‑Link to your board
-3. Press **F5** or choose **Run › Start Debugging**
+3. choose **Run › Start Debugging**
 
 Pre‑configured `.vscode/launch.json` and `tasks.json` are included.
+
+VS Code settings snippet:
+
+```json
+{
+  "editor.formatOnSave": true,
+  "C_Cpp.clang_format_path": "clang-format",
+  "C_Cpp.clang_format_style": "LLVM",
+  "C_Cpp.codeAnalysis.clangTidy.enabled": true,
+  "C_Cpp.codeAnalysis.clangTidy.path": "clang-tidy"
+}
+```
+
+---
+
+## VS Code Configuration Files
+
+- `.vscode/tasks.json` – build/clean tasks
+- `.vscode/launch.json` – debug configuration for STM32F401RBT6
+- `.vscode/settings.json` – toolchain and file association settings
+
+---
 
 ---
 
@@ -84,28 +108,6 @@ Suggested checks:
 ```
 -checks='-*,modernize-*,bugprone-*,readability-*,misc-*,-modernize-use-trailing-return-type'
 ```
-
-VS Code settings snippet:
-
-```json
-{
-  "editor.formatOnSave": true,
-  "C_Cpp.clang_format_path": "clang-format",
-  "C_Cpp.clang_format_style": "LLVM",
-  "C_Cpp.codeAnalysis.clangTidy.enabled": true,
-  "C_Cpp.codeAnalysis.clangTidy.path": "clang-tidy"
-}
-```
-
----
-
-## VS Code Configuration Files
-
-- `.vscode/tasks.json` – build/clean tasks
-- `.vscode/launch.json` – debug configuration for STM32F401RBT6
-- `.vscode/settings.json` – toolchain and file association settings
-
----
 
 ## License
 
