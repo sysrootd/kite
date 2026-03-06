@@ -76,7 +76,7 @@ VS Code settings snippet:
 ## VS Code Configuration Files
 
 - `.vscode/tasks.json` – build/clean tasks
-- `.vscode/launch.json` – debug configuration for STM32F401RBT6
+- `.vscode/launch.json` – debug configuration for your mcu
 - `.vscode/settings.json` – toolchain and file association settings
 
 ---
