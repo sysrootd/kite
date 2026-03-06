@@ -2,6 +2,7 @@
 
 #include "sched.h"
 #include "stm32f4xx.h"
+#include "mem.h"
 
 uint32_t global_tick;
 
@@ -156,7 +157,7 @@ uint32_t *find_stack_area(uint32_t stack_size_in_words)
 
 TCB_t *alloc_new_tcb_node(void)
 {
-    TCB_t *new_tcb_node = (TCB_t *)malloc(sizeof(TCB_t));
+    TCB_t *new_tcb_node = (TCB_t *)TCB_pool(sizeof(TCB_t));
 
     if (new_tcb_node == NULL) {
         return NULL;
@@ -189,7 +190,7 @@ void create_idle_task(void)
 
 }
 
-void create_task(uint8_t task_priority, void (*task_handle)(void), uint32_t stack_size)
+void create_task(uint8_t task_priority, void (*task_handle)(void), uint32_t stack_size_in_words)
 {
 	if(new_task_psp == next_task_psp) {
 		create_idle_task();
@@ -201,7 +202,7 @@ void create_task(uint8_t task_priority, void (*task_handle)(void), uint32_t stac
         return;
     }
 
-    uint32_t *task_stack_start = find_stack_area(stack_size);
+    uint32_t *task_stack_start = find_stack_area(stack_size_in_words);
 
     tcb_node->block_count = 0;
     tcb_node->current_state = TASK_WAKE;
