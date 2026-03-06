@@ -6,6 +6,7 @@
 #define RED_LED     14
 #define GREEN_LED   13
 #define BUFFER_SIZE 1
+#define BAUD_RATE   115200
 
 static volatile int buffer[BUFFER_SIZE];
 static volatile int in  = 0;
@@ -87,7 +88,7 @@ int main(void)
     gpio_init(GPIOB, RED_LED, OUTPUT, PP, FAST, PU, 0);
     gpio_init(GPIOB, GREEN_LED, OUTPUT, PP, FAST, PU, 0);
 
-    uart_init(USART2, 16000000, 9600);
+    uart_init(USART2, HSI_CLK, BAUD_RATE);
 
     semaphore_init(&led_sem, 1);
 
