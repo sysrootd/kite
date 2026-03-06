@@ -230,7 +230,7 @@ void __set_psp(uint32_t current_psp_value)
 
 }
 //-----------------------------------------------------------------------------sched Alogo---------------------------------------------
-//Cooperative scheduler
+//---------------------------------------------------------------------------Cooperative scheduler-------------------------------------
 void cooperative_sched(void)
 {
     TCB_t *candidate = current_running_node->next_tcb_node;
