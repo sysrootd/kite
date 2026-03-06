@@ -1,6 +1,6 @@
 #include <stdlib.h>
 
-#include "rtos.h"
+#include "sched.h"
 #include "stm32f4xx.h"
 
 uint32_t global_tick;
@@ -42,7 +42,7 @@ __attribute__((naked)) void scheduler_init(void)
         "MSR  MSP, R0                 \n"
         "ISB                          \n"
         "PUSH {LR}                    \n"
-        "BL   tasks_stack_init        \n"
+        "BL   task_stack_init        \n"
         "POP  {LR}                    \n"
         "BX   LR                      \n"
     );
@@ -56,7 +56,7 @@ void scheduler_start(void)
 
 void systick_init(void)
 {
-    SysTick_Config(HSI_CLOCK / TICK_HZ);
+    SysTick_Config(HSI_CLK / TICK_HZ);
 
     NVIC_SetPriority(PendSV_IRQn, 0xFF);
     NVIC_SetPriority(SysTick_IRQn, 0x00);
@@ -104,7 +104,7 @@ void schedule(void)
     SCB->ICSR |= SCB_ICSR_PENDSVSET_Msk;
 }
 
-void tasks_stack_init(void)
+void task_stack_init(void)
 {
     TCB_t *iter = head_node;
     uint32_t *pPSP;

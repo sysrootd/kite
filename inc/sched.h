@@ -1,30 +1,25 @@
-#ifndef KERNEL_H
-#define KERNEL_H
+#ifndef SCHED_H
+#define SCHED_H
 
 #include <stdint.h>
 
-// Symbols from linker script - SRAM configuration
-extern uint32_t _sram_start;
-extern uint32_t _sram_size;
+// Symbols from linker script - SRAM END
 extern uint32_t _estack;
-
-// Derive SRAM addresses from linker symbols
-#define SRAM_START_ADDR   ((uint32_t)&_sram_start)
-#define SRAM_SIZE         ((uint32_t)&_sram_size)
 #define SRAM_END_ADDR     ((uint32_t)&_estack)
 
 // Stack and task configuration
 #define STACK_START       ((uint32_t *)SRAM_END_ADDR)
+
 #define IDLE_TASK_STACK_WORDS  256U
 
 // Timing and clock configuration
-#define TICK_HZ           1000U
-#define HSI_CLOCK         16000000U
-#define SYSTICK_TIM_CLK   HSI_CLOCK
+#define TICK_HZ             1000U
+#define HSI_CLK             16000000U
+#define SYSTICK_TIM_CLK     HSI_CLK
 
 // Task state definitions
-#define TASK_SLEEP        0x00
-#define TASK_WAKE         0xFF
+#define TASK_SLEEP          0
+#define TASK_WAKE           1
 #define TASK_BLOCKED        2
 
 // Stack frame constants for ARM Cortex-M4

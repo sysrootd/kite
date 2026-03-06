@@ -16,12 +16,6 @@ extern uint32_t _edata;       // End of data section in RAM
 extern uint32_t _sbss;        // Start of BSS section in RAM
 extern uint32_t _ebss;        // End of BSS section in RAM
 extern uint32_t _estack;      // Top of stack (from linker script)
-extern uint32_t _sram_start;  // Start of SRAM (from linker script)
-extern uint32_t _sram_size;   // Total SRAM size (from linker script)
-
-// Linker-provided heap/stack size symbols used by runtime
-extern uint32_t _Min_Heap_Size;   // Configured minimum heap size
-extern uint32_t _Min_Stack_Size;  // Configured minimum stack size
 
 // RCC_CR bits for clock configuration
 #define RCC_CR_HSION    (1U << 0)

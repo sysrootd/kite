@@ -5,8 +5,6 @@ ENTRY(Reset_Handler)
 /* _estack = top of RAM (calculated below) */
 
 /* SRAM memory symbols */
-_sram_start = ORIGIN(RAM);      /* Start of RAM */
-_sram_size  = LENGTH(RAM);      /* Total RAM size */
 _estack     = ORIGIN(RAM) + LENGTH(RAM); /* End of RAM (top of stack) */
 
 /* Heap and stack size requirements */

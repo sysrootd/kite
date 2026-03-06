@@ -1,110 +1,171 @@
 #include "uart.h"
-#include <stdarg.h>
-#include <stdio.h>
 
-static UART_Context ctx1, ctx2, ctx6;
 
-static UART_Context* get_ctx(USART_TypeDef *uart) {
-    if (uart == USART1) return &ctx1;
-    if (uart == USART2) return &ctx2;
-    if (uart == USART6) return &ctx6;
-    return 0;
-}
-
-void uart_init(USART_TypeDef *uart, uint32_t pclk, uint32_t baud) {
-    if (uart == USART1) {
-        RCC->APB2ENR |= (1U << 4);
-        gpio_init(GPIOA, 9, AF, PP, FAST, PU, 7);   // TX
-        gpio_init(GPIOA, 10, AF, PP, FAST, PU, 7);  // RX
-        NVIC->ISER[1] |= (1U << 5); // USART1 IRQ
-    } else if (uart == USART2) {
-        RCC->APB1ENR |= (1U << 17);
-        gpio_init(GPIOA, 2, AF, PP, FAST, PU, 7);   
-        gpio_init(GPIOA, 3, AF, PP, FAST, PU, 7);  
-        NVIC->ISER[1] |= (1U << 6); // USART2 IRQ
-    } else if (uart == USART6) {
-        RCC->APB2ENR |= (1U << 5);
-        gpio_init(GPIOC, 6, AF, PP, FAST, PU, 8);   
-        gpio_init(GPIOC, 7, AF, PP, FAST, PU, 8);   
-        NVIC->ISER[2] |= (1U << 7); // USART6 IRQ
-    }
-
-    UART_Context *ctx = get_ctx(uart);
-    ctx->inst = uart;
-    ctx->tx_head = ctx->tx_tail = 0;
-    ctx->rx_head = ctx->rx_tail = 0;
-
-    uart->CR1 = 0;
-    uart->BRR = (pclk + (baud / 2U)) / baud;
-    uart->CR1 |= (1U << 13) | (1U << 2) | (1U << 3);  // UE, RE, TE
-    uart->CR1 |= (1U << 5); // RXNEIE
-}
-
-void uart_write(USART_TypeDef *uart, const uint8_t *data, uint16_t len) {
-    UART_Context *ctx = get_ctx(uart);
-
-    for (uint16_t i = 0; i < len; i++) {
-        uint16_t next = (ctx->tx_head + 1) % UART_TX_BUF_SIZE;
-        while (next == ctx->tx_tail); // wait if buffer full
-        ctx->tx_buf[ctx->tx_head] = data[i];
-        ctx->tx_head = next;
-    }
-    uart->CR1 |= (1U << 7); // enable TXEIE
-}
-
-int uart_read(USART_TypeDef *uart) {
-    UART_Context *ctx = get_ctx(uart);
-    if (ctx->rx_head == ctx->rx_tail) return -1; // no data
-    uint8_t d = ctx->rx_buf[ctx->rx_tail];
-    ctx->rx_tail = (ctx->rx_tail + 1) % UART_RX_BUF_SIZE;
-    return d;
-}
-
-int uart_printf(USART_TypeDef *uart, const char *fmt, ...)
+uint32_t cstm_strlen(const char *str)
 {
-    // temporary buffer
-    char buf[128];
-    va_list ap;
-    va_start(ap, fmt);
-    int len = vsnprintf(buf, sizeof(buf), fmt, ap);
-    va_end(ap);
-
-    if (len <= 0) {
-        return 0;
-    }
-    // truncate if too long
-    if (len > (int)sizeof(buf) - 1) {
-        len = sizeof(buf) - 1;
-    }
-
-    uart_write(uart, (const uint8_t *)buf, (uint16_t)len);
+    uint32_t len = 0;
+    while (*str++) len++;
     return len;
 }
 
-static void uart_irq_handler(UART_Context *ctx) {
-    USART_TypeDef *uart = ctx->inst;
+static void uart_print_int(USART_TypeDef *uart, int num, int base)
+{
+    char buf[16];
+    int i = 0;
+    unsigned int n;
 
-    // RX
-    if (uart->SR & (1U << 5)) {
-        uint8_t d = uart->DR;
-        uint16_t next = (ctx->rx_head + 1) % UART_RX_BUF_SIZE;
-        if (next != ctx->rx_tail) { // drop if full
-            ctx->rx_buf[ctx->rx_head] = d;
-            ctx->rx_head = next;
-        }
+    if (num < 0 && base == 10)
+    {
+        uart_outchar(uart, '-');
+        n = -num;
+    }
+    else
+    {
+        n = num;
     }
 
-    // TX
-    if ((uart->SR & (1U << 7)) && (uart->CR1 & (1U << 7))) {
-        if (ctx->tx_head != ctx->tx_tail) {
-            uart->DR = ctx->tx_buf[ctx->tx_tail];
-            ctx->tx_tail = (ctx->tx_tail + 1) % UART_TX_BUF_SIZE;
-        } else {
-            uart->CR1 &= ~(1U << 7); // disable TXEIE
-        }
+    do
+    {
+        int digit = n % base;
+
+        if (digit < 10)
+            buf[i++] = digit + '0';
+        else
+            buf[i++] = digit - 10 + 'A';
+
+        n /= base;
+
+    } while (n);
+
+    while (i--)
+        uart_outchar(uart, buf[i]);
+}
+
+// ---------------- UART INIT ----------------
+
+void uart_init(USART_TypeDef *uart, uint32_t pclk, uint32_t baud)
+{
+    if (uart == USART1)
+    {
+        RCC->APB2ENR |= (1U << 4);
+
+        RCC->AHB1ENR |= (1U << 0);
+
+        GPIOA->MODER |= (2U << 18) | (2U << 20);
+        GPIOA->AFRH |= (7U << 4) | (7U << 8);   // AF7 for PA9, PA10
+    }
+    else if (uart == USART2)
+    {
+        RCC->APB1ENR |= (1U << 17);
+
+        RCC->AHB1ENR |= (1U << 0);
+
+        GPIOA->MODER |= (2U << 4) | (2U << 6);
+        GPIOA->AFRL |= (7U << 8) | (7U << 12);  // AF7 for PA2, PA3
+    }
+    else if (uart == USART6)
+    {
+        RCC->APB2ENR |= (1U << 5);
+
+        RCC->AHB1ENR |= (1U << 2);
+
+        GPIOC->MODER |= (2U << 12) | (2U << 14);
+        GPIOC->AFRL |= (8U << 24) | (8U << 28); // AF8 for PC6, PC7
+    }
+
+    uart->BRR = (pclk + (baud / 2U)) / baud;
+
+    uart->CR1 = (1U << 13) | (1U << 2) | (1U << 3);
+}
+
+// ---------------- low level IO ----------------
+
+void uart_outchar(USART_TypeDef *uart, uint8_t data)
+{
+    while (!(uart->SR & (1U << 7))); // TXE
+    uart->DR = data;
+}
+
+void uart_outstr(USART_TypeDef *uart, const char *str)
+{
+    while (*str)
+    {
+        uart_outchar(uart, *str++);
     }
 }
 
-void USART1_IRQHandler(void) { uart_irq_handler(&ctx1); }
-void USART2_IRQHandler(void) { uart_irq_handler(&ctx2); }
-void USART6_IRQHandler(void) { uart_irq_handler(&ctx6); }
+// ---------------- printf ----------------
+
+int uart_printf(USART_TypeDef *uart, const char *fmt, ...)
+{
+    va_list args;
+    va_start(args, fmt);
+
+    int count = 0;
+
+    while (*fmt)
+    {
+        if (*fmt != '%')
+        {
+            uart_outchar(uart, *fmt++);
+            count++;
+            continue;
+        }
+
+        fmt++;
+
+        switch (*fmt)
+        {
+            case 'c':
+            {
+                char c = va_arg(args, int);
+                uart_outchar(uart, c);
+                break;
+            }
+
+            case 'd':
+            {
+                int val = va_arg(args, int);
+                uart_print_int(uart, val, 10);
+                break;
+            }
+
+            case 'x':
+            {
+                int val = va_arg(args, int);
+                uart_print_int(uart, val, 16);
+                break;
+            }
+
+            case 'o':
+            {
+                int val = va_arg(args, int);
+                uart_print_int(uart, val, 8);
+                break;
+            }
+
+            case 's':
+            {
+                char *str = va_arg(args, char *);
+                uart_outstr(uart, str);
+                break;
+            }
+
+            case '%':
+            {
+                uart_outchar(uart, '%');
+                break;
+            }
+
+            default:
+                uart_outchar(uart, '%');
+                uart_outchar(uart, *fmt);
+                break;
+        }
+
+        fmt++;
+    }
+
+    va_end(args);
+    return count;
+}
