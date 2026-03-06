@@ -4,8 +4,8 @@
 #include <errno.h>
 #include <stddef.h>
 
-// Define here how much memory required
-// for your tcbs in bytes (static memory pool allocation to avoid malloc)
+// (static memory pool allocation to avoid malloc)
+// Define here how much memory required for your tcbs in bytes
 // Warning total bytes should align word size
   
 #define TCB_POOL_SIZE   4096

@@ -399,3 +399,65 @@ void mutex_unlock(mutex_t *m)
 
     EXIT_CRITICAL();
 }
+
+//----------------------------------------------------core fault handlers----------------------------------
+__attribute__((naked)) void HardFault_Handler(void)
+{
+    __asm volatile(
+        "TST lr, #4       \n"
+        "ITE EQ           \n"
+        "MRSEQ r0, MSP    \n"
+        "MRSNE r0, PSP    \n"
+        "B hardfault      \n"
+    );
+}
+
+void hardfault(uint32_t *stack)
+{
+    uint32_t r0  = stack[0];
+    uint32_t r1  = stack[1];
+    uint32_t r2  = stack[2];
+    uint32_t r3  = stack[3];
+    uint32_t r12 = stack[4];
+    uint32_t lr  = stack[5];
+    uint32_t pc  = stack[6];
+    uint32_t psr = stack[7];
+
+    uart_printf(USART2,"HardFault\r\n");
+    uart_printf(USART2,"R0  %x\r\n",r0);
+    uart_printf(USART2,"R1  %x\r\n",r1);
+    uart_printf(USART2,"R2  %x\r\n",r2);
+    uart_printf(USART2,"R3  %x\r\n",r3);
+    uart_printf(USART2,"R12 %x\r\n",r12);
+    uart_printf(USART2,"LR  %x\r\n",lr);
+    uart_printf(USART2,"PC  %x\r\n",pc);
+    uart_printf(USART2,"PSR %x\r\n",psr);
+
+    while(1);
+}
+
+void MemManage_Handler(void)
+{
+    uart_printf(USART2,"MemManage Fault\r\n");
+    uart_printf(USART2,"MMFSR %x\r\n",SCB->CFSR & 0xFF);
+    uart_printf(USART2,"MMFAR %x\r\n",SCB->MMFAR);
+
+    while(1);
+}
+
+void BusFault_Handler(void)
+{
+    uart_printf(USART2,"Bus Fault\r\n");
+    uart_printf(USART2,"BFSR %x\r\n",(SCB->CFSR >> 8) & 0xFF);
+    uart_printf(USART2,"BFAR %x\r\n",SCB->BFAR);
+
+    while(1);
+}
+
+void UsageFault_Handler(void)
+{
+    uart_printf(USART2,"Usage Fault\r\n");
+    uart_printf(USART2,"UFSR %x\r\n",(SCB->CFSR >> 16) & 0xFFFF);
+
+    while(1);
+}
