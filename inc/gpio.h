@@ -3,10 +3,8 @@
 
 #include "stm32f4xx.h"
 
+//RCC AHB1ENR bits
 
-/* ===============================
- * RCC AHB1ENR bits
- * =============================== */
 #define GPIOA_EN   (1U << 0)
 #define GPIOB_EN   (1U << 1)
 #define GPIOC_EN   (1U << 2)
@@ -14,9 +12,8 @@
 #define GPIOE_EN   (1U << 4)
 #define GPIOH_EN   (1U << 7)
 
-/* ===============================
- * Config Options
- * =============================== */
+ //Config Options
+
 #define INPUT   0x0
 #define OUTPUT  0x1
 #define AF      0x2
@@ -34,9 +31,8 @@
 #define PU      0x1
 #define PD      0x2
 
-/* ===============================
- * GPIO Functions
- * =============================== */
+//GPIO Functions
+
 static inline void gpio_clk(GPIO_TypeDef *port) {
     if (port == GPIOA) RCC->AHB1ENR |= GPIOA_EN;
     else if (port == GPIOB) RCC->AHB1ENR |= GPIOB_EN;
@@ -46,32 +42,32 @@ static inline void gpio_clk(GPIO_TypeDef *port) {
     else if (port == GPIOH) RCC->AHB1ENR |= GPIOH_EN;
 }
 
-/* ===============================
- * GPIO Init
- * =============================== */
+
+//GPIO Init
+
 static inline void gpio_init(GPIO_TypeDef *port, int pin,
                              int mode, int type,
                              int speed, int pull,
                              int af) {
     gpio_clk(port);
 
-    /* mode */
+    //mode
     port->MODER &= ~(3U << (pin * 2));
     port->MODER |= (mode << (pin * 2));
 
-    /* output type */
+    //output type
     port->OTYPER &= ~(1U << pin);
     port->OTYPER |= (type << pin);
 
-    /* speed */
+    // speed
     port->OSPEEDR &= ~(3U << (pin * 2));
     port->OSPEEDR |= (speed << (pin * 2));
 
-    /* pull-up/down */
+    // pull-up/down
     port->PUPDR &= ~(3U << (pin * 2));
     port->PUPDR |= (pull << (pin * 2));
 
-    /* alternate function */
+    // alternate function
     if (mode == AF) {
         if (pin < 8) {
             port->AFRL &= ~(0xFU << (pin * 4));
@@ -96,4 +92,4 @@ static inline int gpio_read(GPIO_TypeDef *port, int pin) {
     return (port->IDR >> pin) & 1U;
 }
 
-#endif /* GPIO_H */
+#endif

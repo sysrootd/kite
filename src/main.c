@@ -86,7 +86,7 @@ void consumer_task(void)
 int main(void)
 {
 
-    //-----------system initialization--------------------
+    //-----------system init--------------------
     gpio_init(GPIOB, RED_LED, OUTPUT, PP, FAST, PU, 0);
     gpio_init(GPIOB, GREEN_LED, OUTPUT, PP, FAST, PU, 0);
 
@@ -104,7 +104,8 @@ int main(void)
     task_init(1, green_led_task, 512U);
 
     scheduler_init();
-    //--------------------------------------------------
+    //------------------------------------------
+    
     scheduler_start();
 
     while (1);
