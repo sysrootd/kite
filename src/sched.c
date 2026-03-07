@@ -17,7 +17,7 @@ uint32_t msp_start;                              // main stack pointer start val
 
 static inline void request_context_switch(void)
 {
-    SCB->ICSR |= SCB_ICSR_PENDSVSET_Msk; //(1UL << 28) in bare metal, trigger PendSV exception,that macro is from cmsis
+    SCB->ICSR |= SCB_ICSR_PENDSVSET_Msk; //(1UL << 28) in bare metal,trigger PendSV exception,that macro is from cmsis
 }
 
 void idle_task(void)
