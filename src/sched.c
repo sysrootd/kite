@@ -54,20 +54,6 @@ __attribute__((naked)) void scheduler_init(void)
     );
 }
 
-void scheduler_start(void)
-{
-    systick_init();
-    __asm volatile ("svc 0");
-}
-
-void systick_init(void)
-{
-    SysTick_Config(HSI_CLK / TICK_HZ);
-
-    NVIC_SetPriority(PendSV_IRQn, 0xFF);
-    NVIC_SetPriority(SysTick_IRQn, 0x00);
-}
-
 __attribute__((naked)) void SVC_Handler(void)
 {
     __asm volatile(
@@ -94,6 +80,20 @@ __attribute__((naked)) void PendSV_Handler(void)
         "POP {LR}              \n"
         "BX LR                 \n"
     );
+}
+
+void scheduler_start(void)
+{
+    systick_init();
+    __asm volatile ("svc 0");
+}
+
+void systick_init(void)
+{
+    SysTick_Config(HSI_CLK / TICK_HZ);
+
+    NVIC_SetPriority(PendSV_IRQn, 0xFF);
+    NVIC_SetPriority(SysTick_IRQn, 0x00);
 }
 
 void SysTick_Handler(void)
