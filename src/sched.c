@@ -3,6 +3,7 @@
 #include "sched.h"
 #include "stm32f4xx.h"
 #include "mem.h"
+#include "uart.h"
 
 uint32_t global_tick;
 
@@ -167,7 +168,7 @@ TCB_t *alloc_new_tcb_node(void)
     return new_tcb_node;
 }
 
-void create_idle_task(void)
+void idle_task_init(void)
 {
 	TCB_t *idle_tcb_node = alloc_new_tcb_node();
 
@@ -190,10 +191,10 @@ void create_idle_task(void)
 
 }
 
-void create_task(uint8_t task_priority, void (*task_handle)(void), uint32_t stack_size_in_words)
+void task_init(uint8_t task_priority, void (*task_handle)(void), uint32_t stack_size_in_words)
 {
 	if(new_task_psp == next_task_psp) {
-		create_idle_task();
+		idle_task_init();
 	}
 
 	TCB_t *tcb_node = alloc_new_tcb_node();
@@ -229,7 +230,7 @@ void __set_psp(uint32_t current_psp_value)
 	current_running_node->psp_value = (uint32_t *)current_psp_value;
 
 }
-//-----------------------------------------------------------------------------sched Alogo---------------------------------------------
+//-----------------------------------------------------------------------------sched Algo---------------------------------------------
 //---------------------------------------------------------------------------Cooperative scheduler-------------------------------------
 void cooperative_sched(void)
 {
@@ -309,7 +310,8 @@ void semaphore_post(semaphore_t *sem)
 
     if (sem->count <= 0)
     {
-        //wake the first task that was actually waiting on *this* semaphore; other blocked tasks should remain blocked
+        //wake the first task that was actually waiting on "this" semaphore
+        //  other blocked tasks should remain blocked
         TCB_t *iter = head_node;
 
         do

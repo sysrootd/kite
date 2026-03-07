@@ -81,9 +81,9 @@ uint32_t *find_stack_area(uint32_t stack_size_in_words);
 TCB_t *alloc_new_tcb_node(void);
 
 // Task creation routines
-void create_idle_task(void);
+void idle_task_init(void);
 
-void create_task(uint8_t task_priority, void (*task_handler)(void), uint32_t stack_size);
+void task_init(uint8_t task_priority, void (*task_handler)(void), uint32_t stack_size);
 
 // Trigger PendSV exception for context switch
 void schedule(void);

@@ -1,3 +1,7 @@
+#include <stdarg.h>
+#include <stdint.h>
+
+#include "stm32f4xx.h"
 #include "uart.h"
 
 
@@ -41,7 +45,7 @@ static void uart_print_int(USART_TypeDef *uart, int num, int base)
         uart_outchar(uart, buf[i]);
 }
 
-// ---------------- UART INIT ----------------
+// ---------------- uart init----------------
 
 void uart_init(USART_TypeDef *uart, uint32_t pclk, uint32_t baud)
 {
@@ -94,7 +98,7 @@ void uart_outstr(USART_TypeDef *uart, const char *str)
     }
 }
 
-// ---------------- printf ----------------
+// ---------------- uart_printf ----------------
 
 int uart_printf(USART_TypeDef *uart, const char *fmt, ...)
 {

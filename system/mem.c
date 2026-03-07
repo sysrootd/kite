@@ -1,3 +1,7 @@
+
+#include <errno.h>
+#include <stddef.h>
+
 #include "mem.h"
 
 extern char _ebss;

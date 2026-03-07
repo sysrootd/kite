@@ -18,25 +18,25 @@ semaphore_t empty;
 semaphore_t full;
 mutex_t buffer_mutex;
 
-void red_led_handler(void)
+void red_led_task(void)
 {
     while (1)
     {
         semaphore_wait(&led_sem);
         gpio_write(GPIOB, RED_LED, 1);
-        task_delay(500);
+        task_delay(1000);
         gpio_write(GPIOB, RED_LED, 0);
         semaphore_post(&led_sem);
     }
 }
 
-void green_led_handler(void)
+void green_led_task(void)
 {
     while (1)
     {
         semaphore_wait(&led_sem);
         gpio_write(GPIOB, GREEN_LED, 1);
-        task_delay(500);
+        task_delay(1000);
         gpio_write(GPIOB, GREEN_LED, 0);
         semaphore_post(&led_sem);
     }
@@ -85,6 +85,8 @@ void consumer_task(void)
 
 int main(void)
 {
+
+    //-----------system initialization--------------------
     gpio_init(GPIOB, RED_LED, OUTPUT, PP, FAST, PU, 0);
     gpio_init(GPIOB, GREEN_LED, OUTPUT, PP, FAST, PU, 0);
 
@@ -96,12 +98,13 @@ int main(void)
     semaphore_init(&full, 0);
     mutex_init(&buffer_mutex);
 
-    create_task(1, producer_task, 512U);
-    create_task(1, consumer_task, 512U);
-    create_task(1, red_led_handler, 512U);
-    create_task(1, green_led_handler, 512U);
+    task_init(1, producer_task, 512U);
+    task_init(1, consumer_task, 512U);
+    task_init(1, red_led_task, 512U);
+    task_init(1, green_led_task, 512U);
 
     scheduler_init();
+    //--------------------------------------------------
     scheduler_start();
 
     while (1);
