@@ -7,8 +7,8 @@
 
 uint32_t global_tick;                          // system tick counter
 
-TCB_t *current_running_node;                   // currently executing task
-TCB_t *head_node;                               // first task in circular list
+TCB_t *current_running_node;                   // currently executing task node
+TCB_t *head_node;                               // first task in circular list-idle task
 TCB_t *link_node;                               // used for building task list
 
 uint32_t *new_task_psp = STACK_START;           // stack pointer for new task
@@ -17,7 +17,7 @@ uint32_t msp_start;                              // main stack pointer start val
 
 static inline void request_context_switch(void)
 {
-    SCB->ICSR |= SCB_ICSR_PENDSVSET_Msk;        // trigger PendSV exception
+    SCB->ICSR |= SCB_ICSR_PENDSVSET_Msk; //(1UL << 28) in bare metal, trigger PendSV exception,that macro is from cmsis
 }
 
 void idle_task(void)
@@ -30,9 +30,9 @@ void idle_task(void)
 void core_faults_init(void)
 {
     // enable memory, bus, and usage fault handlers
-    SCB->SHCSR |= SCB_SHCSR_MEMFAULTENA_Msk;
-    SCB->SHCSR |= SCB_SHCSR_BUSFAULTENA_Msk;
-    SCB->SHCSR |= SCB_SHCSR_USGFAULTENA_Msk;
+    SCB->SHCSR |= SCB_SHCSR_MEMFAULTENA_Msk; //(1 << 16); SCB_SHCSR_MEMFAULTENA_Msk these macros from cmsis
+    SCB->SHCSR |= SCB_SHCSR_BUSFAULTENA_Msk; //(1 << 17);
+    SCB->SHCSR |= SCB_SHCSR_USGFAULTENA_Msk; //(1 << 18);
 }
 
 __attribute__((naked)) void scheduler_init(void)
@@ -91,10 +91,10 @@ void scheduler_start(void)
 
 void systick_init(void)
 {
-    SysTick_Config(HSI_CLK / TICK_HZ);               // configure SysTick timer
+    SysTick_Config(HSI_CLK / TICK_HZ);               // configure SysTick timer(cmsis)
 
-    NVIC_SetPriority(PendSV_IRQn, 0xFF);             // lowest priority for PendSV
-    NVIC_SetPriority(SysTick_IRQn, 0x00);            // highest priority for SysTick
+    NVIC_SetPriority(PendSV_IRQn, 0xFF);             // lowest priority for PendSV(cmsis)
+    NVIC_SetPriority(SysTick_IRQn, 0x00);            // highest priority for SysTick(cmsis)
 }
 
 void SysTick_Handler(void)
@@ -113,7 +113,9 @@ void task_stack_init(void)
 {
     TCB_t *iter = head_node;
     
-    if (head_node == NULL) return;
+    if (head_node == NULL) {
+        return;
+    }
     
     do {
         //ensure 8-byte alignment for stack pointer
@@ -156,7 +158,7 @@ uint32_t *find_stack_area(uint32_t stack_size_in_words)
 
 TCB_t *alloc_new_tcb_node(void)
 {
-    TCB_t *new_tcb_node = (TCB_t *)TCB_pool(sizeof(TCB_t));
+    TCB_t *new_tcb_node = (TCB_t *)TCB_pool(sizeof(TCB_t)); //allocate mem for new tcb node and get that addr
 
     if (new_tcb_node == NULL) {
         return NULL;
