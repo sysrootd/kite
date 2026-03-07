@@ -15,6 +15,11 @@ uint32_t *new_task_psp = STACK_START;
 uint32_t *next_task_psp = STACK_START;
 uint32_t msp_start;
 
+static inline void request_context_switch(void)
+{
+    SCB->ICSR |= SCB_ICSR_PENDSVSET_Msk;
+}
+
 void idle_task(void)
 {
     while (1) {
@@ -29,11 +34,10 @@ void core_faults_init(void)
     SCB->SHCSR |= SCB_SHCSR_USGFAULTENA_Msk;
 }
 
-
 __attribute__((naked)) void scheduler_init(void)
 {
-	msp_start = (uint32_t)next_task_psp;
-	link_node->next_tcb_node = head_node;
+    msp_start = (uint32_t)next_task_psp;
+    link_node->next_tcb_node = head_node;
 
     __asm volatile(
         "PUSH {LR}                    \n"
@@ -44,7 +48,7 @@ __attribute__((naked)) void scheduler_init(void)
         "MSR  MSP, R0                 \n"
         "ISB                          \n"
         "PUSH {LR}                    \n"
-        "BL   task_stack_init        \n"
+        "BL   task_stack_init         \n"
         "POP  {LR}                    \n"
         "BX   LR                      \n"
     );
@@ -94,67 +98,59 @@ __attribute__((naked)) void PendSV_Handler(void)
 
 void SysTick_Handler(void)
 {
-	global_tick++;
-	task_wake();
-    SCB->ICSR |= SCB_ICSR_PENDSVSET_Msk;
+    global_tick++;
+    task_wake();
+    request_context_switch();
 }
-
-
 
 void schedule(void)
 {
-    SCB->ICSR |= SCB_ICSR_PENDSVSET_Msk;
+    request_context_switch();
 }
 
 void task_stack_init(void)
 {
     TCB_t *iter = head_node;
-    uint32_t *pPSP;
-
-    if (head_node == NULL) {
-        return;
-    }
-
+    
+    if (head_node == NULL) return;
+    
     do {
-        uint32_t aligned_psp = (uint32_t)iter->psp_value;
-        aligned_psp &= ~STACK_ALIGN_8BYTE;
-        iter->psp_value = (uint32_t *)aligned_psp;
-
-        pPSP = iter->psp_value;
-
-        pPSP--;
-        *pPSP = STACK_FRAME_XPSR;
-
-        pPSP--;
-        *pPSP = (uint32_t)iter->task_handler;
-
-        pPSP--;
-        *pPSP = STACK_FRAME_LR;
-
-        for (int j = 0; j < NUM_GP_REGS; j++) {
-            pPSP--;
-            *pPSP = 0;
+        //ensure 8-byte alignment
+        uint32_t *stack_top = iter->psp_value;
+        uint32_t aligned_psp = ((uint32_t)stack_top) & ~0x7;
+        
+        //initialize stack frame 
+        uint32_t *stack = (uint32_t *)aligned_psp;
+        
+        *(--stack) = 0x01000000;  //xPSR-Thumb bit set
+        *(--stack) = (uint32_t)iter->task_handler;  //PC
+        *(--stack) = 0xFFFFFFFD;  //LR-EXC_RETURN for thread mode with PSP
+        *(--stack) = 0x0000000C;  //R12
+        *(--stack) = 0x00000003;  //R3
+        *(--stack) = 0x00000002;  //R2
+        *(--stack) = 0x00000001;  //R1
+        *(--stack) = 0x00000000;  //R0
+        
+        //save R4-R11
+        for (int i = 0; i < 8; i++) {
+            *(--stack) = 0;
         }
-
-        iter->psp_value = pPSP;
+        
+        iter->psp_value = stack;
         iter = iter->next_tcb_node;
 
     } while (iter != head_node);
 }
 
-
 uint32_t *find_stack_area(uint32_t stack_size_in_words)
 {
-    if (stack_size_in_words & 0x1u) {
-    	stack_size_in_words++;
-    }
+    stack_size_in_words = (stack_size_in_words + 1) & ~1;
 
     new_task_psp = next_task_psp;
     next_task_psp -= stack_size_in_words;
 
     return new_task_psp;
 }
-
 
 TCB_t *alloc_new_tcb_node(void)
 {
@@ -170,7 +166,7 @@ TCB_t *alloc_new_tcb_node(void)
 
 void idle_task_init(void)
 {
-	TCB_t *idle_tcb_node = alloc_new_tcb_node();
+    TCB_t *idle_tcb_node = alloc_new_tcb_node();
 
     if (idle_tcb_node == NULL) {
         return;
@@ -187,17 +183,15 @@ void idle_task_init(void)
     current_running_node = idle_tcb_node;
     link_node = idle_tcb_node;
     head_node = idle_tcb_node;
-
-
 }
 
 void task_init(uint8_t task_priority, void (*task_handle)(void), uint32_t stack_size_in_words)
 {
-	if(new_task_psp == next_task_psp) {
-		idle_task_init();
-	}
+    if(new_task_psp == next_task_psp) {
+        idle_task_init();
+    }
 
-	TCB_t *tcb_node = alloc_new_tcb_node();
+    TCB_t *tcb_node = alloc_new_tcb_node();
 
     if (tcb_node == NULL) {
         return;
@@ -213,48 +207,40 @@ void task_init(uint8_t task_priority, void (*task_handle)(void), uint32_t stack_
 
     link_node->next_tcb_node = tcb_node;
     link_node = tcb_node;
-
-
 }
 
 uint32_t __get_psp(void)
 {
-
-	return (uint32_t)current_running_node->psp_value;
-
+    return (uint32_t)current_running_node->psp_value;
 }
 
 void __set_psp(uint32_t current_psp_value)
 {
-
-	current_running_node->psp_value = (uint32_t *)current_psp_value;
-
+    current_running_node->psp_value = (uint32_t *)current_psp_value;
 }
-//---------------------------------sched Algo---------------------------------------------
-//------------------------------Cooperative scheduler-------------------------------------
+
 void cooperative_sched(void)
 {
     TCB_t *candidate = current_running_node->next_tcb_node;
-    uint32_t loop_counter = 0;
-    const uint32_t MAX_LOOPS = 100;
 
-    while (candidate->current_state != TASK_WAKE) {
-        candidate = candidate->next_tcb_node;
-        loop_counter++;
-
-        if (candidate == current_running_node ||
-            loop_counter >= MAX_LOOPS) {
-            candidate = head_node;
-            break;
+    do
+    {
+        if(candidate->current_state == TASK_WAKE)
+        {
+            current_running_node = candidate;
+            return;
         }
-    }
 
-    current_running_node = candidate;
+        candidate = candidate->next_tcb_node;
+
+    } while(candidate != current_running_node);
+
+    current_running_node = head_node;
 }
-//-----------------------------------------------------------------------------------------
+
 void task_delay(uint32_t tick_count)
 {
-	ENTER_CRITICAL();
+    ENTER_CRITICAL();
 
     if (current_running_node != NULL) {
         current_running_node->block_count = global_tick + tick_count;
@@ -279,7 +265,6 @@ void task_wake(void)
     } while (iter != head_node && iter != NULL);
 }
 
-//----------------------------Synco mechanisum---------------------------------
 void semaphore_init(semaphore_t *sem, int32_t initial_count)
 {
     sem->count = initial_count;
@@ -293,8 +278,6 @@ void semaphore_wait(semaphore_t *sem)
 
     if (sem->count < 0)
     {
-        //remember which object the task is blocked on so
-        //the poster can wake the correct task
         current_running_node->waiting_on = sem;
         current_running_node->current_state = TASK_BLOCKED;
         schedule();
@@ -311,8 +294,6 @@ void semaphore_post(semaphore_t *sem)
 
     if (sem->count <= 0)
     {
-        //wake the first task that was actually waiting on "this" semaphore
-        //other blocked tasks should remain blocked
         TCB_t *iter = head_node;
 
         do
@@ -322,6 +303,7 @@ void semaphore_post(semaphore_t *sem)
             {
                 iter->waiting_on = NULL;
                 iter->current_state = TASK_WAKE;
+                request_context_switch();
                 break;
             }
 
@@ -345,18 +327,14 @@ void mutex_lock(mutex_t *m)
 
     if (m->locked == 0)
     {
-        //acquire immediately
         m->locked = 1;
         m->owner  = current_running_node;
     }
     else
     {
-        //block and remember which mutex we are waiting for
         current_running_node->waiting_on = m;
         current_running_node->current_state = TASK_BLOCKED;
         schedule();
-
-        //when we resume we have been given ownership by unlock
     }
 
     EXIT_CRITICAL();
@@ -368,7 +346,6 @@ void mutex_unlock(mutex_t *m)
 
     if (m->owner == current_running_node)
     {
-        //look for a task waiting on this mutex
         TCB_t *iter = head_node;
         TCB_t *next_owner = NULL;
 
@@ -386,15 +363,13 @@ void mutex_unlock(mutex_t *m)
 
         if (next_owner)
         {
-            //transfer ownership straight to the woken task
             next_owner->waiting_on = NULL;
             next_owner->current_state = TASK_WAKE;
             m->owner = next_owner;
-            //keep locked == 1 so other tasks will still block
+            request_context_switch();
         }
         else
         {
-            //no one was waiting, fully release
             m->locked = 0;
             m->owner  = NULL;
         }
@@ -403,7 +378,6 @@ void mutex_unlock(mutex_t *m)
     EXIT_CRITICAL();
 }
 
-//--------------------------core fault handlers----------------------------------
 __attribute__((naked)) void HardFault_Handler(void)
 {
     __asm volatile(

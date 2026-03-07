@@ -22,12 +22,6 @@ extern uint32_t _estack;
 #define TASK_WAKE           1
 #define TASK_BLOCKED        2
 
-// Stack frame constants for ARM Cortex-M4
-#define STACK_FRAME_XPSR        0x01000000UL  // xPSR with Thumb bit set
-#define STACK_FRAME_LR          0xFFFFFFFDUL  // Return to Thread mode using PSP
-#define NUM_GP_REGS             13            // Number of GP registers (R0-R12)
-#define STACK_ALIGN_8BYTE       0x7U          // 8-byte alignment mask
-
 // Critical section protection
 #define ENTER_CRITICAL()  __asm volatile("CPSID i" ::: "memory")
 #define EXIT_CRITICAL()   __asm volatile("CPSIE i" ::: "memory")
