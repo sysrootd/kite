@@ -20,8 +20,8 @@ programming on Cortex‑M4 devices.
 ## Requirements
 
 - STM32F401x development board
-- If you don't have similar series, copy linker script from stm32cubeide
-  or cubemx and tweak startup file
+- If you don't have similar series, copy linker script from Stm32cubeide
+  or CubeMx and tweak startup file
 - ARM GCC toolchain (`arm-none-eabi-gcc`)
 - `make` utility
 - OpenOCD and ST‑Link hardware
