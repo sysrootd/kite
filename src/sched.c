@@ -230,8 +230,8 @@ void __set_psp(uint32_t current_psp_value)
 	current_running_node->psp_value = (uint32_t *)current_psp_value;
 
 }
-//-----------------------------------------------------------------------------sched Algo---------------------------------------------
-//---------------------------------------------------------------------------Cooperative scheduler-------------------------------------
+//---------------------------------sched Algo---------------------------------------------
+//------------------------------Cooperative scheduler-------------------------------------
 void cooperative_sched(void)
 {
     TCB_t *candidate = current_running_node->next_tcb_node;
@@ -251,7 +251,7 @@ void cooperative_sched(void)
 
     current_running_node = candidate;
 }
-//--------------------------------------------------------------------------------------------------------------------------------------
+//-----------------------------------------------------------------------------------------
 void task_delay(uint32_t tick_count)
 {
 	ENTER_CRITICAL();
@@ -279,7 +279,7 @@ void task_wake(void)
     } while (iter != head_node && iter != NULL);
 }
 
-//--------------------------------------------------------------Synco mechanisum------------------------------------------------//
+//----------------------------Synco mechanisum---------------------------------
 void semaphore_init(semaphore_t *sem, int32_t initial_count)
 {
     sem->count = initial_count;
@@ -293,7 +293,8 @@ void semaphore_wait(semaphore_t *sem)
 
     if (sem->count < 0)
     {
-        //remember which object the task is blocked on so the poster can wake the correct task
+        //remember which object the task is blocked on so
+        //the poster can wake the correct task
         current_running_node->waiting_on = sem;
         current_running_node->current_state = TASK_BLOCKED;
         schedule();
@@ -311,7 +312,7 @@ void semaphore_post(semaphore_t *sem)
     if (sem->count <= 0)
     {
         //wake the first task that was actually waiting on "this" semaphore
-        //  other blocked tasks should remain blocked
+        //other blocked tasks should remain blocked
         TCB_t *iter = head_node;
 
         do
@@ -344,18 +345,18 @@ void mutex_lock(mutex_t *m)
 
     if (m->locked == 0)
     {
-        // acquire immediately
+        //acquire immediately
         m->locked = 1;
         m->owner  = current_running_node;
     }
     else
     {
-        // block and remember which mutex we are waiting for
+        //block and remember which mutex we are waiting for
         current_running_node->waiting_on = m;
         current_running_node->current_state = TASK_BLOCKED;
         schedule();
 
-        // when we resume we have been given ownership by unlock
+        //when we resume we have been given ownership by unlock
     }
 
     EXIT_CRITICAL();
@@ -367,7 +368,7 @@ void mutex_unlock(mutex_t *m)
 
     if (m->owner == current_running_node)
     {
-        // look for a task waiting on this mutex
+        //look for a task waiting on this mutex
         TCB_t *iter = head_node;
         TCB_t *next_owner = NULL;
 
@@ -385,15 +386,15 @@ void mutex_unlock(mutex_t *m)
 
         if (next_owner)
         {
-            // transfer ownership straight to the woken task
+            //transfer ownership straight to the woken task
             next_owner->waiting_on = NULL;
             next_owner->current_state = TASK_WAKE;
             m->owner = next_owner;
-            // keep locked == 1 so other tasks will still block
+            //keep locked == 1 so other tasks will still block
         }
         else
         {
-            // no one was waiting, fully release
+            //no one was waiting, fully release
             m->locked = 0;
             m->owner  = NULL;
         }
@@ -402,7 +403,7 @@ void mutex_unlock(mutex_t *m)
     EXIT_CRITICAL();
 }
 
-//----------------------------------------------------core fault handlers----------------------------------
+//--------------------------core fault handlers----------------------------------
 __attribute__((naked)) void HardFault_Handler(void)
 {
     __asm volatile(
