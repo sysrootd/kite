@@ -1,6 +1,3 @@
-####################################
-# Toolchain and flags
-####################################
 CC      = arm-none-eabi-gcc
 AS      = arm-none-eabi-as
 OBJCOPY = arm-none-eabi-objcopy
@@ -15,26 +12,24 @@ CFLAGS  = -mcpu=cortex-m4 -mthumb -g3 -Wall -O0 \
 LDFLAGS = -T linker.ld -Wl,--gc-sections \
           --specs=nano.specs
 
-####################################
+
 # Directories
-####################################
+
 SRC_DIRS     := src system
 INCLUDE_DIRS := inc system system/cmsis
 INCDIRS      := $(addprefix -I,$(INCLUDE_DIRS))
 OBJDIR       := build
 
-####################################
 # Source files
-####################################
+
 C_SRC   := $(shell find $(SRC_DIRS) -name '*.c')
 ASM_SRC := $(shell find $(SRC_DIRS) -name '*.s')
 
 OBJ = $(addprefix $(OBJDIR)/,$(notdir $(C_SRC:.c=.o))) \
       $(addprefix $(OBJDIR)/,$(notdir $(ASM_SRC:.s=.o)))
 
-####################################
 # Targets
-####################################
+
 TARGET = $(OBJDIR)/kernel.elf
 BIN    = $(OBJDIR)/kernel.bin
 LST    = $(OBJDIR)/kernel.lst
@@ -49,33 +44,29 @@ $(TARGET): $(OBJ)
 	$(OBJDUMP) -D $@ > $(LST)
 	$(SIZE) $@
 
-####################################
 # Compile .c files
-####################################
+
 $(OBJDIR)/%.o: src/%.c | $(OBJDIR)
 	$(CC) $(CFLAGS) $(INCDIRS) -c $< -o $@
 
 $(OBJDIR)/%.o: system/%.c | $(OBJDIR)
 	$(CC) $(CFLAGS) $(INCDIRS) -c $< -o $@
 
-####################################
 # Assemble .s files
-####################################
+
 $(OBJDIR)/%.o: src/%.s | $(OBJDIR)
 	$(AS) $(ASFLAGS) $< -o $@
 
 $(OBJDIR)/%.o: system/%.s | $(OBJDIR)
 	$(AS) $(ASFLAGS) $< -o $@
 
-####################################
 # Create build directory
-####################################
+
 $(OBJDIR):
 	mkdir -p $(OBJDIR)
 
-####################################
 # Flash and debug
-####################################
+
 burn: $(BIN)
 	st-flash --connect-under-reset write $(BIN) 0x08000000
 
@@ -91,9 +82,8 @@ debug: $(TARGET)
 	    -ex "break main" \
 	    -ex "continue"
 
-####################################
 # Clean
-####################################
+
 clean:
 	rm -rf $(OBJDIR)
 
