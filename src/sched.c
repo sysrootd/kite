@@ -5,19 +5,19 @@
 #include "mem.h"
 #include "uart.h"
 
-uint32_t global_tick;                          // system tick counter
+uint32_t global_tick;                          // systick timer counter
 
 TCB_t *current_running_node;                   // currently executing task node
-TCB_t *head_node;                               // first task in circular list-idle task
-TCB_t *link_node;                               // used for building task list
+TCB_t *head_node;                               // node pointer that holds first task(idle task) node addr
+TCB_t *link_node;                               // node pointer that follow new node, lastly it will link with head node(make it circular list)
 
 uint32_t *new_task_psp = STACK_START;           // stack pointer for new task
 uint32_t *next_task_psp = STACK_START;          // next free stack location
-uint32_t msp_start;                              // main stack pointer start value
+uint32_t msp_start;                              //var that holds final tasks next_task_psp as msp
 
 static inline void request_context_switch(void)
 {
-    SCB->ICSR |= SCB_ICSR_PENDSVSET_Msk; //(1UL << 28) in bare metal, trigger PendSV exception,that macro is from cmsis
+    SCB->ICSR |= SCB_ICSR_PENDSVSET_Msk; //(1UL << 28) in bare metal,trigger PendSV exception,macro is from cmsis
 }
 
 void idle_task(void)
@@ -127,14 +127,14 @@ void task_stack_init(void)
         
         *(--stack) = 0x01000000;                       // xPSR with Thumb bit set
         *(--stack) = (uint32_t)iter->task_handler;     // Program counter
-        *(--stack) = 0xFFFFFFFD;                       // LR with EXC_RETURN value
-        *(--stack) = 0x0000000C;                       // R12
-        *(--stack) = 0x00000003;                       // R3
-        *(--stack) = 0x00000002;                       // R2
-        *(--stack) = 0x00000001;                       // R1
-        *(--stack) = 0x00000000;                       // R0
+        *(--stack) = 0xFFFFFFFD;                       // lr with EXC_RETURN value
+        *(--stack) = 0x0000000C;                       // r12
+        *(--stack) = 0x00000003;                       // r3
+        *(--stack) = 0x00000002;                       // r2
+        *(--stack) = 0x00000001;                       // r1
+        *(--stack) = 0x00000000;                       // r0
         
-        // save R4-R11 (initialized to zero)
+        // save r4-r11 (initialized to zero)
         for (int i = 0; i < 8; i++) {
             *(--stack) = 0;
         }
@@ -158,7 +158,7 @@ uint32_t *find_stack_area(uint32_t stack_size_in_words)
 
 TCB_t *alloc_new_tcb_node(void)
 {
-    TCB_t *new_tcb_node = (TCB_t *)TCB_pool(sizeof(TCB_t)); //allocate mem for new tcb node and get that addr
+    TCB_t *new_tcb_node = TCB_pool(sizeof(TCB_t)); //allocate mem for new tcb node and get that addr
 
     if (new_tcb_node == NULL) {
         return NULL;
