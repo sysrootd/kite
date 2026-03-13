@@ -90,7 +90,7 @@ int main(void)
     gpio_init(GPIOB, RED_LED, OUTPUT, PP, FAST, PU, 0);
     gpio_init(GPIOB, GREEN_LED, OUTPUT, PP, FAST, PU, 0);
 
-    uart_init(USART2, HSI_CLK, BAUD_RATE);
+    uart_init(USART2, SYSTEM_CLK, BAUD_RATE);
 
     semaphore_init(&led_sem, 1);
 
@@ -98,10 +98,10 @@ int main(void)
     semaphore_init(&full, 0);
     mutex_init(&buffer_mutex);
 
-    task_init(1, producer_task, 512U);
-    task_init(1, consumer_task, 512U);
-    task_init(1, red_led_task, 512U);
-    task_init(1, green_led_task, 512U);
+    task_init(1, producer_task, 64U);
+    task_init(1, consumer_task, 64U);
+    task_init(1, red_led_task, 64U);
+    task_init(1, green_led_task, 64U);
 
     scheduler_init();
     //------------------------------------------

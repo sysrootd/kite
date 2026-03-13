@@ -91,7 +91,7 @@ void scheduler_start(void)
 
 void systick_init(void)
 {
-    SysTick_Config(HSI_CLK / TICK_HZ);               // configure SysTick timer(cmsis)
+    SysTick_Config(SYSTEM_CLK / TICK_HZ);               // configure SysTick timer(cmsis)
 
     NVIC_SetPriority(PendSV_IRQn, 0xFF);             // lowest priority for PendSV(cmsis)
     NVIC_SetPriority(SysTick_IRQn, 0x00);            // highest priority for SysTick(cmsis)
@@ -176,7 +176,7 @@ void idle_task_init(void)
         return;
     }
 
-    uint32_t *task_stack_start = find_stack_area(IDLE_TASK_STACK_WORDS);
+    uint32_t *task_stack_start = find_stack_area(IDLE_TASK_STACK_SIZE);
 
     idle_tcb_node->block_count = 0;
     idle_tcb_node->current_state = TASK_WAKE;          // idle task always ready

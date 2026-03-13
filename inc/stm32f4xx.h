@@ -3,94 +3,86 @@
 
 #include <stdint.h>
 
-// Cortex-M4 Processor Configuration
-#define __CM4_REV              0x0001U   // Core revision r0p1
-#define __MPU_PRESENT          1U        // MPU present
-#define __NVIC_PRIO_BITS       4U        // STM32F4 uses 4 bits for NVIC priority levels
-#define __Vendor_SysTickConfig 0U        // Use default SysTick config
+#define __CM4_REV              0x0001U
+#define __MPU_PRESENT          1U
+#define __NVIC_PRIO_BITS       4U
+#define __Vendor_SysTickConfig 0U
 
-// Interrupt Number Definition
 typedef enum {
-    // Cortex-M4 Processor Exceptions Numbers
-    NonMaskableInt_IRQn   = -14, // 2 Non Maskable Interrupt
-    MemoryManagement_IRQn = -12, // 4 Memory Management Interrupt
-    BusFault_IRQn         = -11, // 5 Bus Fault Interrupt
-    UsageFault_IRQn       = -10, // 6 Usage Fault Interrupt
-    SVCall_IRQn           = -5,  // 11 SV Call Interrupt
-    DebugMonitor_IRQn     = -4,  // 12 Debug Monitor Interrupt
-    PendSV_IRQn           = -2,  // 14 Pend SV Interrupt
-    SysTick_IRQn          = -1,  // 15 System Tick Interrupt
-
-    // STM32F401 Peripheral Interrupt Numbers
-    WWDG_IRQn             = 0,   // Window WatchDog
-    PVD_IRQn              = 1,   // PVD through EXTI Line detection
-    TAMP_STAMP_IRQn       = 2,   // Tamper and TimeStamp interrupts
-    RTC_WKUP_IRQn         = 3,   // RTC Wakeup interrupt
-    FLASH_IRQn            = 4,   // FLASH global interrupt
-    RCC_IRQn              = 5,   // RCC global interrupt
-    EXTI0_IRQn            = 6,   // EXTI Line0 interrupt
-    EXTI1_IRQn            = 7,   // EXTI Line1 interrupt
-    EXTI2_IRQn            = 8,   // EXTI Line2 interrupt
-    EXTI3_IRQn            = 9,   // EXTI Line3 interrupt
-    EXTI4_IRQn            = 10,  // EXTI Line4 interrupt
-    DMA1_Stream0_IRQn     = 11,  // DMA1 Stream0 global interrupt
-    DMA1_Stream1_IRQn     = 12,  // DMA1 Stream1 global interrupt
-    DMA1_Stream2_IRQn     = 13,  // DMA1 Stream2 global interrupt
-    DMA1_Stream3_IRQn     = 14,  // DMA1 Stream3 global interrupt
-    DMA1_Stream4_IRQn     = 15,  // DMA1 Stream4 global interrupt
-    DMA1_Stream5_IRQn     = 16,  // DMA1 Stream5 global interrupt
-    DMA1_Stream6_IRQn     = 17,  // DMA1 Stream6 global interrupt
-    ADC_IRQn              = 18,  // ADC1 global interrupt
-    EXTI9_5_IRQn          = 23,  // External Line[9:5] interrupts
-    TIM1_BRK_TIM9_IRQn    = 24,  // TIM1 Break and TIM9 global interrupt
-    TIM1_UP_TIM10_IRQn    = 25,  // TIM1 Update and TIM10 global interrupt
-    TIM1_TRG_COM_TIM11_IRQn = 26,// TIM1 Trigger/Commutation and TIM11 global interrupt
-    TIM1_CC_IRQn          = 27,  // TIM1 Capture Compare interrupt
-    TIM2_IRQn             = 28,  // TIM2 global interrupt
-    TIM3_IRQn             = 29,  // TIM3 global interrupt
-    TIM4_IRQn             = 30,  // TIM4 global interrupt
-    I2C1_EV_IRQn          = 31,  // I2C1 Event interrupt
-    I2C1_ER_IRQn          = 32,  // I2C1 Error interrupt
-    I2C2_EV_IRQn          = 33,  // I2C2 Event interrupt
-    I2C2_ER_IRQn          = 34,  // I2C2 Error interrupt
-    SPI1_IRQn             = 35,  // SPI1 global interrupt
-    SPI2_IRQn             = 36,  // SPI2 global interrupt
-    USART1_IRQn           = 37,  // USART1 global interrupt
-    USART2_IRQn           = 38,  // USART2 global interrupt
-    EXTI15_10_IRQn        = 40,  // External Line[15:10] interrupts
-    RTC_Alarm_IRQn        = 41,  // RTC Alarm interrupt
-    OTG_FS_WKUP_IRQn      = 42,  // USB OTG FS Wakeup interrupt
-    DMA1_Stream7_IRQn     = 47,  // DMA1 Stream7 global interrupt
-    SDIO_IRQn             = 49,  // SDIO global interrupt
-    TIM5_IRQn             = 50,  // TIM5 global interrupt
-    SPI3_IRQn             = 51,  // SPI3 global interrupt
-    DMA2_Stream0_IRQn     = 56,  // DMA2 Stream0 global interrupt
-    DMA2_Stream1_IRQn     = 57,  // DMA2 Stream1 global interrupt
-    DMA2_Stream2_IRQn     = 58,  // DMA2 Stream2 global interrupt
-    DMA2_Stream3_IRQn     = 59,  // DMA2 Stream3 global interrupt
-    DMA2_Stream4_IRQn     = 60,  // DMA2 Stream4 global interrupt
-    OTG_FS_IRQn           = 67,  // USB OTG FS global interrupt
-    DMA2_Stream5_IRQn     = 68,  // DMA2 Stream5 global interrupt
-    DMA2_Stream6_IRQn     = 69,  // DMA2 Stream6 global interrupt
-    DMA2_Stream7_IRQn     = 70,  // DMA2 Stream7 global interrupt
-    USART6_IRQn           = 71,  // USART6 global interrupt
-    I2C3_EV_IRQn          = 72,  // I2C3 event interrupt
-    I2C3_ER_IRQn          = 73,  // I2C3 error interrupt
-    FPU_IRQn              = 81,  // FPU global interrupt
-    SPI4_IRQn             = 84   // SPI4 global interrupt
+    NonMaskableInt_IRQn   = -14,
+    MemoryManagement_IRQn = -12,
+    BusFault_IRQn         = -11,
+    UsageFault_IRQn       = -10,
+    SVCall_IRQn           = -5,
+    DebugMonitor_IRQn     = -4,
+    PendSV_IRQn           = -2,
+    SysTick_IRQn          = -1,
+    WWDG_IRQn             = 0,
+    PVD_IRQn              = 1,
+    TAMP_STAMP_IRQn       = 2,
+    RTC_WKUP_IRQn         = 3,
+    FLASH_IRQn            = 4,
+    RCC_IRQn              = 5,
+    EXTI0_IRQn            = 6,
+    EXTI1_IRQn            = 7,
+    EXTI2_IRQn            = 8,
+    EXTI3_IRQn            = 9,
+    EXTI4_IRQn            = 10,
+    DMA1_Stream0_IRQn     = 11,
+    DMA1_Stream1_IRQn     = 12,
+    DMA1_Stream2_IRQn     = 13,
+    DMA1_Stream3_IRQn     = 14,
+    DMA1_Stream4_IRQn     = 15,
+    DMA1_Stream5_IRQn     = 16,
+    DMA1_Stream6_IRQn     = 17,
+    ADC_IRQn              = 18,
+    EXTI9_5_IRQn          = 23,
+    TIM1_BRK_TIM9_IRQn    = 24,
+    TIM1_UP_TIM10_IRQn    = 25,
+    TIM1_TRG_COM_TIM11_IRQn = 26,
+    TIM1_CC_IRQn          = 27,
+    TIM2_IRQn             = 28,
+    TIM3_IRQn             = 29,
+    TIM4_IRQn             = 30,
+    I2C1_EV_IRQn          = 31,
+    I2C1_ER_IRQn          = 32,
+    I2C2_EV_IRQn          = 33,
+    I2C2_ER_IRQn          = 34,
+    SPI1_IRQn             = 35,
+    SPI2_IRQn             = 36,
+    USART1_IRQn           = 37,
+    USART2_IRQn           = 38,
+    EXTI15_10_IRQn        = 40,
+    RTC_Alarm_IRQn        = 41,
+    OTG_FS_WKUP_IRQn      = 42,
+    DMA1_Stream7_IRQn     = 47,
+    SDIO_IRQn             = 49,
+    TIM5_IRQn             = 50,
+    SPI3_IRQn             = 51,
+    DMA2_Stream0_IRQn     = 56,
+    DMA2_Stream1_IRQn     = 57,
+    DMA2_Stream2_IRQn     = 58,
+    DMA2_Stream3_IRQn     = 59,
+    DMA2_Stream4_IRQn     = 60,
+    OTG_FS_IRQn           = 67,
+    DMA2_Stream5_IRQn     = 68,
+    DMA2_Stream6_IRQn     = 69,
+    DMA2_Stream7_IRQn     = 70,
+    USART6_IRQn           = 71,
+    I2C3_EV_IRQn          = 72,
+    I2C3_ER_IRQn          = 73,
+    FPU_IRQn              = 81,
+    SPI4_IRQn             = 84
 } IRQn_Type;
 
-// CMSIS Core Peripheral Access
 #include "core_cm4.h"
 
-// Base Addresses
 #define PERIPH_BASE           0x40000000UL
 #define APB1PERIPH_BASE       PERIPH_BASE
 #define APB2PERIPH_BASE       (PERIPH_BASE + 0x10000UL)
 #define AHB1PERIPH_BASE       (PERIPH_BASE + 0x20000UL)
 #define AHB2PERIPH_BASE       0x50000000UL
 
-// AHB1
 #define GPIOA_BASE            (AHB1PERIPH_BASE + 0x0000UL)
 #define GPIOB_BASE            (AHB1PERIPH_BASE + 0x0400UL)
 #define GPIOC_BASE            (AHB1PERIPH_BASE + 0x0800UL)
@@ -100,7 +92,6 @@ typedef enum {
 #define RCC_BASE              (AHB1PERIPH_BASE + 0x3800UL)
 #define FLASH_R_BASE          0x40023C00UL
 
-// AHB1
 #define TIM2_BASE             (APB1PERIPH_BASE + 0x0000UL)
 #define TIM3_BASE             (APB1PERIPH_BASE + 0x0400UL)
 #define TIM4_BASE             (APB1PERIPH_BASE + 0x0800UL)
@@ -112,7 +103,6 @@ typedef enum {
 #define PWR_BASE              (APB1PERIPH_BASE + 0x7000UL)
 #define SPI2_BASE             (APB1PERIPH_BASE + 0x3800UL)
 
-// APB2
 #define TIM1_BASE             (APB2PERIPH_BASE + 0x0000UL)
 #define USART1_BASE           (APB2PERIPH_BASE + 0x1000UL)
 #define USART6_BASE           (APB2PERIPH_BASE + 0x1400UL)
@@ -126,9 +116,6 @@ typedef enum {
 #define TIM10_BASE            (APB2PERIPH_BASE + 0x4400UL)
 #define TIM11_BASE            (APB2PERIPH_BASE + 0x4800UL)
 
-// Peripheral Register Structures
-
-// GPIO
 typedef struct {
     volatile uint32_t MODER;
     volatile uint32_t OTYPER;
@@ -142,7 +129,6 @@ typedef struct {
     volatile uint32_t AFRH;
 } GPIO_TypeDef;
 
-// RCC
 typedef struct {
     volatile uint32_t CR;
     volatile uint32_t PLLCFGR;
@@ -173,7 +159,6 @@ typedef struct {
     volatile uint32_t PLLI2SCFGR;
 } RCC_TypeDef;
 
-// EXTI
 typedef struct {
     volatile uint32_t IMR;
     volatile uint32_t EMR;
@@ -183,7 +168,6 @@ typedef struct {
     volatile uint32_t PR;
 } EXTI_TypeDef;
 
-// SYSCFG
 typedef struct {
     volatile uint32_t MEMRMP;
     volatile uint32_t PMC;
@@ -192,7 +176,6 @@ typedef struct {
     volatile uint32_t CMPCR;
 } SYSCFG_TypeDef;
 
-// ADC (simplified)
 typedef struct {
     volatile uint32_t SR;
     volatile uint32_t CR1;
@@ -216,7 +199,6 @@ typedef struct {
     volatile uint32_t DR;
 } ADC_TypeDef;
 
-// USART
 typedef struct {
     volatile uint32_t SR;
     volatile uint32_t DR;
@@ -227,7 +209,6 @@ typedef struct {
     volatile uint32_t GTPR;
 } USART_TypeDef;
 
-// SPI
 typedef struct {
     volatile uint32_t CR1;
     volatile uint32_t CR2;
@@ -240,7 +221,6 @@ typedef struct {
     volatile uint32_t I2SPR;
 } SPI_TypeDef;
 
-// I2C
 typedef struct {
     volatile uint32_t CR1;
     volatile uint32_t CR2;
@@ -254,7 +234,6 @@ typedef struct {
     volatile uint32_t FLTR;
 } I2C_TypeDef;
 
-// TIM
 typedef struct {
     volatile uint32_t CR1;
     volatile uint32_t CR2;
@@ -278,9 +257,6 @@ typedef struct {
     volatile uint32_t DMAR;
 } TIM_TypeDef;
 
-// Peripheral Declarations
-
-// GPIO
 #define GPIOA               ((GPIO_TypeDef *) GPIOA_BASE)
 #define GPIOB               ((GPIO_TypeDef *) GPIOB_BASE)
 #define GPIOC               ((GPIO_TypeDef *) GPIOC_BASE)
@@ -288,30 +264,24 @@ typedef struct {
 #define GPIOE               ((GPIO_TypeDef *) GPIOE_BASE)
 #define GPIOH               ((GPIO_TypeDef *) GPIOH_BASE)
 
-// RCC, EXTI, SYSCFG
 #define RCC                 ((RCC_TypeDef *) RCC_BASE)
 #define EXTI                ((EXTI_TypeDef *) EXTI_BASE)
 #define SYSCFG              ((SYSCFG_TypeDef *) SYSCFG_BASE)
 
-// ADC
 #define ADC1                ((ADC_TypeDef *) ADC1_BASE)
 
-// USART
 #define USART1              ((USART_TypeDef *) USART1_BASE)
 #define USART2              ((USART_TypeDef *) USART2_BASE)
 #define USART6              ((USART_TypeDef *) USART6_BASE)
 
-// SPI
 #define SPI1                ((SPI_TypeDef *) SPI1_BASE)
 #define SPI2                ((SPI_TypeDef *) SPI2_BASE)
 #define SPI4                ((SPI_TypeDef *) SPI4_BASE)
 
-// I2C
 #define I2C1                ((I2C_TypeDef *) I2C1_BASE)
 #define I2C2                ((I2C_TypeDef *) I2C2_BASE)
 #define I2C3                ((I2C_TypeDef *) I2C3_BASE)
 
-// TIM
 #define TIM1                ((TIM_TypeDef *) TIM1_BASE)
 #define TIM2                ((TIM_TypeDef *) TIM2_BASE)
 #define TIM3                ((TIM_TypeDef *) TIM3_BASE)
