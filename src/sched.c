@@ -1,7 +1,7 @@
 #include <stdlib.h>
 
-#include "sched.h"
 #include "stm32f4xx.h"
+#include "sched.h"
 #include "mem.h"
 #include "uart.h"
 

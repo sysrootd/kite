@@ -16,7 +16,7 @@ extern uint32_t SystemCoreClock;
 
 // Timing and clock configuration
 #define TICK_HZ             1000U     // System tick frequency in Hz
-#define SYSTEM_CLK          SystemCoreClock // Internal high-speed clock frequency
+#define SYSTEM_CLK          SystemCoreClock // System clock frequency
 
 // Task state definitions
 #define TASK_SLEEP          0         // Task is sleeping/delayed
