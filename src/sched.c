@@ -184,7 +184,6 @@ void idle_task_init(void)
     idle_tcb_node->task_handler = idle_task;
     idle_tcb_node->waiting_on = NULL;
 
-    current_running_node = idle_tcb_node;              // start with idle task
     link_node = idle_tcb_node;                          // first node in list
     head_node = idle_tcb_node;                          // head of circular list
 }
@@ -213,6 +212,10 @@ void task_init(uint8_t task_priority, void (*task_handle)(void), uint32_t stack_
     //add task to circular list
     link_node->next_tcb_node = tcb_node;
     link_node = tcb_node;
+
+    if(head_node->next_tcb_node == link_node) {
+        current_running_node = tcb_node;              // start with first task
+    }
 }
 
 uint32_t __get_psp(void)

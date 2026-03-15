@@ -4,7 +4,7 @@
 #include "stm32f4xx.h"
 
 // CMSIS clock 
-uint32_t SystemCoreClock = 16000000U;  // HSI
+uint32_t SystemCoreClock;
 
 // Main function
 int main(void);
