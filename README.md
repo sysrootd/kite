@@ -8,7 +8,8 @@ programming on Cortex‑M4 devices.
 
 ## Features
 
-- Cooperative and fair-priority based schedulers available,can impliment your own sched API if you want 
+- Cooperative and fair-preemptive-priority based schedulers avail,
+- Can impliment your own sched API if you want 
 - Task creation, delay and wake APIs
 - Automatic stack allocation from RAM
 - SysTick timer for tick interrupts
