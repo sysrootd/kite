@@ -1,6 +1,6 @@
 # kite RTOS (STM32F401x)
 
-A small cooperative RTOS written in C for the STM32F401x family. It provides a simple
+A small RTOS written in C for the STM32F401xx family. It provides a simple
 scheduler and task APIs making it ideal for learning bare‑metal RTOS
 programming on Cortex‑M4 devices.
 
@@ -8,7 +8,7 @@ programming on Cortex‑M4 devices.
 
 ## Features
 
-- Cooperative thread scheduler, you can impliment your own sched API if you want 
+- Cooperative and fair-priority based schedulers available,can impliment your own sched API if you want 
 - Task creation, delay and wake APIs
 - Automatic stack allocation from RAM
 - SysTick timer for tick interrupts
