@@ -81,8 +81,8 @@ void hog_task(void)
         for (volatile uint32_t i = 0; i < 50000; i++)
         {
             x++;
-            task_yeild();
         }
+        task_yeild();
     }
 }
 
