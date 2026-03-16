@@ -8,7 +8,7 @@ programming on Cortex‑M4 devices.
 
 ## Features
 
-- Cooperative and fair-preemptive-priority based schedulers avail,
+- Cooperative and fair-preemptive-priority schedulers avail,
 - Can impliment your own sched API if you want 
 - Task creation, delay and wake APIs
 - Automatic stack allocation from RAM
@@ -20,7 +20,7 @@ programming on Cortex‑M4 devices.
 
 ## Requirements
 
-- STM32F401x development board
+- STM32F401xx development board
 - If you don't have similar series, copy linker script from Stm32cubeide
   or CubeMx and tweak startup file
 - ARM GCC toolchain (`arm-none-eabi-gcc`)
