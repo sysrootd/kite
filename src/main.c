@@ -5,33 +5,33 @@
 
 #define   BLUE_LED     13
 
-extern uint32_t global_tick;
+extern uint32_t global_systick_counter;
 static mutex_t uart2_mutex;
 
 void led_task(void)
 {
-    uint32_t next = global_tick;
+    uint32_t next = global_systick_counter;
 
     while (1)
     {
         gpio_write(GPIOC, BLUE_LED, 1);
-        task_sleep_until(&next, 200);
+        task_delay(200);
 
         gpio_write(GPIOC, BLUE_LED, 0);
-        task_sleep_until(&next, 200);
+        task_delay(200);
     }
 }
 
 void task_A(void)
 {
-    uint32_t next = global_tick;
+    uint32_t next = global_systick_counter;
     uint32_t count = 0;
 
     while (1)
     {
         if ((count % 10) == 0)
         {
-            uint32_t observed_now = global_tick;
+            uint32_t observed_now = global_systick_counter;
             long late = (long)((int32_t)(observed_now - next));
 
             mutex_lock(&uart2_mutex);
@@ -51,12 +51,12 @@ void task_A(void)
 
 void task_B(void)
 {
-    uint32_t next = global_tick;
+    uint32_t next = global_systick_counter;
     uint32_t count = 0;
 
     while (1)
     {
-        uint32_t observed_now = global_tick;
+        uint32_t observed_now = global_systick_counter;
         long late = (long)((int32_t)(observed_now - next));
 
         mutex_lock(&uart2_mutex);
