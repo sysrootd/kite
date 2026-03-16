@@ -4,7 +4,6 @@
 #include "stm32f4xx.h"
 #include "uart.h"
 
-
 uint32_t cstm_strlen(const char *str)
 {
     uint32_t len = 0;
@@ -21,23 +20,23 @@ static void uart_print_int(USART_TypeDef *uart, int num, int base)
     if (num < 0 && base == 10)
     {
         uart_outchar(uart, '-');
-        n = -num;
+        n = (unsigned int)(-(num + 1)) + 1U;
     }
     else
     {
-        n = num;
+        n = (unsigned int)num;
     }
 
     do
     {
-        int digit = n % base;
+        int digit = n % (unsigned int)base;
 
         if (digit < 10)
             buf[i++] = digit + '0';
         else
             buf[i++] = digit - 10 + 'A';
 
-        n /= base;
+        n /= (unsigned int)base;
 
     } while (n);
 
@@ -45,7 +44,44 @@ static void uart_print_int(USART_TypeDef *uart, int num, int base)
         uart_outchar(uart, buf[i]);
 }
 
-// ---------------- uart init----------------
+static void uart_print_uint(USART_TypeDef *uart, unsigned long num, int base)
+{
+    char buf[32];
+    int i = 0;
+
+    do
+    {
+        unsigned long digit = num % (unsigned long)base;
+
+        if (digit < 10)
+            buf[i++] = (char)(digit + '0');
+        else
+            buf[i++] = (char)(digit - 10 + 'A');
+
+        num /= (unsigned long)base;
+
+    } while (num);
+
+    while (i--)
+        uart_outchar(uart, buf[i]);
+}
+
+static void uart_print_long(USART_TypeDef *uart, long num, int base)
+{
+    unsigned long n;
+
+    if (num < 0 && base == 10)
+    {
+        uart_outchar(uart, '-');
+        n = (unsigned long)(-(num + 1)) + 1UL;
+    }
+    else
+    {
+        n = (unsigned long)num;
+    }
+
+    uart_print_uint(uart, n, base);
+}
 
 void uart_init(USART_TypeDef *uart, uint32_t pclk, uint32_t baud)
 {
@@ -56,7 +92,7 @@ void uart_init(USART_TypeDef *uart, uint32_t pclk, uint32_t baud)
         RCC->AHB1ENR |= (1U << 0);
 
         GPIOA->MODER |= (2U << 18) | (2U << 20);
-        GPIOA->AFRH |= (7U << 4) | (7U << 8);   // AF7 for PA9, PA10
+        GPIOA->AFRH |= (7U << 4) | (7U << 8);
     }
     else if (uart == USART2)
     {
@@ -65,7 +101,7 @@ void uart_init(USART_TypeDef *uart, uint32_t pclk, uint32_t baud)
         RCC->AHB1ENR |= (1U << 0);
 
         GPIOA->MODER |= (2U << 4) | (2U << 6);
-        GPIOA->AFRL |= (7U << 8) | (7U << 12);  // AF7 for PA2, PA3
+        GPIOA->AFRL |= (7U << 8) | (7U << 12);
     }
     else if (uart == USART6)
     {
@@ -74,7 +110,7 @@ void uart_init(USART_TypeDef *uart, uint32_t pclk, uint32_t baud)
         RCC->AHB1ENR |= (1U << 2);
 
         GPIOC->MODER |= (2U << 12) | (2U << 14);
-        GPIOC->AFRL |= (8U << 24) | (8U << 28); // AF8 for PC6, PC7
+        GPIOC->AFRL |= (8U << 24) | (8U << 28);
     }
 
     uart->BRR = (pclk + (baud / 2U)) / baud;
@@ -82,11 +118,9 @@ void uart_init(USART_TypeDef *uart, uint32_t pclk, uint32_t baud)
     uart->CR1 = (1U << 13) | (1U << 2) | (1U << 3);
 }
 
-// ---------------- low level IO ----------------
-
 void uart_outchar(USART_TypeDef *uart, uint8_t data)
 {
-    while (!(uart->SR & (1U << 7))); // TXE
+    while (!(uart->SR & (1U << 7)));
     uart->DR = data;
 }
 
@@ -97,8 +131,6 @@ void uart_outstr(USART_TypeDef *uart, const char *str)
         uart_outchar(uart, *str++);
     }
 }
-
-// ---------------- uart_printf ----------------
 
 int uart_printf(USART_TypeDef *uart, const char *fmt, ...)
 {
@@ -122,7 +154,7 @@ int uart_printf(USART_TypeDef *uart, const char *fmt, ...)
         {
             case 'c':
             {
-                char c = va_arg(args, int);
+                char c = (char)va_arg(args, int);
                 uart_outchar(uart, c);
                 break;
             }
@@ -134,24 +166,61 @@ int uart_printf(USART_TypeDef *uart, const char *fmt, ...)
                 break;
             }
 
+            case 'u':
+            {
+                unsigned int val = va_arg(args, unsigned int);
+                uart_print_uint(uart, (unsigned long)val, 10);
+                break;
+            }
+
             case 'x':
             {
-                int val = va_arg(args, int);
-                uart_print_int(uart, val, 16);
+                unsigned int val = va_arg(args, unsigned int);
+                uart_print_uint(uart, (unsigned long)val, 16);
                 break;
             }
 
             case 'o':
             {
-                int val = va_arg(args, int);
-                uart_print_int(uart, val, 8);
+                unsigned int val = va_arg(args, unsigned int);
+                uart_print_uint(uart, (unsigned long)val, 8);
                 break;
             }
 
             case 's':
             {
                 char *str = va_arg(args, char *);
+                if (!str) str = "(null)";
                 uart_outstr(uart, str);
+                break;
+            }
+
+            case 'l':
+            {
+                fmt++;
+
+                if (*fmt == 'u')
+                {
+                    unsigned long val = va_arg(args, unsigned long);
+                    uart_print_uint(uart, val, 10);
+                }
+                else if (*fmt == 'd')
+                {
+                    long val = va_arg(args, long);
+                    uart_print_long(uart, val, 10);
+                }
+                else if (*fmt == 'x')
+                {
+                    unsigned long val = va_arg(args, unsigned long);
+                    uart_print_uint(uart, val, 16);
+                }
+                else
+                {
+                    uart_outchar(uart, '%');
+                    uart_outchar(uart, 'l');
+                    if (*fmt)
+                        uart_outchar(uart, *fmt);
+                }
                 break;
             }
 
@@ -162,12 +231,15 @@ int uart_printf(USART_TypeDef *uart, const char *fmt, ...)
             }
 
             default:
+            {
                 uart_outchar(uart, '%');
                 uart_outchar(uart, *fmt);
                 break;
+            }
         }
 
-        fmt++;
+        if (*fmt)
+            fmt++;
     }
 
     va_end(args);

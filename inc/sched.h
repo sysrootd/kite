@@ -55,6 +55,7 @@ struct TCB {
     uint32_t        block_count;        // Timeout count for sleep/blocking
     uint8_t         current_state;      // TASK_SLEEP, TASK_WAKE, TASK_BLOCKED
     void          (*task_handler)(void); // Pointer to task function
+    uint8_t         priority;             //task priority
     TCB_t          *next_tcb_node;      // Next TCB in linked list
     void           *waiting_on;          // Pointer to semaphore/mutex being waited on
 };
@@ -66,7 +67,9 @@ __attribute__((naked)) void scheduler_init(void);   // Initialise scheduler cont
 __attribute__((naked)) void scheduler_start(void);  // Start multitasking
 
 // Scheduler API - task delay/sleep
+void task_yeild();
 void task_delay(uint32_t tick_count);   // Delay current task for given ticks
+void task_sleep_until(uint32_t *last_wake_tick, uint32_t period);
 
 // Stack allocator - find stack area for new task
 uint32_t *find_stack_area(uint32_t stack_size_in_words); // Allocate stack from top

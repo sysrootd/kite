@@ -5,15 +5,15 @@
 #include "mem.h"
 #include "uart.h"
 
-uint32_t global_tick;                          // systick timer counter
+volatile uint32_t global_tick;           // systick timer counter
 
-TCB_t *current_running_node;                   // currently executing task node
+TCB_t *current_running_node;                    // currently executing task node
 TCB_t *head_node;                               // node pointer that holds first task(idle task) node addr
 TCB_t *link_node;                               // node pointer that follow new node, lastly it will link with head node(make it circular list)
 
-uint32_t *new_task_psp = STACK_START;           // stack pointer for new task
-uint32_t *next_task_psp = STACK_START;          // next free stack location
-uint32_t msp_start;                              //var that holds final tasks next_task_psp as msp
+static uint32_t *new_task_psp = STACK_START;           // stack pointer for new task
+static uint32_t *next_task_psp = STACK_START;          // next free stack location
+static uint32_t msp_start;
 
 static inline void request_context_switch(void)
 {
@@ -37,8 +37,8 @@ void core_faults_init(void)
 
 __attribute__((naked)) void scheduler_init(void)
 {
-    msp_start = (uint32_t)next_task_psp;           // save stack top
-    link_node->next_tcb_node = head_node;          // Make circular list
+    msp_start = (uint32_t)next_task_psp;  //get new msp from next_task_psb(new msp stack top)
+    link_node->next_tcb_node = head_node;          //Make circular list
 
     __asm volatile(
         "PUSH {LR}                    \n"          // save return address
@@ -74,7 +74,7 @@ __attribute__((naked)) void PendSV_Handler(void)
         "STMDB R0!, {R4-R11}   \n"                  // save R4-R11 on stack
         "PUSH {LR}             \n"                  // save EXC_RETURN
         "BL __set_psp          \n"                  // save updated PSP to TCB
-        "BL cooperative_sched  \n"                  // pick next task to run
+        "BL fair_priority_sched\n"                  // pick next task to run
         "BL __get_psp          \n"                  // get next task's PSP
         "LDMIA R0!, {R4-R11}   \n"                  // restore next task's R4-R11
         "MSR PSP, R0           \n"                  // set PSP to next task stack
@@ -91,7 +91,7 @@ void scheduler_start(void)
 
 void systick_init(void)
 {
-    SysTick_Config(SYSTEM_CLK / TICK_HZ);               // configure SysTick timer(cmsis)
+    SysTick_Config(SYSTEM_CLK / TICK_HZ);            // configure SysTick timer(cmsis)
 
     NVIC_SetPriority(PendSV_IRQn, 0xFF);             // lowest priority for PendSV(cmsis)
     NVIC_SetPriority(SysTick_IRQn, 0x00);            // highest priority for SysTick(cmsis)
@@ -181,6 +181,7 @@ void idle_task_init(void)
     idle_tcb_node->block_count = 0;
     idle_tcb_node->current_state = TASK_WAKE;          // idle task always ready
     idle_tcb_node->psp_value = task_stack_start;
+    idle_tcb_node->priority = 0;
     idle_tcb_node->task_handler = idle_task;
     idle_tcb_node->waiting_on = NULL;
 
@@ -206,10 +207,11 @@ void task_init(uint8_t task_priority, void (*task_handle)(void), uint32_t stack_
     tcb_node->block_count = 0;
     tcb_node->current_state = TASK_WAKE;               // Task starts ready to run
     tcb_node->psp_value = task_stack_start;
+    tcb_node->priority = task_priority;
     tcb_node->task_handler = task_handle;
     tcb_node->waiting_on = NULL;
 
-    //add task to circular list
+    //add task to list
     link_node->next_tcb_node = tcb_node;
     link_node = tcb_node;
 
@@ -228,53 +230,144 @@ void __set_psp(uint32_t current_psp_value)
     current_running_node->psp_value = (uint32_t *)current_psp_value;  // Save PSP to TCB
 }
 
+
+
+//-------------------------------cooperative scheduler(non priority-round robin)-----------------------------------
 void cooperative_sched(void)
 {
+    TCB_t *start = current_running_node;
     TCB_t *candidate = current_running_node->next_tcb_node;
 
-    //search for next ready task
     do
     {
-        if(candidate->current_state == TASK_WAKE)
+        if (candidate->current_state == TASK_WAKE)
         {
-            current_running_node = candidate;          //switch to ready task
+            current_running_node = candidate;
             return;
         }
 
         candidate = candidate->next_tcb_node;
 
-    } while(candidate != current_running_node);
+    } while (candidate != start);
 
-    //if no ready task found, run head task (idle task)
-    current_running_node = head_node;
+    if (start->current_state == TASK_WAKE)
+    {
+        current_running_node = start;
+        return;
+    }
+
+    current_running_node = head_node; // idle task
+}
+//----------------------------------------------------------------------------------------
+
+//-------------------------------fair and priority scheduler---------------------------------------
+
+void fair_priority_sched(void)
+{
+    TCB_t *start = current_running_node;
+    TCB_t *candidate = current_running_node->next_tcb_node;
+    TCB_t *iter;
+    uint8_t highest = 0;
+    uint8_t found = 0;
+
+    iter = head_node;
+
+    do
+    {
+        if (iter->current_state == TASK_WAKE)
+        {
+            if (!found || iter->priority > highest)
+            {
+                highest = iter->priority;
+                found = 1;
+            }
+        }
+
+        iter = iter->next_tcb_node;
+
+    } while (iter != head_node);
+
+    if (!found)
+    {
+        current_running_node = head_node;
+        return;
+    }
+
+    do
+    {
+        if ((candidate->current_state == TASK_WAKE) && (candidate->priority == highest))
+        {
+            current_running_node = candidate;
+            return;
+        }
+
+        candidate = candidate->next_tcb_node;
+
+    } while (candidate != start);
+
+    if ((start->current_state == TASK_WAKE) && (start->priority == highest))
+    {
+        current_running_node = start;
+        return;
+    }
+
+    current_running_node = head_node; //idle task
+}
+//---------------------------------------------------------------------------------------------
+
+void task_yeild()
+{
+    schedule();
 }
 
 void task_delay(uint32_t tick_count)
 {
-    ENTER_CRITICAL();                                   //disable interrupts
+    ENTER_CRITICAL();
 
-    if (current_running_node != NULL) {
-        current_running_node->block_count = global_tick + tick_count;  // Wakeup time
-        current_running_node->current_state = TASK_SLEEP;              // Put to sleep
-        schedule();                                                      // Request switch
+    if (current_running_node != NULL && tick_count > 0)
+    {
+        current_running_node->block_count = global_tick + tick_count - 1;
+        current_running_node->current_state = TASK_SLEEP;
     }
 
-    EXIT_CRITICAL();                                    //enable interrupts
+    EXIT_CRITICAL();
+    schedule();
+}
+
+void task_sleep_until(uint32_t *last_wake_tick, uint32_t period)
+{
+    ENTER_CRITICAL();
+
+    if (current_running_node != NULL)
+    {
+        *last_wake_tick += period;
+        current_running_node->block_count = *last_wake_tick;
+        current_running_node->current_state = TASK_SLEEP;
+    }
+
+    EXIT_CRITICAL();
+
+    schedule();
 }
 
 void task_wake(void)
 {
     TCB_t *iter = head_node;
+    uint8_t woke_task = 0;
 
-    //check all tasks for expired sleep timers
     do {
         if (iter->current_state == TASK_SLEEP) {
-            if (iter->block_count <= global_tick) {    // sleep time expired?
-                iter->current_state = TASK_WAKE;       // wake up task
+            if (iter->block_count <= global_tick) {
+                iter->current_state = TASK_WAKE;
+                woke_task = 1;
             }
         }
         iter = iter->next_tcb_node;
     } while (iter != head_node && iter != NULL);
+
+    if (woke_task) {
+        schedule();
+    }
 }
 
 void semaphore_init(semaphore_t *sem, int32_t initial_count)
