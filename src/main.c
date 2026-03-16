@@ -10,7 +10,6 @@ static mutex_t uart2_mutex;
 
 void led_task(void)
 {
-    uint32_t next = global_systick_counter;
 
     while (1)
     {

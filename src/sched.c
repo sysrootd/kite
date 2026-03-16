@@ -5,7 +5,7 @@
 #include "mem.h"
 #include "uart.h"
 
-volatile uint32_t global_tick;           // systick timer counter
+volatile uint32_t global_systick_counter;           // systick timer counter
 
 TCB_t *current_running_node;                    // currently executing task node
 TCB_t *head_node;                               // node pointer that holds first task(idle task) node addr
@@ -99,7 +99,7 @@ void systick_init(void)
 
 void SysTick_Handler(void)
 {
-    global_tick++;                                    // increment system tick
+    global_systick_counter++;                                    // increment system tick
     task_wake();                                      // wake any sleeping tasks
     request_context_switch();                         // request context switch
 }
@@ -326,7 +326,7 @@ void task_delay(uint32_t tick_count)
 
     if (current_running_node != NULL && tick_count > 0)
     {
-        current_running_node->block_count = global_tick + tick_count - 1;
+        current_running_node->block_count = global_systick_counter + tick_count - 1;
         current_running_node->current_state = TASK_SLEEP;
     }
 
@@ -357,7 +357,7 @@ void task_wake(void)
 
     do {
         if (iter->current_state == TASK_SLEEP) {
-            if (iter->block_count <= global_tick) {
+            if (iter->block_count <= global_systick_counter) {
                 iter->current_state = TASK_WAKE;
                 woke_task = 1;
             }
