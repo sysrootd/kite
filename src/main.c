@@ -1,3 +1,4 @@
+
 #include "stm32f4xx.h"
 #include "sched.h"
 #include "gpio.h"
@@ -5,7 +6,6 @@
 
 #define   BLUE_LED     13
 
-extern uint32_t global_systick_counter;
 static mutex_t uart2_mutex;
 
 void led_task(void)
@@ -23,14 +23,14 @@ void led_task(void)
 
 void task_A(void)
 {
-    uint32_t next = global_systick_counter;
+    uint32_t next = global_systick;
     uint32_t count = 0;
 
     while (1)
     {
         if ((count % 10) == 0)
         {
-            uint32_t observed_now = global_systick_counter;
+            uint32_t observed_now = global_systick;
             long late = (long)((int32_t)(observed_now - next));
 
             mutex_lock(&uart2_mutex);
@@ -50,12 +50,12 @@ void task_A(void)
 
 void task_B(void)
 {
-    uint32_t next = global_systick_counter;
+    uint32_t next = global_systick;
     uint32_t count = 0;
 
     while (1)
     {
-        uint32_t observed_now = global_systick_counter;
+        uint32_t observed_now = global_systick;
         long late = (long)((int32_t)(observed_now - next));
 
         mutex_lock(&uart2_mutex);
@@ -82,7 +82,7 @@ void hog_task(void)
         {
             x++;
         }
-        task_yeild();
+        task_yield();
     }
 }
 
