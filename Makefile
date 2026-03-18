@@ -71,7 +71,7 @@ burn: $(BIN)
 	st-flash --connect-under-reset write $(BIN) 0x08000000
 
 connect:
-	openocd -f /usr/share/openocd/scripts/interface/stlink-v2.cfg \
+	openocd -f /usr/share/openocd/scripts/interface/stlink.cfg \
 	        -f /usr/share/openocd/scripts/target/stm32f4x.cfg
 
 debug: $(TARGET)
