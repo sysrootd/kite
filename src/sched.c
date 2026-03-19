@@ -49,8 +49,7 @@ void find_high_priority_task(void)
         iter = iter->next_tcb_node;
     }
 }
-            
-    
+             
 __attribute__((naked)) void scheduler_init(void)
 {
     msp_start = (uint32_t)next_task_psp;
