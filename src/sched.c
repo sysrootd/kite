@@ -543,38 +543,20 @@ void hardfault(uint32_t *stack)
     uint32_t pc  = stack[6];
     uint32_t psr = stack[7];
 
-    uart_printf(USART2, "\n\nHardFault\n");
-    uart_printf(USART2, "R0  %08x\n", r0);
-    uart_printf(USART2, "R1  %08x\n", r1);
-    uart_printf(USART2, "R2  %08x\n", r2);
-    uart_printf(USART2, "R3  %08x\n", r3);
-    uart_printf(USART2, "R12 %08x\n", r12);
-    uart_printf(USART2, "LR  %08x\n", lr);
-    uart_printf(USART2, "PC  %08x\n", pc);
-    uart_printf(USART2, "PSR %08x\n", psr);
-
     while (1);
 }
 
 void MemManage_Handler(void)
 {
-    uart_printf(USART2, "MemManage Fault\n");
-    uart_printf(USART2, "MMFSR %02x\n", SCB->CFSR & 0xFF);
-    uart_printf(USART2, "MMFAR %08x\n", SCB->MMFAR);
     while (1);
 }
 
 void BusFault_Handler(void)
 {
-    uart_printf(USART2, "Bus Fault\n");
-    uart_printf(USART2, "BFSR %02x\n", (SCB->CFSR >> 8) & 0xFF);
-    uart_printf(USART2, "BFAR %08x\n", SCB->BFAR);
     while (1);
 }
 
 void UsageFault_Handler(void)
 {
-    uart_printf(USART2, "Usage Fault\n");
-    uart_printf(USART2, "UFSR %04x\n", (SCB->CFSR >> 16) & 0xFFFF);
     while (1);
 }
