@@ -236,10 +236,6 @@ void create_task(uint8_t priority, void (*handler)(void), uint32_t stack_words)
 
     link_node->next_tcb_node = tcb;
     link_node = tcb;
-
-    if (head_node->next_tcb_node == link_node) {
-        current_running_node = tcb;
-    }
 }
 
 void cooperative_sched(void)
