@@ -1,6 +1,6 @@
-# kite RTOS (STM32F401x)
+# kite RTOS (STM32F401)
 
-A small RTOS written in C for the STM32F401xx family. It provides a simple
+A small RTOS written in C for the STM32F401 family. It provides a simple
 scheduler and task APIs making it ideal for learning bare‑metal RTOS
 programming on Cortex‑M4 devices.
 
@@ -20,7 +20,7 @@ programming on Cortex‑M4 devices.
 
 ## Requirements
 
-- STM32F401xx development board
+- STM32F401 series development board
 - If you don't have similar series, copy linker script from Stm32cubeide
   or CubeMx and tweak startup file
 - ARM GCC toolchain (`arm-none-eabi-gcc`)
