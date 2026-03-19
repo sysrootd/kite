@@ -26,12 +26,36 @@ void core_faults_init(void)
                   SCB_SHCSR_USGFAULTENA_Msk;
 }
 
+void find_highest_priority_task(void)
+{
+    TCB_t *iter = head_node;
+   
+    if(iter == NULL) {
+        return;
+    }
+  
+    unit8_t high = 0;
+    unit8_t low = iter->base_priority;
+   
+    do{
+        if(low > high) {
+            high = low;
+            current_running_node = iter;
+            iter = iter->next_tcb_node;
+        }
+    while(iter != head_node);
+}
+            
+    
 __attribute__((naked)) void scheduler_init(void)
 {
     msp_start = (uint32_t)next_task_psp;
     link_node->next_tcb_node = head_node;
 
     __asm volatile(
+        "PUSH {LR}                    \n"
+        "BL   find_highest_priority_task \n"
+        "POP  {LR}                    \n"
         "PUSH {LR}                    \n"
         "BL   core_faults_init        \n"
         "POP  {LR}                    \n"
