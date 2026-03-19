@@ -43,6 +43,7 @@ void find_highest_priority_task(void)
             current_running_node = iter;
             iter = iter->next_tcb_node;
         }
+    }
     while(iter != head_node);
 }
             
