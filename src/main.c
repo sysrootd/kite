@@ -4,23 +4,36 @@
 #include "gpio.h"
 #include "uart.h"
 
-#define   BLUE_LED     13
+#define   RED_LED       13
+#define   GREEN_LED     14
 
 static mutex_t uart2_mutex;
 
-void led_task(void)
+void red_led_task(void)
 {
 
     while (1)
     {
-        gpio_write(GPIOC, BLUE_LED, 1);
-        task_delay(200);
+        gpio_write(GPIOB, RED_LED, 1);
+        task_delay(1000);
 
-        gpio_write(GPIOC, BLUE_LED, 0);
-        task_delay(200);
+        gpio_write(GPIOB, RED_LED, 0);
+        task_delay(1000);
     }
 }
 
+void green_led_task(void)
+{
+    while (1)
+    {
+        gpio_write(GPIOB, GREEN_LED, 1);
+        task_delay(1000);
+
+        gpio_write(GPIOB, GREEN_LED, 0);
+        task_delay(1000);
+    }
+
+}
 void task_A(void)
 {
     uint32_t next = global_systick;
@@ -90,16 +103,18 @@ int main(void)
 {
     //------------------system init-------------------------
 
-    gpio_init(GPIOC, BLUE_LED, OUTPUT, PP, FAST, PU, 0);
+    gpio_init(GPIOB, RED_LED, OUTPUT, PP, FAST, PU, 0);
+    gpio_init(GPIOB, GREEN_LED, OUTPUT, PP, FAST, PU, 0);
     
     uart_init(USART2, SYSTEM_CLK, 115200);
 
     mutex_init(&uart2_mutex);
 
-    task_init(4, task_A, 64U);
-    task_init(3, task_B, 64U);
-    task_init(2, hog_task, 64U);
-    task_init(2, led_task, 64U);
+    create_task(2, task_A, 64U);
+    create_task(2, task_B, 64U);
+    create_task(1, hog_task, 64U);
+    create_task(3, red_led_task, 64U);
+    create_task(4, green_led_task, 64U);
 
     scheduler_init();
 

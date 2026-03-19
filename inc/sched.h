@@ -124,8 +124,8 @@ uint32_t get_systick_counter(void);             /**< Read current system tick va
 /*----------------------------------------------------------------------------
  * Task creation and management
  *----------------------------------------------------------------------------*/
-void idle_task_init(void);                      /**< Create the idle task */
-void task_init(uint8_t priority, void (*handler)(void), uint32_t stack_words); /**< Create a new task */
+void create_idle_task(void);                      /**< Create the idle task */
+void create_task(uint8_t priority, void (*handler)(void), uint32_t stack_words); /**< Create a new task */
 void task_yield(void);                          /**< Yield CPU to next ready task */
 void task_delay(uint32_t ticks);                 /**< Delay current task for given ticks */
 void task_sleep_until(uint32_t *last_wake, uint32_t period); /**< Periodic sleep */

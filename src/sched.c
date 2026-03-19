@@ -29,22 +29,25 @@ void core_faults_init(void)
 void find_highest_priority_task(void)
 {
     TCB_t *iter = head_node;
-   
-    if(iter == NULL) {
+
+    if (iter == NULL) {
+        current_running_node = NULL;
         return;
     }
-  
-    unit8_t high = 0;
-    unit8_t low = iter->base_priority;
-   
-    do{
-        if(low > high) {
-            high = low;
+
+    current_running_node = iter;
+    uint8_t high = iter->base_priority;
+
+    iter = iter->next_tcb_node;
+
+    while (iter != head_node) {
+        if (iter->base_priority > high) {
+            high = iter->base_priority;
             current_running_node = iter;
-            iter = iter->next_tcb_node;
         }
+
+        iter = iter->next_tcb_node;
     }
-    while(iter != head_node);
 }
             
     
@@ -183,7 +186,7 @@ TCB_t *alloc_new_tcb_node(void)
     return node;
 }
 
-void idle_task_init(void)
+void create_idle_task(void)
 {
     TCB_t *idle = alloc_new_tcb_node();
     if (idle == NULL) {
@@ -207,10 +210,10 @@ void idle_task_init(void)
     head_node = idle;
 }
 
-void task_init(uint8_t priority, void (*handler)(void), uint32_t stack_words)
+void create_task(uint8_t priority, void (*handler)(void), uint32_t stack_words)
 {
     if (new_task_psp == next_task_psp) {
-        idle_task_init();
+        create_idle_task();
     }
 
     TCB_t *tcb = alloc_new_tcb_node();
