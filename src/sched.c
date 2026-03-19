@@ -26,7 +26,7 @@ void core_faults_init(void)
                   SCB_SHCSR_USGFAULTENA_Msk;
 }
 
-void find_highest_priority_task(void)
+void find_high_priority_task(void)
 {
     TCB_t *iter = head_node;
 
@@ -58,7 +58,7 @@ __attribute__((naked)) void scheduler_init(void)
 
     __asm volatile(
         "PUSH {LR}                    \n"
-        "BL   find_highest_priority_task \n"
+        "BL   find_high_priority_task \n"
         "POP  {LR}                    \n"
         "PUSH {LR}                    \n"
         "BL   core_faults_init        \n"
