@@ -534,14 +534,14 @@ __attribute__((naked)) void HardFault_Handler(void)
 
 void hardfault(uint32_t *stack)
 {
-    uint32_t r0  = stack[0];
-    uint32_t r1  = stack[1];
-    uint32_t r2  = stack[2];
-    uint32_t r3  = stack[3];
-    uint32_t r12 = stack[4];
-    uint32_t lr  = stack[5];
-    uint32_t pc  = stack[6];
-    uint32_t psr = stack[7];
+    // uint32_t r0  = stack[0];
+    // uint32_t r1  = stack[1];
+    // uint32_t r2  = stack[2];
+    // uint32_t r3  = stack[3];
+    // uint32_t r12 = stack[4];
+    // uint32_t lr  = stack[5];
+    // uint32_t pc  = stack[6];
+    // uint32_t psr = stack[7];
 
     while (1);
 }
