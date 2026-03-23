@@ -77,9 +77,6 @@ __attribute__((naked)) void scheduler_init(void)
 
 void scheduler_start(void)
 {
-    link_node->next_tcb_node = head_node;
-    find_high_priority_task();
-
     systick_init();
     __asm volatile ("svc 0");
 }
