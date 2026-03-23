@@ -113,8 +113,9 @@ extern uint32_t SystemCoreClock;
  * Initialisation and startup
  *----------------------------------------------------------------------------*/
 void systick_init(void);                       /**< Configure SysTick timer */
+void init_helper(void);
 __attribute__((naked)) void scheduler_init(void); /**< Initialise scheduler (sets MSP, initialises stacks) */
-__attribute__((naked)) void scheduler_start(void); /**< Start multitasking (triggers SVC) */
+void scheduler_start(void); /**< Start multitasking (triggers SVC) */
 
 /*----------------------------------------------------------------------------
  * System tick accessor

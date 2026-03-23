@@ -49,32 +49,37 @@ void find_high_priority_task(void)
         iter = iter->next_tcb_node;
     }
 }
-             
-__attribute__((naked)) void scheduler_init(void)
+
+void init_helper(void)
 {
     msp_start = (uint32_t)next_task_psp;
     link_node->next_tcb_node = head_node;
+    find_high_priority_task();
+    core_faults_init();
+}
 
+__attribute__((naked)) void scheduler_init(void)
+{
     __asm volatile(
-        "PUSH {LR}                    \n"
-        "BL   find_high_priority_task \n"
-        "POP  {LR}                    \n"
-        "PUSH {LR}                    \n"
-        "BL   core_faults_init        \n"
-        "POP  {LR}                    \n"
-        "LDR  R0, =msp_start          \n"
-        "LDR  R0, [R0]                \n"
-        "MSR  MSP, R0                 \n"
-        "ISB                          \n"
-        "PUSH {LR}                    \n"
-        "BL   task_stack_init         \n"
-        "POP  {LR}                    \n"
-        "BX   LR                      \n"
+        "PUSH {LR}              \n"
+        "BL   init_helper       \n"
+        "POP  {LR}              \n"
+        "LDR  R0, =msp_start    \n"
+        "LDR  R0, [R0]          \n"
+        "MSR  MSP, R0           \n"
+        "ISB                    \n"
+        "PUSH {LR}              \n"
+        "BL   task_stack_init   \n"
+        "POP  {LR}              \n"
+        "BX   LR                \n"
     );
 }
 
-__attribute__((naked)) void scheduler_start(void)
+void scheduler_start(void)
 {
+    link_node->next_tcb_node = head_node;
+    find_high_priority_task();
+
     systick_init();
     __asm volatile ("svc 0");
 }
