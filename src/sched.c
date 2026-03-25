@@ -1,8 +1,8 @@
 #include <stdlib.h>
+
 #include "stm32f4xx.h"
 #include "sched.h"
-#include "mem.h"
-#include "uart.h"
+#include "mem.h"
 
 volatile uint32_t global_systick = 0;
 
