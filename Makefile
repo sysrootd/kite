@@ -30,9 +30,9 @@ OBJ = $(addprefix $(OBJDIR)/,$(notdir $(C_SRC:.c=.o))) \
 
 # Targets
 
-TARGET = $(OBJDIR)/kernel.elf
-BIN    = $(OBJDIR)/kernel.bin
-LST    = $(OBJDIR)/kernel.lst
+TARGET = $(OBJDIR)/kite.elf
+BIN    = $(OBJDIR)/kite.bin
+LST    = $(OBJDIR)/kite.lst
 
 all: $(OBJDIR) $(TARGET)
 
