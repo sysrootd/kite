@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 
+//--------------------------------M4 cmsis definations(add if any missed)-------------------------------------
 #define __CM4_REV              0x0001U
 #define __MPU_PRESENT          1U
 #define __NVIC_PRIO_BITS       4U
@@ -259,6 +260,8 @@ static inline uint32_t SysTick_Config(uint32_t ticks)
     return 0UL;
 }
 
+//-----------------------------------------------------------------------------------------------------------------
+//----------------------------Stm32f4 mcu pheripheral definations(add if any missed)-------------------------------
 #define PERIPH_BASE           0x40000000UL
 #define APB1PERIPH_BASE       PERIPH_BASE
 #define APB2PERIPH_BASE       (PERIPH_BASE + 0x10000UL)
