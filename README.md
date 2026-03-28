@@ -27,7 +27,7 @@ programming on Cortex‑M4 devices.
 - ST-Link hardware / tools
 - VS Code with the Cortex-Debug extension (optional, for debugging)
 
-## Install / Download Commands
+## ToolChain Install
 
 ### Ubuntu / Debian
 ```bash
