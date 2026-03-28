@@ -2,7 +2,8 @@
 
 #include "stm32f4xx.h"
 #include "sched.h"
-#include "mem.h"
+#include "mem.h"
+
 
 volatile uint32_t global_systick = 0;
 
@@ -237,27 +238,6 @@ void create_task(uint8_t priority, void (*handler)(void), uint32_t stack_words)
 
     link_node->next_tcb_node = tcb;
     link_node = tcb;
-}
-
-void cooperative_sched(void)
-{
-    TCB_t *start = current_running_node;
-    TCB_t *candidate = current_running_node->next_tcb_node;
-
-    do {
-        if (candidate->current_state == TASK_WAKE) {
-            current_running_node = candidate;
-            return;
-        }
-        candidate = candidate->next_tcb_node;
-    } while (candidate != start);
-
-    if (start->current_state == TASK_WAKE) {
-        current_running_node = start;
-        return;
-    }
-
-    current_running_node = head_node;
 }
 
 void fair_priority_sched(void)
