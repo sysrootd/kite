@@ -1,73 +1,46 @@
 CC      = arm-none-eabi-gcc
-AS      = arm-none-eabi-as
 OBJCOPY = arm-none-eabi-objcopy
 OBJDUMP = arm-none-eabi-objdump
 SIZE    = arm-none-eabi-size
 
-# Base flags for C only
+TARGET_NAME = kite
+OBJDIR      = build
+SRC_DIR     = src
+INC_DIR     = inc
+
 CFLAGS  = -mcpu=cortex-m4 -mthumb -g3 -Wall -O0 \
-          -ffunction-sections -fdata-sections
+          -ffunction-sections -fdata-sections \
+          -ffreestanding -nostdlib \
+          -I$(INC_DIR)
 
-# Linker script and libraries
 LDFLAGS = -T linker.ld -Wl,--gc-sections \
-          --specs=nano.specs
+          -nostdlib
 
+C_SRC = $(wildcard $(SRC_DIR)/*.c) startup.c
+OBJ   = $(patsubst %.c,$(OBJDIR)/%.o,$(notdir $(C_SRC)))
 
-# Directories
-
-SRC_DIRS     := src system
-INCLUDE_DIRS := inc system system/cmsis
-INCDIRS      := $(addprefix -I,$(INCLUDE_DIRS))
-OBJDIR       := build
-
-# Source files
-
-C_SRC   := $(shell find $(SRC_DIRS) -name '*.c')
-ASM_SRC := $(shell find $(SRC_DIRS) -name '*.s')
-
-OBJ = $(addprefix $(OBJDIR)/,$(notdir $(C_SRC:.c=.o))) \
-      $(addprefix $(OBJDIR)/,$(notdir $(ASM_SRC:.s=.o)))
-
-# Targets
-
-TARGET = $(OBJDIR)/kite.elf
-BIN    = $(OBJDIR)/kite.bin
-LST    = $(OBJDIR)/kite.lst
+TARGET = $(OBJDIR)/$(TARGET_NAME).elf
+BIN    = $(OBJDIR)/$(TARGET_NAME).bin
+LST    = $(OBJDIR)/$(TARGET_NAME).lst
 
 all: $(OBJDIR) $(TARGET)
 
-# Link ELF and generate binary and listing
 $(TARGET): $(OBJ)
 	$(CC) $(CFLAGS) $^ $(LDFLAGS) -o $@
-	# Only include flash sections to avoid huge .bin
 	$(OBJCOPY) -O binary $@ $(BIN)
 	$(OBJDUMP) -D $@ > $(LST)
 	$(SIZE) $@
 
-# Compile .c files
+$(OBJDIR)/%.o: $(SRC_DIR)/%.c | $(OBJDIR)
+	$(CC) $(CFLAGS) -c $< -o $@
 
-$(OBJDIR)/%.o: src/%.c | $(OBJDIR)
-	$(CC) $(CFLAGS) $(INCDIRS) -c $< -o $@
-
-$(OBJDIR)/%.o: system/%.c | $(OBJDIR)
-	$(CC) $(CFLAGS) $(INCDIRS) -c $< -o $@
-
-# Assemble .s files
-
-$(OBJDIR)/%.o: src/%.s | $(OBJDIR)
-	$(AS) $(ASFLAGS) $< -o $@
-
-$(OBJDIR)/%.o: system/%.s | $(OBJDIR)
-	$(AS) $(ASFLAGS) $< -o $@
-
-# Create build directory
+$(OBJDIR)/startup.o: startup.c | $(OBJDIR)
+	$(CC) $(CFLAGS) -c $< -o $@
 
 $(OBJDIR):
 	mkdir -p $(OBJDIR)
 
-# Flash and debug
-
-burn: $(BIN)
+burn: $(TARGET)
 	st-flash --connect-under-reset write $(BIN) 0x08000000
 
 connect:
@@ -81,8 +54,6 @@ debug: $(TARGET)
 	    -ex "load" \
 	    -ex "break main" \
 	    -ex "continue"
-
-# Clean
 
 clean:
 	rm -rf $(OBJDIR)
