@@ -163,6 +163,30 @@ typedef struct
 #define SCB_SHCSR_USGFAULTENA_Pos           18U
 #define SCB_SHCSR_USGFAULTENA_Msk           (1UL << SCB_SHCSR_USGFAULTENA_Pos)
 
+static inline uint32_t __get_BASEPRI(void)
+{
+    uint32_t result;
+    __asm volatile ("mrs %0, BASEPRI" : "=r" (result) );
+    return result;
+}
+
+static inline void __set_BASEPRI(uint32_t value)
+{
+    __asm volatile ("msr BASEPRI, %0" : : "r" (value) : "memory");
+}
+
+static inline uint32_t __get_PRIMASK(void)
+{
+    uint32_t result;
+    __asm volatile ("mrs %0, PRIMASK" : "=r" (result) );
+    return result;
+}
+
+static inline void __set_PRIMASK(uint32_t value)
+{
+    __asm volatile ("msr PRIMASK, %0" : : "r" (value) : "memory");
+}
+
 static inline void __enable_irq(void)
 {
     __asm volatile ("cpsie i" : : : "memory");

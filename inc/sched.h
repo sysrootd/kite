@@ -11,6 +11,7 @@
 #define SCHED_H
 
 #include <stdint.h>
+
 #include "stm32f4xx.h"
 
 /*============================================================================
@@ -38,10 +39,14 @@ extern uint32_t _estack;                /**< End of stack from linker script */
 /*============================================================================
  *                      Critical Section Macros
  *============================================================================*/
-/** Disable interrupts (enter critical section) */
-#define ENTER_CRITICAL()        __disable_irq()
-/** Enable interrupts (exit critical section) */
-#define EXIT_CRITICAL()         __enable_irq()
+#define KERNEL_INTERRUPT_PRIORITY      15U
+#define KERNEL_INTERRUPT_MASK          (KERNEL_INTERRUPT_PRIORITY << (8U - __NVIC_PRIO_BITS))
+
+void sched_enter_critical(void);
+void sched_exit_critical(void);
+
+#define ENTER_CRITICAL()  sched_enter_critical()
+#define EXIT_CRITICAL()   sched_exit_critical()
 
 /*============================================================================
  *                      Type Forward Declarations

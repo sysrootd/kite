@@ -1,4 +1,4 @@
-#include <stdlib.h>
+#include <stddef.h>
 
 #include "stm32f4xx.h"
 #include "sched.h"
@@ -14,6 +14,32 @@ TCB_t *link_node = NULL;
 static uint32_t *new_task_psp = STACK_START;
 static uint32_t *next_task_psp = STACK_START;
 static uint32_t msp_start;
+
+static volatile uint32_t critical_nesting = 0;
+
+
+void sched_enter_critical(void)
+{
+    __set_BASEPRI(KERNEL_INTERRUPT_MASK);
+    __DSB();
+    __ISB();
+    critical_nesting++;
+}
+
+void sched_exit_critical(void)
+{
+    if (critical_nesting > 0)
+    {
+        critical_nesting--;
+
+        if (critical_nesting == 0)
+        {
+            __set_BASEPRI(0);
+            __DSB();
+            __ISB();
+        }
+    }
+}
 
 static inline void request_context_switch(void)
 {
