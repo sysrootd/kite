@@ -40,15 +40,15 @@ make clean
 ```
 
 Compiled binaries appear in `build/`:
-- `kernel.elf` – ELF executable
-- `kernel.bin` – flashable binary
+- `kite.elf` – ELF executable
+- `kite.bin` – flashable binary
 
 ### Flashing
 
 ```sh
 openocd -f interface/stlink.cfg \
         -f target/stm32f4x.cfg \
-        -c "program build/kernel.elf verify reset exit"
+        -c "program build/kite.elf verify reset exit"
 ```
 
 ### Debugging
@@ -56,22 +56,6 @@ openocd -f interface/stlink.cfg \
 1. Launch VS Code, install Cortex‑Debug extension
 2. Connect the ST‑Link to your board
 3. choose **Run › Start Debugging**
-
-Pre‑configured `.vscode/launch.json` and `tasks.json` are included.
-
-VS Code settings snippet:
-
-```json
-{
-  "editor.formatOnSave": true,
-  "C_Cpp.clang_format_path": "clang-format",
-  "C_Cpp.clang_format_style": "LLVM",
-  "C_Cpp.codeAnalysis.clangTidy.enabled": true,
-  "C_Cpp.codeAnalysis.clangTidy.path": "clang-tidy"
-}
-```
-
----
 
 ## VS Code Configuration Files
 
