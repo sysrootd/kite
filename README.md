@@ -19,13 +19,20 @@ programming on Cortex‑M4 devices.
 ## Requirements
 
 - STM32F401 series development board
-- If you don't have similar series, copy linker script from Stm32cubeide
-  or CubeMx and tweak startup file
+- If you don't have a similar STM32F4 board, copy the linker script from
+  STM32CubeIDE or CubeMX and adjust the startup file as needed
 - ARM GCC toolchain (`arm-none-eabi-gcc`)
-- `make` utility
-- OpenOCD and ST‑Link hardware
-- Cortex‑Debug extension for VS Code for debugging
+- `make`
+- OpenOCD
+- ST-Link hardware / tools
+- VS Code with the Cortex-Debug extension (optional, for debugging)
 
+## Install / Download Commands
+
+### Ubuntu / Debian
+```bash
+sudo apt update
+sudo apt install -y gcc-arm-none-eabi binutils-arm-none-eabi gdb-multiarch make openocd stlink-tools
 ---
 
 ## Building
