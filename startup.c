@@ -21,7 +21,8 @@ uint32_t SystemCoreClock;
 #define CLOCK_SET_75_PERCENTAGE     ((HIGHEST_CLOCK_SPEED * 75U) / 100U)
 #define CLOCK_SET_100_PERCENTAGE    HIGHEST_CLOCK_SPEED
 
-#define SYSTEM_CLOCK_PROFILE        CLOCK_PROFILE_MEDIUM //set required clk speed
+//select required clk speed
+#define SYSTEM_CLOCK_PROFILE        CLOCK_PROFILE_MEDIUM
 
 #define RCC_CFGR_SW_MASK        (0x3U << RCC_CFGR_SW_Pos)
 #define RCC_CFGR_SWS_MASK       (0x3U << RCC_CFGR_SWS_Pos)
@@ -150,10 +151,10 @@ void (* const g_pfnVectors[])(void) = {
     DebugMon_Handler,
     0,
     PendSV_Handler,
-    SysTick_Handler,                    //total 10 core handlers i guess
+    SysTick_Handler,                    //(core handlers end)total 10 core handlers i guess
 
-    WWDG_IRQHandler,                    //mcu handlers start :) change here as per your mcu specific
-    PVD_IRQHandler,
+    WWDG_IRQHandler,                    //(mcu handlers start) Don't know how may will be
+    PVD_IRQHandler,                     //change and include as per your mcu specific(read stm reference manual bro!!) :)
     TAMP_STAMP_IRQHandler,
     RTC_WKUP_IRQHandler,
     FLASH_IRQHandler,
