@@ -3,7 +3,7 @@
 #include <stdint.h>
 #include "stm32f4xx.h"
 
-// CMSIS clock 
+// global system clock 
 uint32_t SystemCoreClock;
 
 // Main function
