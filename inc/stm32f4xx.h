@@ -136,6 +136,15 @@ typedef struct
     __IO uint32_t CPACR;
 } SCB_Type;
 
+typedef struct {
+    volatile uint32_t ACR;
+    volatile uint32_t KEYR;
+    volatile uint32_t OPTKEYR;
+    volatile uint32_t SR;
+    volatile uint32_t CR;
+    volatile uint32_t OPTCR;
+} FLASH_TypeDef;
+
 #define SysTick_BASE        (0xE000E010UL)
 #define NVIC_BASE           (0xE000E100UL)
 #define SCB_BASE            (0xE000ED00UL)
@@ -151,7 +160,29 @@ typedef struct
 #define SysTick_CTRL_CLKSOURCE_Pos          2U
 #define SysTick_CTRL_CLKSOURCE_Msk          (1UL << SysTick_CTRL_CLKSOURCE_Pos)
 #define SysTick_CTRL_COUNTFLAG_Pos          16U
-#define SysTick_CTRL_COUNTFLAG_Msk          (1UL << SysTick_CTRL_COUNTFLAG_Pos)
+#define SysTick_CTRL_COUNTFLAG_Msk      #define FLASH ((FLASH_TypeDef *) FLASH_R_BASE)    (1UL << SysTick_CTRL_COUNTFLAG_Pos)
+#define FLASH                               ((FLASH_TypeDef *) FLASH_R_BASE)
+
+#define RCC_CR_HSION            (1U << 0)
+#define RCC_CR_HSIRDY           (1U << 1)
+#define RCC_CR_PLLON            (1U << 24)
+#define RCC_CR_PLLRDY           (1U << 25)
+
+#define RCC_CFGR_SW_Pos         0U
+#define RCC_CFGR_SW_Msk         (3U << RCC_CFGR_SW_Pos)
+#define RCC_CFGR_SW_HSI         (0x0U << RCC_CFGR_SW_Pos)
+#define RCC_CFGR_SW_PLL         (0x2U << RCC_CFGR_SW_Pos)
+
+#define RCC_CFGR_SWS_Pos        2U
+#define RCC_CFGR_SWS_Msk        (3U << RCC_CFGR_SWS_Pos)
+#define RCC_CFGR_SWS_HSI        (0x0U << RCC_CFGR_SWS_Pos)
+#define RCC_CFGR_SWS_PLL        (0x2U << RCC_CFGR_SWS_Pos)
+
+#define FLASH_ACR_LATENCY_Pos   0U
+#define FLASH_ACR_LATENCY_Msk   (0x7U << FLASH_ACR_LATENCY_Pos)
+#define FLASH_ACR_ICEN          (1U << 9)
+#define FLASH_ACR_DCEN          (1U << 10)
+#define FLASH_ACR_PRFTEN        (1U << 8)
 
 #define SCB_ICSR_PENDSVSET_Pos              28U
 #define SCB_ICSR_PENDSVSET_Msk              (1UL << SCB_ICSR_PENDSVSET_Pos)

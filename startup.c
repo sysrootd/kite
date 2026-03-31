@@ -17,24 +17,6 @@ extern uint32_t _sbss;        // Start of BSS section in RAM
 extern uint32_t _ebss;        // End of BSS section in RAM
 extern uint32_t _estack;      // Top of stack (from linker script)
 
-// RCC_CR bits for clock configuration
-#define RCC_CR_HSION    (1U << 0)
-#define RCC_CR_HSIRDY   (1U << 1)
-#define RCC_CR_PLLON    (1U << 24)
-#define RCC_CR_PLLRDY   (1U << 25)
-
-// RCC_CFGR bits for clock source selection
-#define RCC_CFGR_SW_HSI 0x0U
-#define RCC_CFGR_SW_PLL 0x2U
-#define RCC_CFGR_SWS    (3U << 2)
-#define RCC_CFGR_SWS_PLL (0x8U)
-
-// FLASH access control register bits
-#define FLASH_ACR_LATENCY_Pos 0
-#define FLASH_ACR_ICEN  (1U << 9)
-#define FLASH_ACR_DCEN  (1U << 10)
-#define FLASH_ACR_PRFTEN (1U << 8)
-
 // Clock configuration options
 #define SYSCLK_HSI_16MHZ   0
 #define SYSCLK_PLL_84MHZ   1
@@ -195,73 +177,138 @@ void (* const g_pfnVectors[])(void) = {
     SPI4_IRQHandler,
 };
 
-void SystemInit(void) {
-
+void SystemInit(void)
+{
 #if SYSCLK_CONFIG == SYSCLK_HSI_16MHZ
-    // Run from HSI (16 MHz)
+
+    /* Ensure HSI is ON */
     RCC->CR |= RCC_CR_HSION;
-    while (!(RCC->CR & RCC_CR_HSIRDY));
+    while ((RCC->CR & RCC_CR_HSIRDY) == 0U)
+    {
+        /* wait */
+    }
 
-    RCC->CFGR &= ~0x3U;
+    /* Select HSI as system clock */
+    RCC->CFGR &= ~RCC_CFGR_SW_Msk;
     RCC->CFGR |= RCC_CFGR_SW_HSI;
-    while ((RCC->CFGR & RCC_CFGR_SWS) != RCC_CFGR_SW_HSI);
 
-    // Update CMSIS variable
+    while ((RCC->CFGR & RCC_CFGR_SWS_Msk) != RCC_CFGR_SWS_HSI)
+    {
+        /* wait */
+    }
+
     SystemCoreClock = 16000000U;
 
 #elif SYSCLK_CONFIG == SYSCLK_PLL_84MHZ
-    // Configure PLL for 84 MHz
-    // Disable PLL
+
+    /* Ensure HSI is ON (PLL source = HSI) */
+    RCC->CR |= RCC_CR_HSION;
+    while ((RCC->CR & RCC_CR_HSIRDY) == 0U)
+    {
+        /* wait */
+    }
+
+    /* Disable PLL before reconfiguring */
     RCC->CR &= ~RCC_CR_PLLON;
-    // Wait until PLL turned off; use register pointer not macro alone
-    while (RCC->CR & RCC_CR_PLLRDY);
+    while ((RCC->CR & RCC_CR_PLLRDY) != 0U)
+    {
+        /* wait */
+    }
 
-    // PLLM=16, PLLN=336, PLLP=4, PLLQ=7
-    RCC->PLLCFGR = (16U << 0)   |   // PLLM
-                  (336U << 6)  |   // PLLN
-                  (1U << 16)   |   // PLLP=4 (01)
-                  (7U << 24)   |   // PLLQ
-                  (0U << 22);      // HSI as source
+    /*
+     * PLL config for 84 MHz from HSI (16 MHz):
+     * VCO input  = 16 / 16 = 1 MHz
+     * VCO output = 1 * 336 = 336 MHz
+     * SYSCLK     = 336 / 4 = 84 MHz
+     * PLLP = 4  -> encoded as 01 at bits [17:16]
+     * PLLQ = 7
+     * PLL source = HSI (bit 22 = 0)
+     */
+    RCC->PLLCFGR =
+          (16U  << 0)    /* PLLM */
+        | (336U << 6)    /* PLLN */
+        | (1U   << 16)   /* PLLP = 4 */
+        | (7U   << 24);  /* PLLQ = 7 */
 
+    /* Configure Flash: 2 wait states for 84 MHz */
+    FLASH->ACR =
+          (2U << FLASH_ACR_LATENCY_Pos)
+        | FLASH_ACR_ICEN
+        | FLASH_ACR_DCEN
+        | FLASH_ACR_PRFTEN;
+
+    /* Enable PLL */
     RCC->CR |= RCC_CR_PLLON;
-    while (!(RCC->CR & RCC_CR_PLLRDY));
+    while ((RCC->CR & RCC_CR_PLLRDY) == 0U)
+    {
+        /* wait */
+    }
 
-    // Flash wait states: 2WS for 84MHz
-    FLASH->ACR = (2U << FLASH_ACR_LATENCY_Pos) |
-                FLASH_ACR_ICEN | FLASH_ACR_DCEN | FLASH_ACR_PRFTEN;
-
-    RCC->CFGR &= ~0x3U;
+    /* Switch SYSCLK to PLL */
+    RCC->CFGR &= ~RCC_CFGR_SW_Msk;
     RCC->CFGR |= RCC_CFGR_SW_PLL;
-    while ((RCC->CFGR & RCC_CFGR_SWS) != RCC_CFGR_SWS_PLL);
 
-    // Update CMSIS variable
+    while ((RCC->CFGR & RCC_CFGR_SWS_Msk) != RCC_CFGR_SWS_PLL)
+    {
+        /* wait */
+    }
+
     SystemCoreClock = 84000000U;
 
 #elif SYSCLK_CONFIG == SYSCLK_PLL_50MHZ
-    // Configure PLL for ~50 MHz
-    // Disable PLL
+
+    /* Ensure HSI is ON (PLL source = HSI) */
+    RCC->CR |= RCC_CR_HSION;
+    while ((RCC->CR & RCC_CR_HSIRDY) == 0U)
+    {
+        /* wait */
+    }
+
+    /* Disable PLL before reconfiguring */
     RCC->CR &= ~RCC_CR_PLLON;
-    while (RCC->CR & RCC_CR_PLLRDY);
+    while ((RCC->CR & RCC_CR_PLLRDY) != 0U)
+    {
+        /* wait */
+    }
 
-    // PLLM=16, PLLN=200, PLLP=4 -> 200/4=50 MHz
-    RCC->PLLCFGR = (16U << 0)   |   // PLLM
-                  (200U << 6)  |   // PLLN
-                  (1U << 16)   |   // PLLP=4
-                  (4U << 24)   |   // PLLQ=4
-                  (0U << 22);      // HSI source
+    /*
+     * PLL config for 50 MHz from HSI (16 MHz):
+     * VCO input  = 16 / 16 = 1 MHz
+     * VCO output = 1 * 200 = 200 MHz
+     * SYSCLK     = 200 / 4 = 50 MHz
+     * PLLP = 4 -> encoded as 01 at bits [17:16]
+     * PLLQ = 4
+     * PLL source = HSI (bit 22 = 0)
+     */
+    RCC->PLLCFGR =
+          (16U  << 0)    /* PLLM */
+        | (200U << 6)    /* PLLN */
+        | (1U   << 16)   /* PLLP = 4 */
+        | (4U   << 24);  /* PLLQ = 4 */
 
+    /* Configure Flash: 1 wait state for 50 MHz */
+    FLASH->ACR =
+          (1U << FLASH_ACR_LATENCY_Pos)
+        | FLASH_ACR_ICEN
+        | FLASH_ACR_DCEN
+        | FLASH_ACR_PRFTEN;
+
+    /* Enable PLL */
     RCC->CR |= RCC_CR_PLLON;
-    while (!(RCC->CR & RCC_CR_PLLRDY));
+    while ((RCC->CR & RCC_CR_PLLRDY) == 0U)
+    {
+        /* wait */
+    }
 
-    // Flash wait states: 1WS for 50MHz
-    FLASH->ACR = (1U << FLASH_ACR_LATENCY_Pos) |
-                FLASH_ACR_ICEN | FLASH_ACR_DCEN | FLASH_ACR_PRFTEN;
-
-    RCC->CFGR &= ~0x3U;
+    /* Switch SYSCLK to PLL */
+    RCC->CFGR &= ~RCC_CFGR_SW_Msk;
     RCC->CFGR |= RCC_CFGR_SW_PLL;
-    while ((RCC->CFGR & RCC_CFGR_SWS) != RCC_CFGR_SWS_PLL);
 
-    // Update CMSIS variable
+    while ((RCC->CFGR & RCC_CFGR_SWS_Msk) != RCC_CFGR_SWS_PLL)
+    {
+        /* wait */
+    }
+
     SystemCoreClock = 50000000U;
 
 #else
