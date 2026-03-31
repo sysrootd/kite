@@ -4,8 +4,9 @@
 #include "gpio.h"
 #include "uart.h"
 
-#define   RED_LED       13
-#define   GREEN_LED     14
+#define   RED_LED       13U
+#define   GREEN_LED     14U
+#define   BAUD_RATE     115200U
 
 static mutex_t uart2_mutex;
 
@@ -106,7 +107,7 @@ int main(void)
     gpio_init(GPIOB, RED_LED, OUTPUT, PP, FAST, PU, 0);
     gpio_init(GPIOB, GREEN_LED, OUTPUT, PP, FAST, PU, 0);
     
-    uart_init(USART2, SYSTEM_CLK, 115200);
+    uart_init(USART2, BAUD_RATE);
 
     mutex_init(&uart2_mutex);
 

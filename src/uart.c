@@ -4,6 +4,8 @@
 #include "stm32f4xx.h"
 #include "uart.h"
 
+extern uint32_t SystemCoreClock;
+
 uint32_t cstm_strlen(const char *str)
 {
     uint32_t len = 0;
@@ -83,8 +85,11 @@ static void uart_print_long(USART_TypeDef *uart, long num, int base)
     uart_print_uint(uart, n, base);
 }
 
-void uart_init(USART_TypeDef *uart, uint32_t pclk, uint32_t baud)
+void uart_init(USART_TypeDef *uart, uint32_t baud)
 {
+    uint32_t pclk;
+    pclk = SystemCoreClock;
+
     if (uart == USART1)
     {
         RCC->APB2ENR |= (1U << 4);
