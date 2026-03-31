@@ -3,12 +3,25 @@
 
 uint32_t SystemCoreClock;
 
+
+//---------------------------------------IMPORTANT SECTION---------------------------------------
+//Change here your mcu specific base(HSI clk) and its supported higest(PLL clk) freq
+
+#define BASE_CLOCK_SPEED        16000000U
+#define HIGHEST_CLOCK_SPEED     84000000U
+
+//------------------------------------------------------------------------------------------------
 #define CLOCK_PROFILE_LOW       0U
 #define CLOCK_PROFILE_MEDIUM    1U
 #define CLOCK_PROFILE_HIGH      2U
 #define CLOCK_PROFILE_MAX       3U
 
-#define SYSTEM_CLOCK_PROFILE    CLOCK_PROFILE_MAX
+#define CLOCK_SET_25_PERCENTAGE     BASE_CLOCK_SPEED
+#define CLOCK_SET_50_PERCENTAGE     ((HIGHEST_CLOCK_SPEED * 50U) / 100U)
+#define CLOCK_SET_75_PERCENTAGE     ((HIGHEST_CLOCK_SPEED * 75U) / 100U)
+#define CLOCK_SET_100_PERCENTAGE    HIGHEST_CLOCK_SPEED
+
+#define SYSTEM_CLOCK_PROFILE        CLOCK_PROFILE_MEDIUM //set required clk speed
 
 #define RCC_CFGR_SW_MASK        (0x3U << RCC_CFGR_SW_Pos)
 #define RCC_CFGR_SWS_MASK       (0x3U << RCC_CFGR_SWS_Pos)
@@ -37,6 +50,8 @@ static void clock_profile_max(void);
 
 int main(void);
 
+
+//sysmbols from linker
 extern uint32_t _sidata;
 extern uint32_t _sdata;
 extern uint32_t _edata;
@@ -44,11 +59,15 @@ extern uint32_t _sbss;
 extern uint32_t _ebss;
 extern uint32_t _estack;
 
+
+//default handler for unimplimented handlers
 void Default_Handler(void)
 {
     while (1) {}
 }
 
+
+//core handlers 
 void Reset_Handler(void);
 void NMI_Handler(void)                    __attribute__((weak, alias("Default_Handler")));
 void HardFault_Handler(void)              __attribute__((weak, alias("Default_Handler")));
@@ -59,7 +78,7 @@ void SVC_Handler(void)                    __attribute__((weak, alias("Default_Ha
 void DebugMon_Handler(void)               __attribute__((weak, alias("Default_Handler")));
 void PendSV_Handler(void)                 __attribute__((weak, alias("Default_Handler")));
 void SysTick_Handler(void)                __attribute__((weak, alias("Default_Handler")));
-
+//mcu specific handlers(add or change as per mcu(by default its for stm32f401 series))
 void WWDG_IRQHandler(void)                __attribute__((weak, alias("Default_Handler")));
 void PVD_IRQHandler(void)                 __attribute__((weak, alias("Default_Handler")));
 void TAMP_STAMP_IRQHandler(void)          __attribute__((weak, alias("Default_Handler")));
@@ -120,7 +139,7 @@ void SPI4_IRQHandler(void)                __attribute__((weak, alias("Default_Ha
 __attribute__((section(".isr_vector")))
 void (* const g_pfnVectors[])(void) = {
     (void (*)(void))(&_estack),
-    Reset_Handler,
+    Reset_Handler,                      //core handlers
     NMI_Handler,
     HardFault_Handler,
     MemManage_Handler,
@@ -131,9 +150,9 @@ void (* const g_pfnVectors[])(void) = {
     DebugMon_Handler,
     0,
     PendSV_Handler,
-    SysTick_Handler,
+    SysTick_Handler,                    //total 10 core handlers i guess
 
-    WWDG_IRQHandler,
+    WWDG_IRQHandler,                    //mcu handlers start :) change here as per your mcu specific
     PVD_IRQHandler,
     TAMP_STAMP_IRQHandler,
     RTC_WKUP_IRQHandler,
@@ -191,6 +210,8 @@ void (* const g_pfnVectors[])(void) = {
     SPI4_IRQHandler,
 };
 
+
+//systeminit to config clk, don't touch any from here lol
 void SystemInit(void)
 {
     clock_reset_to_safe_hsi();
@@ -237,12 +258,12 @@ static void clock_reset_to_safe_hsi(void)
         FLASH_ACR_DCEN |
         FLASH_ACR_PRFTEN;
 
-    SystemCoreClock = 16000000U;
+    SystemCoreClock = CLOCK_SET_25_PERCENTAGE;
 }
 
 static void clock_profile_low(void)
 {
-    SystemCoreClock = 16000000U;
+    SystemCoreClock = CLOCK_SET_25_PERCENTAGE;
 }
 
 static void clock_profile_medium(void)
@@ -268,7 +289,7 @@ static void clock_profile_medium(void)
     RCC->CFGR |= RCC_CFGR_SW_PLL;
     while ((RCC->CFGR & RCC_CFGR_SWS_MASK) != RCC_CFGR_SWS_PLL);
 
-    SystemCoreClock = 42000000U;
+    SystemCoreClock = CLOCK_SET_50_PERCENTAGE;
 }
 
 static void clock_profile_high(void)
@@ -294,7 +315,7 @@ static void clock_profile_high(void)
     RCC->CFGR |= RCC_CFGR_SW_PLL;
     while ((RCC->CFGR & RCC_CFGR_SWS_MASK) != RCC_CFGR_SWS_PLL);
 
-    SystemCoreClock = 64000000U;
+    SystemCoreClock = CLOCK_SET_75_PERCENTAGE;
 }
 
 static void clock_profile_max(void)
@@ -320,7 +341,7 @@ static void clock_profile_max(void)
     RCC->CFGR |= RCC_CFGR_SW_PLL;
     while ((RCC->CFGR & RCC_CFGR_SWS_MASK) != RCC_CFGR_SWS_PLL);
 
-    SystemCoreClock = 84000000U;
+    SystemCoreClock = CLOCK_SET_100_PERCENTAGE;
 }
 
 void Reset_Handler(void)
@@ -340,7 +361,7 @@ void Reset_Handler(void)
     }
 
     SystemInit();
-    main();
+    main();  //haa.. finally!! call main bro 
 
     while (1) {}
 }

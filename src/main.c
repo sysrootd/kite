@@ -15,10 +15,10 @@ void red_led_task(void)
     while (1)
     {
         gpio_write(GPIOB, RED_LED, 1);
-        task_delay(500);
+        task_delay(100);
 
         gpio_write(GPIOB, RED_LED, 0);
-        task_delay(500);
+        task_delay(100);
     }
 }
 
