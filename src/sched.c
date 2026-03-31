@@ -185,7 +185,7 @@ void __set_psp(uint32_t current_psp_value)
     current_running_node->psp_value = (uint32_t *)current_psp_value;
 }
 
-// Initialise the stack frames for all tasks (except idle, which is created later)
+// Initialise the stack frames for all tasks
 void task_stack_init(void)
 {
     if (head_node == NULL) {
