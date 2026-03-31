@@ -1,6 +1,5 @@
-// Startup code for STM32F401x bare-metal with configurable clock
-
 #include <stdint.h>
+
 #include "stm32f4xx.h"
 
 // global system clock 
