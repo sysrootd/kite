@@ -22,6 +22,13 @@ static uint32_t msp_start;   // Saved main stack pointer at scheduler init
 // Nesting count for critical sections
 static volatile uint32_t critical_nesting = 0;
 
+//Api for scheduler start
+inline void kite_start(void)
+{
+    scheduler_init();
+    scheduler_start();
+}
+
 // Enter critical section: block interrupts up to KERNEL_INTERRUPT_PRIORITY
 void sched_enter_critical(void)
 {
