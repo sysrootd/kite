@@ -4,6 +4,11 @@
 #include <stdint.h>
 #include "stm32f4xx.h"
 
+// Global variables (extern)
+extern volatile uint32_t global_systick; // system tick counter
+extern uint32_t SystemCoreClock;
+
+
 // Linker symbols & memory layout
 extern uint32_t _estack;                // end of stack from linker script
 #define SRAM_END_ADDR   ((uint32_t)&_estack)   // SRAM end address
@@ -67,34 +72,17 @@ struct TCB {
     mutex_t        *held_mutex;         // mutex currently held (NULL if none)
 };
 
-// Global variables (extern)
-extern volatile uint32_t global_systick; // system tick counter
-extern uint32_t SystemCoreClock;
-
 // Initialisation and startup
-void systick_init(void);                       // configure SysTick timer
-inline void kite_start(void);
-void init_helper(void);
-__attribute__((naked)) void scheduler_init(void); // initialise scheduler (sets MSP, initialises stacks)
-void scheduler_start(void); // start multitasking (triggers SVC)
+void kite_start(void);
 
 // System tick accessor
 uint32_t get_systick_counter(void);             // read current system tick value
 
 // Task creation and management
-void create_idle_task(void);                      // create the idle task
 void create_task(uint8_t priority, void (*handler)(void), uint32_t stack_words); // create a new task
 void task_yield(void);                          // yield CPU to next ready task
 void task_delay(uint32_t ticks);                 // delay current task for given ticks
 void task_sleep_until(uint32_t *last_wake, uint32_t period); // periodic sleep
-void task_wake(void);                            // wake tasks whose delay has expired (called from SysTick)
-
-// Stack and TCB allocation (internal, but exposed for low-level init)
-uint32_t *find_stack_area(uint32_t stack_words); // allocate stack from top of memory
-TCB_t    *alloc_new_tcb_node(void);              // allocate a new TCB from pool
-
-// Scheduling control
-void schedule(void);                             // request a context switch (PendSV)
 
 // Synchronisation primitives
 void semaphore_init(semaphore_t *sem, int32_t initial_count);
@@ -104,9 +92,6 @@ void semaphore_post(semaphore_t *sem);
 void mutex_init(mutex_t *m);
 void mutex_lock(mutex_t *m);
 void mutex_unlock(mutex_t *m);
-
-// Idle task
-void idle_task(void);                            // idle loop (WFI)
 
 // Fault handlers (public only for debugging)
 void hardfault(uint32_t *stack);                  // C handler for HardFault

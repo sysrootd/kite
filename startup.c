@@ -11,15 +11,16 @@ uint32_t SystemCoreClock;
 #define HIGHEST_CLOCK_SPEED     84000000U
 
 //------------------------------------------------------------------------------------------------
-#define CLOCK_PROFILE_LOW       0U
-#define CLOCK_PROFILE_MEDIUM    1U
-#define CLOCK_PROFILE_HIGH      2U
-#define CLOCK_PROFILE_MAX       3U
 
 #define CLOCK_SET_25_PERCENTAGE     BASE_CLOCK_SPEED
 #define CLOCK_SET_50_PERCENTAGE     ((HIGHEST_CLOCK_SPEED * 50U) / 100U)
 #define CLOCK_SET_75_PERCENTAGE     ((HIGHEST_CLOCK_SPEED * 75U) / 100U)
 #define CLOCK_SET_100_PERCENTAGE    HIGHEST_CLOCK_SPEED
+
+#define CLOCK_PROFILE_LOW       0U
+#define CLOCK_PROFILE_MEDIUM    1U
+#define CLOCK_PROFILE_HIGH      2U
+#define CLOCK_PROFILE_MAX       3U
 
 //select required clk speed
 #define SYSTEM_CLOCK_PROFILE        CLOCK_PROFILE_MEDIUM
@@ -154,7 +155,7 @@ void (* const g_pfnVectors[])(void) = {
     SysTick_Handler,                    //(core handlers end)total 10 core handlers i guess
 
     WWDG_IRQHandler,                    //(mcu handlers start) Don't know how may will be
-    PVD_IRQHandler,                     //change and include as per your mcu specific(read stm reference manual bro!!) :)
+    PVD_IRQHandler,                     //change and include as per your mcu specific(read stm reference manual!!) :)
     TAMP_STAMP_IRQHandler,
     RTC_WKUP_IRQHandler,
     FLASH_IRQHandler,
@@ -362,7 +363,7 @@ void Reset_Handler(void)
     }
 
     SystemInit();
-    main();  //haa.. finally!! call main bro 
+    main();  //haa.. finally!! call main
 
     while (1) {}
 }
