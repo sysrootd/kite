@@ -103,7 +103,6 @@ void hog_task(void)
 int main(void)
 {
     //------------------system init-------------------------
-
     gpio_init(GPIOB, RED_LED, OUTPUT, PP, FAST, PU, 0);
     gpio_init(GPIOB, GREEN_LED, OUTPUT, PP, FAST, PU, 0);
     
