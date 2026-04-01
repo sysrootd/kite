@@ -41,7 +41,7 @@ static void __attribute__((used)) fair_priority_sched(void);
 static uint8_t update_task_priority(TCB_t *task, uint8_t new_prio);
 static uint8_t highest_waiter_priority(mutex_t *m);
 
-static void SVC_Handler_C(uint32_t *stack_frame);
+static void __attribute__((used)) SVC_Handler_C(uint32_t *stack_frame);
 __attribute__((naked)) static void svc_start_first_task(void);
 
 static void svc_task_delay(uint32_t ticks);
@@ -102,13 +102,13 @@ static void __attribute__((used)) find_high_priority_task(void)
     }
 
     current_running_node = iter;
-    uint8_t high = iter->base_priority;
+    uint8_t high = iter->effective_priority;
 
     iter = iter->next_tcb_node;
 
     while (iter != head_node) {
-        if (iter->base_priority > high) {
-            high = iter->base_priority;
+        if (iter->effective_priority > high) {
+            high = iter->effective_priority;
             current_running_node = iter;
         }
 
@@ -246,13 +246,13 @@ __attribute__((naked)) void PendSV_Handler(void)
     __asm volatile (
         "MRS R0, PSP            \n"
         "STMDB R0!, {R4-R11}    \n"
-        "PUSH {LR}              \n"
+        "MOV R12, LR            \n"
         "BL __set_psp           \n"
         "BL fair_priority_sched \n"
         "BL __get_psp           \n"
         "LDMIA R0!, {R4-R11}    \n"
         "MSR PSP, R0            \n"
-        "POP {LR}               \n"
+        "MOV LR, R12            \n"
         "BX LR                  \n"
     );
 }
