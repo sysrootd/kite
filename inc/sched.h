@@ -73,6 +73,7 @@ extern uint32_t SystemCoreClock;
 
 // Initialisation and startup
 void systick_init(void);                       // configure SysTick timer
+inline void kite_start(void);
 void init_helper(void);
 __attribute__((naked)) void scheduler_init(void); // initialise scheduler (sets MSP, initialises stacks)
 void scheduler_start(void); // start multitasking (triggers SVC)
