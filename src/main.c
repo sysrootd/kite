@@ -8,141 +8,13 @@
 #define BAUD_RATE     115200U
 
 static mutex_t uart2_mutex;
-static semaphore_t sem1;
 static mutex_t test_mutex;
 
-static volatile uint32_t rr_a_cnt = 0;
-static volatile uint32_t rr_b_cnt = 0;
-static volatile uint32_t hp_cnt   = 0;
-static volatile uint32_t prod_cnt = 0;
-static volatile uint32_t cons_cnt = 0;
 static volatile uint32_t low_cnt  = 0;
 static volatile uint32_t mid_cnt  = 0;
 static volatile uint32_t high_cnt = 0;
 
-void red_led_task(void)
-{
-    while (1)
-    {
-        gpio_write(GPIOB, RED_LED, 1);
-        task_delay(100);
-
-        gpio_write(GPIOB, RED_LED, 0);
-        task_delay(100);
-    }
-}
-
-void green_led_task(void)
-{
-    while (1)
-    {
-        gpio_write(GPIOB, GREEN_LED, 1);
-        task_delay(100);
-
-        gpio_write(GPIOB, GREEN_LED, 0);
-        task_delay(100);
-    }
-}
-
-void task_rr_a(void)
-{
-    uint32_t next = global_systick;
-
-    while (1)
-    {
-        rr_a_cnt++;
-
-        mutex_lock(&uart2_mutex);
-        uart_printf(USART2,
-                    "[RR-A] rel=%lu now=%lu cnt=%lu\r\n",
-                    next,
-                    global_systick,
-                    rr_a_cnt);
-        mutex_unlock(&uart2_mutex);
-
-        task_sleep_until(&next, 1000);
-    }
-}
-
-void task_rr_b(void)
-{
-    uint32_t next = global_systick;
-
-    while (1)
-    {
-        rr_b_cnt++;
-
-        mutex_lock(&uart2_mutex);
-        uart_printf(USART2,
-                    "[RR-B] rel=%lu now=%lu cnt=%lu\r\n",
-                    next,
-                    global_systick,
-                    rr_b_cnt);
-        mutex_unlock(&uart2_mutex);
-
-        task_sleep_until(&next, 1000);
-    }
-}
-
-void task_high_periodic(void)
-{
-    uint32_t next = global_systick;
-
-    while (1)
-    {
-        hp_cnt++;
-
-        mutex_lock(&uart2_mutex);
-        uart_printf(USART2,
-                    "[HP  ] rel=%lu now=%lu cnt=%lu\r\n",
-                    next,
-                    global_systick,
-                    hp_cnt);
-        mutex_unlock(&uart2_mutex);
-
-        task_sleep_until(&next, 500);
-    }
-}
-
-void task_producer(void)
-{
-    uint32_t next = global_systick;
-
-    while (1)
-    {
-        prod_cnt++;
-
-        mutex_lock(&uart2_mutex);
-        uart_printf(USART2,
-                    "[PROD] post now=%lu cnt=%lu\r\n",
-                    global_systick,
-                    prod_cnt);
-        mutex_unlock(&uart2_mutex);
-
-        semaphore_post(&sem1);
-
-        task_sleep_until(&next, 700);
-    }
-}
-
-void task_consumer(void)
-{
-    while (1)
-    {
-        semaphore_wait(&sem1);
-
-        cons_cnt++;
-
-        mutex_lock(&uart2_mutex);
-        uart_printf(USART2,
-                    "[CONS] wake now=%lu cnt=%lu\r\n",
-                    global_systick,
-                    cons_cnt);
-        mutex_unlock(&uart2_mutex);
-    }
-}
-
-void task_low_mutex(void)
+void low_task(void)
 {
     uint32_t next = global_systick;
 
@@ -156,7 +28,7 @@ void task_low_mutex(void)
                     global_systick);
         mutex_unlock(&uart2_mutex);
 
-        for (volatile uint32_t i = 0; i < 400000; i++)
+        for (volatile uint32_t i = 0; i < 1200000; i++)
         {
         }
 
@@ -175,10 +47,11 @@ void task_low_mutex(void)
     }
 }
 
-void task_mid_busy(void)
+void mid_task(void)
 {
-    uint32_t next = global_systick;
     volatile uint32_t x = 0;
+
+    task_delay(100);
 
     while (1)
     {
@@ -191,20 +64,20 @@ void task_mid_busy(void)
                     mid_cnt);
         mutex_unlock(&uart2_mutex);
 
-        for (volatile uint32_t i = 0; i < 250000; i++)
+        for (volatile uint32_t i = 0; i < 400000; i++)
         {
             x++;
         }
 
-        task_sleep_until(&next, 800);
+        task_delay(1); 
     }
 }
 
-void task_high_mutex(void)
+void high_task(void)
 {
     uint32_t next = global_systick;
 
-    task_delay(200);
+    task_delay(300);
 
     while (1)
     {
@@ -225,13 +98,25 @@ void task_high_mutex(void)
                     high_cnt);
         mutex_unlock(&uart2_mutex);
 
-        for (volatile uint32_t i = 0; i < 80000; i++)
+        for (volatile uint32_t i = 0; i < 100000; i++)
         {
         }
 
         mutex_unlock(&test_mutex);
 
         task_sleep_until(&next, 3000);
+    }
+}
+
+void red_led_task(void)
+{
+    while (1)
+    {
+        gpio_write(GPIOB, RED_LED, 1);
+        task_delay(100);
+
+        gpio_write(GPIOB, RED_LED, 0);
+        task_delay(100);
     }
 }
 
@@ -244,25 +129,13 @@ int main(void)
 
     mutex_init(&uart2_mutex);
     mutex_init(&test_mutex);
-    semaphore_init(&sem1, 0);
 
-    create_task(2, task_rr_a,         64U);
-    create_task(2, task_rr_b,         64U);
-    create_task(4, task_high_periodic, 64U);
-
-    create_task(2, task_producer,     64U);
-    create_task(2, task_consumer,     64U);
-
-    create_task(1, task_low_mutex,    96U);
-    create_task(3, task_mid_busy,     64U);
-    create_task(4, task_high_mutex,   96U);
-
-    create_task(3, red_led_task,      64U);
-    create_task(3, green_led_task,    64U);
+    create_task(1, low_task,      128U);
+    create_task(2, mid_task,      128U);
+    create_task(3, high_task,     128U);
+    create_task(2, red_led_task,   64U);
 
     kite_start();
 
-    while (1)
-    {
-    }
+    while (1);
 }

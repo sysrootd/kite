@@ -22,11 +22,10 @@ static void scheduler_start(void);
 static void systick_init(void);
 void SysTick_Handler(void);
 static uint8_t task_wake(void);
-static void __attribute__((used)) schedule(void);
 static void idle_task(void);
 
 static void core_faults_init(void);
-static void __attribute__((used)) find_high_priority_task(void);
+static void find_high_priority_task(void);
 static void __attribute__((used)) init_helper(void);
 
 static uint32_t __attribute__((used)) __get_psp(void);
@@ -92,7 +91,7 @@ static void core_faults_init(void)
                   SCB_SHCSR_USGFAULTENA_Msk;
 }
 
-static void __attribute__((used)) find_high_priority_task(void)
+static void find_high_priority_task(void)
 {
     TCB_t *iter = head_node;
 
@@ -246,13 +245,13 @@ __attribute__((naked)) void PendSV_Handler(void)
     __asm volatile (
         "MRS R0, PSP            \n"
         "STMDB R0!, {R4-R11}    \n"
-        "MOV R12, LR            \n"
+        "PUSH {LR}              \n"
         "BL __set_psp           \n"
         "BL fair_priority_sched \n"
         "BL __get_psp           \n"
         "LDMIA R0!, {R4-R11}    \n"
         "MSR PSP, R0            \n"
-        "MOV LR, R12            \n"
+        "POP {LR}               \n"
         "BX LR                  \n"
     );
 }
@@ -369,44 +368,39 @@ void create_task(uint8_t priority, void (*handler)(void), uint32_t stack_words)
 
 static void __attribute__((used)) fair_priority_sched(void)
 {
-    TCB_t *start = current_running_node;
-    TCB_t *candidate = current_running_node->next_tcb_node;
     TCB_t *iter;
+    TCB_t *start;
+    TCB_t *best = NULL;
     uint8_t highest = 0U;
-    uint8_t found = 0U;
 
-    iter = head_node;
+    if (head_node == NULL) {
+        current_running_node = NULL;
+        return;
+    }
+
+    if ((current_running_node != NULL) && (current_running_node->next_tcb_node != NULL)) {
+        start = current_running_node->next_tcb_node;
+    } else {
+        start = head_node;
+    }
+
+    iter = start;
+
     do {
         if (iter->current_state == TASK_WAKE) {
-            if ((!found) || (iter->effective_priority > highest)) {
+            if ((best == NULL) || (iter->effective_priority > highest)) {
+                best = iter;
                 highest = iter->effective_priority;
-                found = 1U;
             }
         }
         iter = iter->next_tcb_node;
-    } while (iter != head_node);
+    } while (iter != start);
 
-    if (!found) {
+    if (best != NULL) {
+        current_running_node = best;
+    } else {
         current_running_node = head_node;
-        return;
     }
-
-    do {
-        if ((candidate->current_state == TASK_WAKE) &&
-            (candidate->effective_priority == highest)) {
-            current_running_node = candidate;
-            return;
-        }
-        candidate = candidate->next_tcb_node;
-    } while (candidate != start);
-
-    if ((start->current_state == TASK_WAKE) &&
-        (start->effective_priority == highest)) {
-        current_running_node = start;
-        return;
-    }
-
-    current_running_node = head_node;
 }
 
 void task_yield(void)
@@ -459,11 +453,6 @@ static uint8_t task_wake(void)
     } while (iter != head_node);
 
     return woke_task;
-}
-
-static void __attribute__((used)) schedule(void)
-{
-    request_context_switch();
 }
 
 static void idle_task(void)
@@ -631,23 +620,96 @@ static void svc_semaphore_post(semaphore_t *sem)
 
     if (sem->count <= 0) {
         TCB_t *iter = head_node;
+        TCB_t *best = NULL;
+        uint8_t best_prio = 0U;
 
         if (iter != NULL) {
             do {
                 if ((iter->current_state == TASK_BLOCKED) &&
                     (iter->waiting_on == sem)) {
-                    iter->waiting_on = NULL;
-                    iter->current_state = TASK_WAKE;
-                    EXIT_CRITICAL();
-                    request_context_switch();
-                    return;
+                    if ((best == NULL) || (iter->effective_priority > best_prio)) {
+                        best = iter;
+                        best_prio = iter->effective_priority;
+                    }
                 }
                 iter = iter->next_tcb_node;
             } while (iter != head_node);
         }
+
+        if (best != NULL) {
+            best->waiting_on = NULL;
+            best->current_state = TASK_WAKE;
+            EXIT_CRITICAL();
+            request_context_switch();
+            return;
+        }
     }
 
     EXIT_CRITICAL();
+}
+
+static void svc_mutex_unlock(mutex_t *m)
+{
+    uint8_t need_switch = 0U;
+
+    if ((m == NULL) || (m->owner != current_running_node)) {
+        return;
+    }
+
+    ENTER_CRITICAL();
+
+    TCB_t *iter = head_node;
+    TCB_t *next_owner = NULL;
+    uint8_t highest_prio = 0U;
+
+    if (iter != NULL) {
+        do {
+            if ((iter->current_state == TASK_BLOCKED) && (iter->waiting_on == m)) {
+                if ((next_owner == NULL) || (iter->effective_priority > highest_prio)) {
+                    highest_prio = iter->effective_priority;
+                    next_owner = iter;
+                }
+            }
+            iter = iter->next_tcb_node;
+        } while (iter != head_node);
+    }
+
+    if (current_running_node->held_mutex == m) {
+        current_running_node->held_mutex = NULL;
+    }
+
+    if (next_owner != NULL) {
+        next_owner->waiting_on = NULL;
+        next_owner->current_state = TASK_WAKE;
+        next_owner->held_mutex = m;
+
+        m->owner = next_owner;
+        m->locked = 1U;
+        m->highest_waiting_prio = highest_waiter_priority(m);
+
+        if (m->highest_waiting_prio > next_owner->effective_priority) {
+            update_task_priority(next_owner, m->highest_waiting_prio);
+        } else if (next_owner->effective_priority != next_owner->base_priority) {
+            update_task_priority(next_owner, next_owner->base_priority);
+        }
+
+        need_switch = 1U;
+    } else {
+        m->locked = 0U;
+        m->owner = NULL;
+        m->highest_waiting_prio = 0U;
+    }
+
+    if (current_running_node->held_mutex == NULL &&
+        current_running_node->effective_priority != current_running_node->base_priority) {
+        need_switch |= update_task_priority(current_running_node, current_running_node->base_priority);
+    }
+
+    EXIT_CRITICAL();
+
+    if (need_switch != 0U) {
+        request_context_switch();
+    }
 }
 
 static void svc_mutex_lock(mutex_t *m)
@@ -663,7 +725,9 @@ static void svc_mutex_lock(mutex_t *m)
     if (m->locked == 0U) {
         m->locked = 1U;
         m->owner = current_running_node;
-        current_running_node->held_mutex = m;
+        if (current_running_node->held_mutex == NULL) {
+            current_running_node->held_mutex = m;
+        }
         m->highest_waiting_prio = 0U;
     } else {
         current_running_node->waiting_on = m;
@@ -674,69 +738,12 @@ static void svc_mutex_lock(mutex_t *m)
             m->highest_waiting_prio = my_prio;
         }
 
-        if (m->owner->effective_priority < m->highest_waiting_prio) {
-            need_switch |= update_task_priority(m->owner, m->highest_waiting_prio);
+        if ((m->owner != NULL) &&
+            (m->owner->effective_priority < m->highest_waiting_prio)) {
+            update_task_priority(m->owner, m->highest_waiting_prio);
         }
 
         need_switch = 1U;
-    }
-
-    EXIT_CRITICAL();
-
-    if (need_switch != 0U) {
-        request_context_switch();
-    }
-}
-
-static void svc_mutex_unlock(mutex_t *m)
-{
-    uint8_t need_switch = 0U;
-
-    if ((m == NULL) || (m->owner != current_running_node)) {
-        return;
-    }
-
-    ENTER_CRITICAL();
-
-    current_running_node->held_mutex = NULL;
-
-    if (current_running_node->effective_priority != current_running_node->base_priority) {
-        need_switch |= update_task_priority(current_running_node, current_running_node->base_priority);
-    }
-
-    TCB_t *iter = head_node;
-    TCB_t *next_owner = NULL;
-    uint8_t highest_prio = 0U;
-
-    if (iter != NULL) {
-        do {
-            if ((iter->current_state == TASK_BLOCKED) && (iter->waiting_on == m)) {
-                if (iter->effective_priority > highest_prio) {
-                    highest_prio = iter->effective_priority;
-                    next_owner = iter;
-                }
-            }
-            iter = iter->next_tcb_node;
-        } while (iter != head_node);
-    }
-
-    if (next_owner != NULL) {
-        next_owner->waiting_on = NULL;
-        next_owner->current_state = TASK_WAKE;
-        next_owner->held_mutex = m;
-        m->owner = next_owner;
-
-        m->highest_waiting_prio = highest_waiter_priority(m);
-
-        if (m->highest_waiting_prio > next_owner->effective_priority) {
-            need_switch |= update_task_priority(next_owner, m->highest_waiting_prio);
-        }
-
-        need_switch = 1U;
-    } else {
-        m->locked = 0U;
-        m->owner = NULL;
-        m->highest_waiting_prio = 0U;
     }
 
     EXIT_CRITICAL();
