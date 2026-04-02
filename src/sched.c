@@ -22,7 +22,6 @@ static volatile uint32_t critical_nesting = 0;
 __attribute__((naked, used)) void scheduler_init(void);
 
 static void scheduler_start(void);
-static void set_time_slice_ticks(uint32_t ticks);
 static void systick_init(void);
 void SysTick_Handler(void);
 static uint8_t task_wake(void);
@@ -164,7 +163,7 @@ static void systick_init(void)
     NVIC_SetPriority(SVCall_IRQn,  0x01);
 }
 
-static void __attribute__((used)) set_time_slice_ticks(uint32_t ticks) {
+void set_time_slice_ticks(uint32_t ticks) {
     ENTER_CRITICAL();
     time_slice_ticks = ticks;
     tick_count = 0; // Reset the counter to start the new time slice fresh
