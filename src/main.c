@@ -23,22 +23,15 @@ void low_task(void)
         mutex_lock(&test_mutex);
 
         mutex_lock(&uart2_mutex);
-        uart_printf(USART2,
-                    "[LOW ] lock now=%lu\r\n",
-                    global_systick);
+        uart_printf(USART2, "[LOW ] lock now=%lu\r\n", global_systick);
         mutex_unlock(&uart2_mutex);
 
-        for (volatile uint32_t i = 0; i < 1200000; i++)
-        {
-        }
+        for (volatile uint32_t i = 0; i < 1200000; i++) { }
 
         low_cnt++;
 
         mutex_lock(&uart2_mutex);
-        uart_printf(USART2,
-                    "[LOW ] unlock now=%lu cnt=%lu\r\n",
-                    global_systick,
-                    low_cnt);
+        uart_printf(USART2, "[LOW ] unlock now=%lu cnt=%lu\r\n", global_systick, low_cnt);
         mutex_unlock(&uart2_mutex);
 
         mutex_unlock(&test_mutex);
@@ -58,18 +51,12 @@ void mid_task(void)
         mid_cnt++;
 
         mutex_lock(&uart2_mutex);
-        uart_printf(USART2,
-                    "[MID ] run now=%lu cnt=%lu\r\n",
-                    global_systick,
-                    mid_cnt);
+        uart_printf(USART2, "[MID ] run now=%lu cnt=%lu\r\n", global_systick, mid_cnt);
         mutex_unlock(&uart2_mutex);
 
-        for (volatile uint32_t i = 0; i < 400000; i++)
-        {
-            x++;
-        }
+        for (volatile uint32_t i = 0; i < 400000; i++) { x++; }
 
-        task_delay(1); 
+        task_delay(1);   // ← blocks for 1 tick – allows lower priority tasks to run
     }
 }
 
@@ -82,9 +69,7 @@ void high_task(void)
     while (1)
     {
         mutex_lock(&uart2_mutex);
-        uart_printf(USART2,
-                    "[HIGH] wait lock now=%lu\r\n",
-                    global_systick);
+        uart_printf(USART2, "[HIGH] wait lock now=%lu\r\n", global_systick);
         mutex_unlock(&uart2_mutex);
 
         mutex_lock(&test_mutex);
@@ -92,15 +77,10 @@ void high_task(void)
         high_cnt++;
 
         mutex_lock(&uart2_mutex);
-        uart_printf(USART2,
-                    "[HIGH] got lock now=%lu cnt=%lu\r\n",
-                    global_systick,
-                    high_cnt);
+        uart_printf(USART2, "[HIGH] got lock now=%lu cnt=%lu\r\n", global_systick, high_cnt);
         mutex_unlock(&uart2_mutex);
 
-        for (volatile uint32_t i = 0; i < 100000; i++)
-        {
-        }
+        for (volatile uint32_t i = 0; i < 100000; i++) { }
 
         mutex_unlock(&test_mutex);
 
@@ -113,10 +93,9 @@ void red_led_task(void)
     while (1)
     {
         gpio_write(GPIOB, RED_LED, 1);
-        task_delay(100);
-
+        task_delay(500);
         gpio_write(GPIOB, RED_LED, 0);
-        task_delay(100);
+        task_delay(500);
     }
 }
 
@@ -132,8 +111,8 @@ int main(void)
 
     create_task(1, low_task,      128U);
     create_task(2, mid_task,      128U);
-    create_task(3, high_task,     128U);
     create_task(2, red_led_task,   64U);
+    create_task(3, high_task,     128U);
 
     kite_start();
 

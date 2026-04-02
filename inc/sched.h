@@ -7,6 +7,8 @@
 extern volatile uint32_t global_systick;
 extern uint32_t SystemCoreClock;
 
+#define SCHED_TIME_SLICE      5 //time slice 5 ms for each task irrespective of priority
+
 extern uint32_t _estack;
 #define SRAM_END_ADDR   ((uint32_t)&_estack)
 #define STACK_START     ((uint32_t *)SRAM_END_ADDR)

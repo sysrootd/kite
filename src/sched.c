@@ -14,11 +14,15 @@ static uint32_t *new_task_psp = STACK_START;
 static uint32_t *next_task_psp = STACK_START;
 static uint32_t msp_start;
 
+static volatile uint32_t tick_count = 0;
+static uint32_t time_slice_ticks = SCHED_TIME_SLICE;
+
 static volatile uint32_t critical_nesting = 0;
 
 __attribute__((naked, used)) void scheduler_init(void);
 
 static void scheduler_start(void);
+static void set_time_slice_ticks(uint32_t ticks);
 static void systick_init(void);
 void SysTick_Handler(void);
 static uint8_t task_wake(void);
@@ -160,11 +164,25 @@ static void systick_init(void)
     NVIC_SetPriority(SVCall_IRQn,  0x01);
 }
 
+static void __attribute__((used)) set_time_slice_ticks(uint32_t ticks) {
+    ENTER_CRITICAL();
+    time_slice_ticks = ticks;
+    tick_count = 0; // Reset the counter to start the new time slice fresh
+    EXIT_CRITICAL();
+}
+
 void SysTick_Handler(void)
 {
     global_systick++;
+    tick_count++;
+    uint8_t need_switch = task_wake();
 
-    if (task_wake() != 0U) {
+    if (tick_count >= time_slice_ticks) {
+        tick_count = 0;
+        need_switch = 1;
+    }
+
+    if (need_switch) {
         request_context_switch();
     }
 }
