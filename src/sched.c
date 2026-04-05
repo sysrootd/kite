@@ -43,6 +43,7 @@ static void      __attribute__((used)) fair_priority_sched(void);
 
 static uint8_t update_task_priority(TCB_t *task, uint8_t new_prio);
 static uint8_t highest_waiter_priority(mutex_t *m);
+static void    propagate_priority(mutex_t *m, uint8_t prio);
 
 static void __attribute__((used)) SVC_Handler_C(uint32_t *stack_frame);
 __attribute__((naked)) static void svc_start_first_task(void);
@@ -105,18 +106,23 @@ static void find_high_priority_task(void)
         return;
     }
 
-    current_running_node = iter;
-    uint8_t high = iter->effective_priority;
-    iter = iter->next_tcb_node;
+    current_running_node = NULL;
+    uint8_t high = 0U;
 
-    while (iter != head_node)
+    do
     {
-        if (iter->effective_priority > high)
+        if ((iter->current_state == TASK_WAKE) &&
+            ((current_running_node == NULL) || (iter->effective_priority > high)))
         {
             high = iter->effective_priority;
             current_running_node = iter;
         }
         iter = iter->next_tcb_node;
+    } while (iter != head_node);
+
+    if (current_running_node == NULL)
+    {
+        current_running_node = head_node;
     }
 }
 
@@ -167,6 +173,11 @@ static void systick_init(void)
 
 void set_time_slice_ticks(uint32_t ticks)
 {
+    if (ticks < 1U)
+    {
+        ticks = 1U;
+    }
+
     ENTER_CRITICAL();
     time_slice_ticks = ticks;
     tick_count       = 0U;
@@ -361,8 +372,13 @@ static void create_idle_task(void)
     head_node = idle;
 }
 
-void create_task(uint8_t priority, void (*handler)(void), uint32_t stack_words)
+uint8_t create_task(uint8_t priority, void (*handler)(void), uint32_t stack_words)
 {
+    if (handler == NULL)
+    {
+        return 0U;
+    }
+
     if (new_task_psp == next_task_psp)
     {
         create_idle_task();
@@ -371,7 +387,7 @@ void create_task(uint8_t priority, void (*handler)(void), uint32_t stack_words)
     TCB_t *tcb = alloc_new_tcb_node();
     if (tcb == NULL)
     {
-        return;
+        return 0U;
     }
 
     uint32_t *stack = find_stack_area(stack_words);
@@ -391,6 +407,8 @@ void create_task(uint8_t priority, void (*handler)(void), uint32_t stack_words)
 
     link_node->next_tcb_node = tcb;
     link_node = tcb;
+
+    return 1U;
 }
 
 static void __attribute__((used)) fair_priority_sched(void)
@@ -553,6 +571,40 @@ static uint8_t highest_waiter_priority(mutex_t *m)
     } while (iter != head_node);
 
     return max_prio;
+}
+
+static void propagate_priority(mutex_t *m, uint8_t prio)
+{
+    mutex_t *current_m = m;
+
+    while (current_m != NULL)
+    {
+        TCB_t *owner = current_m->owner;
+
+        if (owner == NULL)
+        {
+            break;
+        }
+
+        if (prio > current_m->highest_waiting_prio)
+        {
+            current_m->highest_waiting_prio = prio;
+        }
+
+        if (owner->effective_priority >= prio)
+        {
+            break;
+        }
+
+        update_task_priority(owner, prio);
+
+        if (owner->current_state != TASK_BLOCKED)
+        {
+            break;
+        }
+
+        current_m = (mutex_t *)owner->waiting_on;
+    }
 }
 
 void mutex_lock(mutex_t *m)
@@ -724,13 +776,23 @@ static void svc_mutex_unlock(mutex_t *m)
         next_owner->waiting_on    = NULL;
         next_owner->current_state = TASK_WAKE;
 
+        uint8_t slot = HELD_MUTEX_MAX;
         for (uint8_t i = 0U; i < HELD_MUTEX_MAX; i++)
         {
             if (next_owner->held_mutex[i] == NULL)
             {
-                next_owner->held_mutex[i] = m;
+                slot = i;
                 break;
             }
+        }
+
+        if (slot < HELD_MUTEX_MAX)
+        {
+            next_owner->held_mutex[slot] = m;
+        }
+        else
+        {
+            while (1) {}
         }
 
         m->owner                = next_owner;
@@ -830,11 +892,7 @@ static void svc_mutex_lock(mutex_t *m)
             m->highest_waiting_prio = my_prio;
         }
 
-        if ((m->owner != NULL) &&
-            (m->owner->effective_priority < m->highest_waiting_prio))
-        {
-            update_task_priority(m->owner, m->highest_waiting_prio);
-        }
+        propagate_priority(m, my_prio);
 
         need_switch = 1U;
     }
