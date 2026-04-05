@@ -8,6 +8,6 @@
   
 #define TCB_POOL_SIZE   4096
 
-TCB_t* TCB_pool(ptrdiff_t incr);
+TCB_t* TCB_pool(void);
 
 #endif

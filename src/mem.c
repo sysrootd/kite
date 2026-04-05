@@ -1,24 +1,23 @@
-
-#include <errno.h>
 #include <stddef.h>
+#include <stdint.h>
 
 #include "mem.h"
 
-extern char _ebss;//end of .bss section sysmbol from linker
+static uint8_t tcb_pool_mem[TCB_POOL_SIZE] __attribute__((aligned(8)));
+static uint8_t *pool_start = tcb_pool_mem;
+static uint8_t *pool_end   = tcb_pool_mem + TCB_POOL_SIZE;
 
-static char *pool_start = &_ebss;
-static char *pool_end = &_ebss + TCB_POOL_SIZE;
-
-TCB_t* TCB_pool(ptrdiff_t incr)
+TCB_t* TCB_pool(void)
 {
-    char *prev_pool_end = pool_start;
+    size_t size = sizeof(TCB_t);
 
-    if (pool_start + incr > pool_end)
+    if ((pool_start + size) > pool_end)
     {
-        errno = ENOMEM;
-        return (void *)-1;
+        return NULL;
     }
 
-    pool_start += incr;
-    return (TCB_t *)prev_pool_end;
+    TCB_t *tcb = (TCB_t *)pool_start;
+    pool_start += size;
+
+    return tcb;
 }

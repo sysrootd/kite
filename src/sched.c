@@ -5,9 +5,6 @@
 #include "sched.h"
 #include "mem.h"
 
-#define HELD_MUTEX_MAX    4U
-#define PSP_VALUE_OFFSET  8
-
 volatile uint32_t global_systick = 0;
 
 TCB_t *current_running_node = NULL;
@@ -329,7 +326,7 @@ static uint32_t *find_stack_area(uint32_t stack_words)
 
 static TCB_t *alloc_new_tcb_node(void)
 {
-    TCB_t *node = (TCB_t *)TCB_pool(sizeof(TCB_t));
+    TCB_t *node = TCB_pool();
     if (node)
     {
         node->next_tcb_node = NULL;

@@ -99,6 +99,18 @@ void red_led_task(void)
     }
 }
 
+
+void green_led_task(void)
+{
+    while (1)
+    {
+        gpio_write(GPIOB, GREEN_LED, 1);
+        task_delay(1000);
+        gpio_write(GPIOB, GREEN_LED, 0);
+        task_delay(1000);
+    }
+}
+
 int main(void)
 {
     gpio_init(GPIOB, RED_LED, OUTPUT, PP, FAST, PU, 0);
@@ -111,7 +123,8 @@ int main(void)
 
     create_task(1, low_task,      128U);
     create_task(2, mid_task,      128U);
-    create_task(2, red_led_task,   64U);
+    create_task(3, red_led_task,   64U);
+    create_task(3, green_led_task, 64U);
     create_task(3, high_task,     128U);
 
     kite_start();

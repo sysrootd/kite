@@ -17,6 +17,9 @@ extern uint32_t _estack;
 #define TICK_HZ                1000U
 #define SYSTEM_CLK             SystemCoreClock
 
+#define HELD_MUTEX_MAX    4U
+#define PSP_VALUE_OFFSET  0
+
 #define TASK_SLEEP              0
 #define TASK_WAKE               1
 #define TASK_BLOCKED            2
@@ -69,7 +72,7 @@ struct TCB {
 
     TCB_t          *next_tcb_node;
     void           *waiting_on;
-    mutex_t        *held_mutex;
+    mutex_t        *held_mutex[HELD_MUTEX_MAX];
 };
 
 void kite_start(void);
