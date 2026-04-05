@@ -1,13 +1,16 @@
 #ifndef MEM_H
 #define MEM_H
 
+#include <stddef.h>
 #include "sched.h"
-// (pre static memory pool allocation to avoid malloc)
-// Define here how much memory required for your tcbs in bytes
-// Warning: total bytes should align word
-  
-#define TCB_POOL_SIZE   4096
 
-TCB_t* TCB_pool(void);
+#define TCB_POOL_SIZE  512U
+
+KITE_STATIC_ASSERT((TCB_POOL_SIZE % 8U) == 0U,
+    "TCB_POOL_SIZE must be a multiple of 8");
+KITE_STATIC_ASSERT(TCB_POOL_SIZE >= 256U,
+    "TCB_POOL_SIZE too small for any useful task count");
+
+TCB_t *TCB_pool(void);
 
 #endif

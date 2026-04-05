@@ -7,8 +7,6 @@
 extern volatile uint32_t global_systick;
 extern uint32_t SystemCoreClock;
 
-#define SCHED_TIME_SLICE      5 //time slice 5 ms for each task
-
 extern uint32_t _estack;
 #define SRAM_END_ADDR   ((uint32_t)&_estack)
 #define STACK_START     ((uint32_t *)SRAM_END_ADDR)
@@ -17,24 +15,38 @@ extern uint32_t _estack;
 #define TICK_HZ                1000U
 #define SYSTEM_CLK             SystemCoreClock
 
+#define SCHED_TIME_SLICE  5U
 #define HELD_MUTEX_MAX    4U
 #define PSP_VALUE_OFFSET  0
 
-#define TASK_SLEEP              0
-#define TASK_WAKE               1
-#define TASK_BLOCKED            2
+#define TASK_SLEEP    0
+#define TASK_WAKE     1
+#define TASK_BLOCKED  2
 
-#define KERNEL_INTERRUPT_PRIORITY      15U
-#define KERNEL_INTERRUPT_MASK          (KERNEL_INTERRUPT_PRIORITY << (8U - __NVIC_PRIO_BITS))
+#define KERNEL_INTERRUPT_PRIORITY  15U
+#define KERNEL_INTERRUPT_MASK      (KERNEL_INTERRUPT_PRIORITY << (8U - __NVIC_PRIO_BITS))
 
-#define SVC_START_FIRST_TASK   0U
-#define SVC_YIELD              1U
-#define SVC_DELAY              2U
-#define SVC_SLEEP_UNTIL        3U
-#define SVC_SEM_WAIT           4U
-#define SVC_SEM_POST           5U
-#define SVC_MUTEX_LOCK         6U
-#define SVC_MUTEX_UNLOCK       7U
+#define SVC_START_FIRST_TASK  0U
+#define SVC_YIELD             1U
+#define SVC_DELAY             2U
+#define SVC_SLEEP_UNTIL       3U
+#define SVC_SEM_WAIT          4U
+#define SVC_SEM_POST          5U
+#define SVC_MUTEX_LOCK        6U
+#define SVC_MUTEX_UNLOCK      7U
+
+#define KITE_STATIC_ASSERT(expr, msg)  _Static_assert(expr, msg)
+
+KITE_STATIC_ASSERT(HELD_MUTEX_MAX >= 1U,
+    "HELD_MUTEX_MAX must be at least 1");
+KITE_STATIC_ASSERT(HELD_MUTEX_MAX <= 16U,
+    "HELD_MUTEX_MAX too large, check TCB size vs stack budget");
+KITE_STATIC_ASSERT(TICK_HZ >= 1U && TICK_HZ <= 10000U,
+    "TICK_HZ out of sane range (1 - 10000)");
+KITE_STATIC_ASSERT(SCHED_TIME_SLICE >= 1U,
+    "SCHED_TIME_SLICE must be at least 1 tick");
+KITE_STATIC_ASSERT(IDLE_TASK_STACK_SIZE >= 32U,
+    "IDLE_TASK_STACK_SIZE too small, minimum 32 words");
 
 void sched_enter_critical(void);
 void sched_exit_critical(void);
@@ -56,23 +68,23 @@ struct semaphore {
 };
 
 struct mutex {
-    uint8_t         locked;
-    TCB_t          *owner;
-    uint8_t         highest_waiting_prio;
+    uint8_t  locked;
+    TCB_t   *owner;
+    uint8_t  highest_waiting_prio;
 };
 
 struct TCB {
-    uint32_t       *psp_value;
-    uint32_t        block_count;
-    uint8_t         current_state;
-    void          (*task_handler)(void);
+    uint32_t  *psp_value;
+    uint32_t   block_count;
+    uint8_t    current_state;
+    void     (*task_handler)(void);
 
-    uint8_t         base_priority;
-    uint8_t         effective_priority;
+    uint8_t    base_priority;
+    uint8_t    effective_priority;
 
-    TCB_t          *next_tcb_node;
-    void           *waiting_on;
-    mutex_t        *held_mutex[HELD_MUTEX_MAX];
+    TCB_t     *next_tcb_node;
+    void      *waiting_on;
+    mutex_t   *held_mutex[HELD_MUTEX_MAX];
 };
 
 void kite_start(void);
@@ -98,4 +110,4 @@ void MemManage_Handler(void);
 void BusFault_Handler(void);
 void UsageFault_Handler(void);
 
-#endif /* SCHED_H */
+#endif

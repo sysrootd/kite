@@ -169,7 +169,7 @@ void set_time_slice_ticks(uint32_t ticks)
 {
     ENTER_CRITICAL();
     time_slice_ticks = ticks;
-    tick_count = 0U;
+    tick_count       = 0U;
     EXIT_CRITICAL();
 }
 
@@ -476,7 +476,7 @@ static uint8_t task_wake(void)
     {
         if (iter->current_state == TASK_SLEEP)
         {
-            if (iter->block_count <= global_systick)
+            if ((int32_t)(global_systick - iter->block_count) >= 0)
             {
                 iter->current_state = TASK_WAKE;
                 woke_task           = 1U;
@@ -794,19 +794,30 @@ static void svc_mutex_lock(mutex_t *m)
 
     if (m->locked == 0U)
     {
-        m->locked = 1U;
-        m->owner  = current_running_node;
+        uint8_t slot = HELD_MUTEX_MAX;
 
         for (uint8_t i = 0U; i < HELD_MUTEX_MAX; i++)
         {
             if (current_running_node->held_mutex[i] == NULL)
             {
-                current_running_node->held_mutex[i] = m;
+                slot = i;
                 break;
             }
         }
 
-        m->highest_waiting_prio = 0U;
+        if (slot < HELD_MUTEX_MAX)
+        {
+            m->locked                              = 1U;
+            m->owner                               = current_running_node;
+            current_running_node->held_mutex[slot] = m;
+            m->highest_waiting_prio                = 0U;
+        }
+        else
+        {
+            current_running_node->waiting_on    = m;
+            current_running_node->current_state = TASK_BLOCKED;
+            need_switch                         = 1U;
+        }
     }
     else
     {
