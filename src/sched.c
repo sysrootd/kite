@@ -22,7 +22,7 @@ static volatile uint32_t critical_nesting = 0;
 
 __attribute__((naked, used)) void scheduler_init(void);
 
-static void    scheduler_start(void);
+static void __attribute__((used)) scheduler_start(void);
 static void    systick_init(void);
 void           SysTick_Handler(void);
 static uint8_t task_wake(void);
@@ -58,7 +58,7 @@ static void svc_mutex_unlock(mutex_t *m);
 void kite_start(void)
 {
     scheduler_init();
-    scheduler_start();
+    /* Tail-called natively in ASM to avoid returning to a corrupted stack frame */
 }
 
 void sched_enter_critical(void)
@@ -139,15 +139,13 @@ __attribute__((naked, used)) void scheduler_init(void)
     __asm volatile(
         "PUSH {LR}              \n"
         "BL   init_helper       \n"
-        "POP  {LR}              \n"
+        "POP  {R3, LR}          \n"
         "LDR  R0, =msp_start    \n"
         "LDR  R0, [R0]          \n"
         "MSR  MSP, R0           \n"
         "ISB                    \n"
-        "PUSH {LR}              \n"
         "BL   task_stack_init   \n"
-        "POP  {LR}              \n"
-        "BX   LR                \n"
+        "B    scheduler_start   \n"
     );
 }
 
@@ -273,13 +271,13 @@ __attribute__((naked)) void PendSV_Handler(void)
     __asm volatile(
         "MRS R0, PSP            \n"
         "STMDB R0!, {R4-R11}    \n"
-        "PUSH {LR}              \n"
+        "PUSH {R3, LR}          \n"
         "BL __set_psp           \n"
         "BL fair_priority_sched \n"
         "BL __get_psp           \n"
+        "POP {R3, LR}           \n"
         "LDMIA R0!, {R4-R11}    \n"
         "MSR PSP, R0            \n"
-        "POP {LR}               \n"
         "BX LR                  \n"
     );
 }
@@ -803,10 +801,6 @@ static void svc_mutex_unlock(mutex_t *m)
         {
             update_task_priority(next_owner, m->highest_waiting_prio);
         }
-        else if (next_owner->effective_priority != next_owner->base_priority)
-        {
-            update_task_priority(next_owner, next_owner->base_priority);
-        }
 
         need_switch = 1U;
     }
@@ -876,9 +870,7 @@ static void svc_mutex_lock(mutex_t *m)
         }
         else
         {
-            current_running_node->waiting_on    = m;
-            current_running_node->current_state = TASK_BLOCKED;
-            need_switch                         = 1U;
+            while (1) {}
         }
     }
     else

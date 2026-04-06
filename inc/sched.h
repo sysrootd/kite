@@ -15,6 +15,7 @@ extern uint32_t _estack;
 #define TICK_HZ                1000U
 #define SYSTEM_CLK             SystemCoreClock
 
+#define MAX_TASKS         16U  /* Max concurrent tasks for internal pool */
 #define SCHED_TIME_SLICE  5U
 #define HELD_MUTEX_MAX    4U
 #define PSP_VALUE_OFFSET  0
