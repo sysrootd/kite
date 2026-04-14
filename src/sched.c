@@ -58,7 +58,6 @@ static void svc_mutex_unlock(mutex_t *m);
 void kite_start(void)
 {
     scheduler_init();
-    /* Tail-called natively in ASM to avoid returning to a corrupted stack frame */
 }
 
 void sched_enter_critical(void)
@@ -162,7 +161,7 @@ inline uint32_t get_systick_counter(void)
 
 static void systick_init(void)
 {
-    SysTick_Config(SYSTEM_CLK / TICK_HZ);
+    SysTick_Config(SystemCoreClock / TICK_HZ);
 
     NVIC_SetPriority(PendSV_IRQn,  0xFF);
     NVIC_SetPriority(SysTick_IRQn, 0x00);

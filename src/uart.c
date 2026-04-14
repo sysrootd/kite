@@ -6,6 +6,40 @@
 
 extern uint32_t SystemCoreClock;
 
+#define RCC_CFGR_PPRE1_Pos      10U
+#define RCC_CFGR_PPRE1_Msk      (0x7U << RCC_CFGR_PPRE1_Pos)
+#define RCC_CFGR_PPRE2_Pos      13U
+#define RCC_CFGR_PPRE2_Msk      (0x7U << RCC_CFGR_PPRE2_Pos)
+
+static uint32_t apb_prescaler(uint32_t cfgr, uint32_t mask, uint32_t pos)
+{
+    uint32_t presc = (cfgr & mask) >> pos;
+
+    if (presc < 4U)
+        return 1U;
+
+    switch (presc)
+    {
+        case 4U: return 2U;
+        case 5U: return 4U;
+        case 6U: return 8U;
+        case 7U: return 16U;
+        default: return 1U;
+    }
+}
+
+static uint32_t get_uart_pclk(USART_TypeDef *uart)
+{
+    uint32_t hclk = SystemCoreClock;
+
+    if (uart == USART1 || uart == USART6)
+    {
+        return hclk / apb_prescaler(RCC->CFGR, RCC_CFGR_PPRE2_Msk, RCC_CFGR_PPRE2_Pos);
+    }
+
+    return hclk / apb_prescaler(RCC->CFGR, RCC_CFGR_PPRE1_Msk, RCC_CFGR_PPRE1_Pos);
+}
+
 uint32_t cstm_strlen(const char *str)
 {
     uint32_t len = 0;
@@ -87,8 +121,7 @@ static void uart_print_long(USART_TypeDef *uart, long num, int base)
 
 void uart_init(USART_TypeDef *uart, uint32_t baud)
 {
-    uint32_t pclk;
-    pclk = SystemCoreClock;
+    uint32_t pclk = get_uart_pclk(uart);
 
     if (uart == USART1)
     {

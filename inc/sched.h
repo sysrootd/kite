@@ -13,7 +13,6 @@ extern uint32_t _estack;
 
 #define IDLE_TASK_STACK_SIZE   64U
 #define TICK_HZ                1000U
-#define SYSTEM_CLK             SystemCoreClock
 
 #define MAX_TASKS         16U  /* Max concurrent tasks for internal pool */
 #define SCHED_TIME_SLICE  5U
