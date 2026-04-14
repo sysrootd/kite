@@ -6,19 +6,19 @@ SIZE    = arm-none-eabi-size
 TARGET_NAME = kite
 OBJDIR      = build
 SRC_DIR     = src
-PLATFORM_DIR = platform
+SYS_DIR     = sys
 INC_DIR     = inc
 
-CFLAGS  = -mcpu=cortex-m4 -mthumb -g3 -Wall -O0 \
+CFLAGS  = -mcpu=cortex-m4 -mthumb -mfpu=fpv4-sp-d16 -mfloat-abi=hard -g3 -Wall -O0 \
           -ffunction-sections -fdata-sections \
           -ffreestanding -nostdlib \
-          -I$(INC_DIR) -I$(PLATFORM_DIR)
+          -I$(INC_DIR) -I$(SYS_DIR)
 
-LDFLAGS = -T $(PLATFORM_DIR)/linker.ld -Wl,--gc-sections \
+LDFLAGS = -T $(SYS_DIR)/linker.ld -Wl,--gc-sections \
           -nostdlib
 
-C_SRC = $(wildcard $(SRC_DIR)/*.c) $(wildcard $(PLATFORM_DIR)/*.c)
-ASM_SRC = $(PLATFORM_DIR)/startup.S
+C_SRC = $(wildcard $(SRC_DIR)/*.c) $(wildcard $(SYS_DIR)/*.c)
+ASM_SRC = $(SYS_DIR)/startup.S
 OBJ   = $(patsubst %.c,$(OBJDIR)/%.o,$(notdir $(C_SRC))) $(OBJDIR)/startup.o
 
 TARGET = $(OBJDIR)/$(TARGET_NAME).elf
@@ -36,7 +36,7 @@ $(TARGET): $(OBJ)
 $(OBJDIR)/%.o: $(SRC_DIR)/%.c | $(OBJDIR)
 	$(CC) $(CFLAGS) -c $< -o $@
 
-$(OBJDIR)/%.o: $(PLATFORM_DIR)/%.c | $(OBJDIR)
+$(OBJDIR)/%.o: $(SYS_DIR)/%.c | $(OBJDIR)
 	$(CC) $(CFLAGS) -c $< -o $@
 
 $(OBJDIR)/startup.o: $(ASM_SRC) | $(OBJDIR)

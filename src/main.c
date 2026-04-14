@@ -56,7 +56,7 @@ void mid_task(void)
 
         for (volatile uint32_t i = 0; i < 400000; i++) { x++; }
 
-        task_delay(3000);   // ← blocks for 1 tick – allows lower priority tasks to run
+        task_delay(3000);
     }
 }
 
@@ -105,9 +105,9 @@ void green_led_task(void)
     while (1)
     {
         gpio_write(GPIOB, GREEN_LED, 1);
-        task_delay(3000);
+        task_delay(500);
         gpio_write(GPIOB, GREEN_LED, 0);
-        task_delay(3000);
+        task_delay(500);
     }
 }
 
@@ -128,7 +128,7 @@ int main(void)
     create_task(3, green_led_task, 64U);
     create_task(3, high_task,     128U);
 
-    uart_printf(USART2, "SystemClock: %lu\n\r", SystemCoreClock);
+    uart_printf(USART2, ">>>Kite start<<<< >>>SystemClock<<< %lu\n\r", SystemCoreClock);
 
     kite_start();
 

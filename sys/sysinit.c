@@ -1,12 +1,6 @@
 #include <stdint.h>
 #include "stm32f4xx.h"
 
-//---------------------------------------IMPORTANT SECTION---------------------------------------
-//Change here your mcu specific base (HSI clk) and its supported highest (PLL clk) freq
-
-#define BASE_CLOCK_SPEED        16000000U
-#define HIGHEST_CLOCK_SPEED     84000000U
-
 #define CLOCK_SET_25_PERCENTAGE     BASE_CLOCK_SPEED
 #define CLOCK_SET_50_PERCENTAGE     ((HIGHEST_CLOCK_SPEED * 50U) / 100U)
 #define CLOCK_SET_75_PERCENTAGE     ((HIGHEST_CLOCK_SPEED * 75U) / 100U)
