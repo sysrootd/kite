@@ -28,14 +28,13 @@ programming on Cortex‑M4 devices.
 - ST-Link hardware / tools
 - VS Code with the Cortex-Debug extension (optional, for debugging)
 
-## Platform files
+## Platform files need to change as per your mcu
 
 Platform-specific support files live in `sys/`:
 
 - `sys/startup.S` — copy from STM32CubeIDE/CubeMX
 - `sys/linker.ld` — copy from STM32CubeIDE/CubeMX
 - `sys/stm32f4xx.h` — update for your MCU and peripheral addresses
-- `sys/sysinit.c` — app-specific clock and runtime initialization
 
 ## Tool Chain Install
 
