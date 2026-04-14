@@ -21,7 +21,7 @@ programming on Cortex‑M4 devices.
 - STM32F4 series development board
 - Copy the STM32CubeIDE/CubeMX-generated `linker.ld` and `startup.S` into the `sys/` directory
 - Update `sys/stm32f4xx.h` for your specific STM32 MCU / board
-- `inc/config.h` is required and system configuration(important file)
+- Tweak `inc/config.h` for system configuration(<<<<important>>>>)
 - ARM GCC toolchain (`arm-none-eabi-gcc`)
 - `make`
 - OpenOCD
