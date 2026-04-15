@@ -18,7 +18,6 @@ static uint32_t  msp_start;
 static volatile uint32_t tick_count       = 0;
 static          uint32_t time_slice_ticks = SCHED_TIME_SLICE;
 
-static volatile uint32_t critical_nesting = 0;
 
 __attribute__((naked, used)) void scheduler_init(void);
 
@@ -60,26 +59,52 @@ void kite_start(void)
     scheduler_init();
 }
 
+static volatile uint32_t critical_nesting = 0;
+static uint32_t saved_basepri = 0;
+
 void sched_enter_critical(void)
 {
-    __set_BASEPRI(KERNEL_INTERRUPT_MASK);
-    __DSB();
-    __ISB();
+    uint32_t current_basepri;
+
+    __asm volatile
+    (
+        "mrs %0, basepri     \n"
+        "msr basepri, %1     \n"
+        "dsb                 \n"
+        "isb                 \n"
+        : "=r" (current_basepri)
+        : "r" (KERNEL_INTERRUPT_MASK)
+        : "memory"
+    );
+
+    if (critical_nesting == 0)
+    {
+        saved_basepri = current_basepri;
+    }
+
     critical_nesting++;
 }
 
 void sched_exit_critical(void)
 {
-    if (critical_nesting > 0U)
+    if (critical_nesting == 0)
     {
-        critical_nesting--;
+        return; // optional: assert in debug builds
+    }
 
-        if (critical_nesting == 0U)
-        {
-            __set_BASEPRI(0U);
-            __DSB();
-            __ISB();
-        }
+    critical_nesting--;
+
+    if (critical_nesting == 0)
+    {
+        __asm volatile
+        (
+            "msr basepri, %0   \n"
+            "dsb               \n"
+            "isb               \n"
+            :
+            : "r" (saved_basepri)
+            : "memory"
+        );
     }
 }
 
