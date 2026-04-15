@@ -18,10 +18,10 @@ programming on Cortex‑M4 devices.
 
 ## Requirements
 
-- STM32F4 series development board
+- STM32 development board
 - Copy the STM32CubeIDE/CubeMX-generated `linker.ld` and `startup.S` into the `sys/` directory
 - Update `sys/stm32f4xx.h` for your specific STM32 MCU / board
-- Tweak `inc/config.h` for system configuration(<<<<important>>>>)
+- Tweak `sys/config.h` for system configuration(<<<<important>>>>)
 - ARM GCC toolchain (`arm-none-eabi-gcc`)
 - `make`
 - OpenOCD
@@ -54,13 +54,16 @@ make
 
 # clean build products
 make clean
+
+# falsh elf to target
+make burn
 ```
 
 Compiled binaries appear in `build/`:
 - `kite.elf` – ELF executable
 - `kite.bin` – flashable binary
 
-### Flashing
+### TUI Debugging
 
 ```sh
 openocd -f interface/stlink.cfg \
@@ -68,17 +71,11 @@ openocd -f interface/stlink.cfg \
         -c "program build/kite.elf verify reset exit"
 ```
 
-### Debugging
+### GUI Debugging
 
 1. Launch VS Code, install Cortex‑Debug extension
 2. Connect the ST‑Link to your board
 3. choose **Run › Start Debugging**
-
-## VS Code Configuration Files
-
-- `.vscode/tasks.json` – build/clean tasks
-- `.vscode/launch.json` – debug configuration for your mcu
-- `.vscode/settings.json` – toolchain and file association settings
 
 ---
 
