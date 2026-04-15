@@ -66,9 +66,11 @@ Compiled binaries appear in `build/`:
 ### TUI Debugging
 
 ```sh
-openocd -f interface/stlink.cfg \
-        -f target/stm32f4x.cfg \
-        -c "program build/kite.elf verify reset exit"
+#In one terminal(It will start openocd debugging service)
+make connect
+
+#In another terminal(It will start debug session)
+make debug
 ```
 
 ### GUI Debugging
