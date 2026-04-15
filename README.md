@@ -1,6 +1,6 @@
-# kite RTOS (STM32F4XX)
+# kite RTOS
 
-A small RTOS written in C for the STM32F4XX family. It provides a simple
+A small RTOS written in C for the STM32F4 family. It provides a simple
 scheduler and task APIs making it ideal for learning bare‑metal RTOS
 programming on Cortex‑M4 devices.
 
@@ -11,7 +11,6 @@ programming on Cortex‑M4 devices.
 - Fair & preemptive-priority scheduler 
 - Task creation, delay and wake APIs
 - SysTick timer for tick interrupts
-- GPIO helper functions for STM32
 - CMSIS‑compatible register access
 
 ---
