@@ -82,6 +82,10 @@ struct TCB {
     uint8_t    base_priority;
     uint8_t    effective_priority;
 
+    const char *name;
+    uint32_t    runtime_us;
+    uint32_t    last_run_start_us;
+
     TCB_t     *next_tcb_node;
     void      *waiting_on;
     mutex_t   *held_mutex[HELD_MUTEX_MAX];
@@ -91,7 +95,7 @@ void kite_start(void);
 
 uint32_t get_systick_counter(void);
 
-uint8_t  create_task(uint8_t priority, void (*handler)(void), uint32_t stack_words);
+uint8_t  create_task(uint8_t priority, void (*handler)(void), uint32_t stack_words, const char *name);
 void     task_yield(void);
 void     task_delay(uint32_t ticks);
 void     task_sleep_until(uint32_t *last_wake, uint32_t period);

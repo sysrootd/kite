@@ -136,9 +136,33 @@ typedef struct
     __IO uint32_t CPACR;
 } SCB_Type;
 
+#define DWT_BASE            (0xE0001000UL)
+#define CoreDebug_BASE      (0xE000EDF0UL)
 #define SysTick_BASE        (0xE000E010UL)
 #define NVIC_BASE           (0xE000E100UL)
 #define SCB_BASE            (0xE000ED00UL)
+
+typedef struct {
+    volatile uint32_t CTRL;
+    volatile uint32_t CYCCNT;
+    volatile uint32_t CPICNT;
+    volatile uint32_t EXCCNT;
+    volatile uint32_t SLEEPCNT;
+    volatile uint32_t LSUCNT;
+    volatile uint32_t FOLDCNT;
+    volatile uint32_t PCSR;
+} DWT_Type;
+
+typedef struct {
+    uint32_t RESERVED0[3];
+    volatile uint32_t DEMCR;
+} CoreDebug_Type;
+
+#define DWT                 ((DWT_Type *) DWT_BASE)
+#define CoreDebug           ((CoreDebug_Type *) CoreDebug_BASE)
+
+#define CoreDebug_DEMCR_TRCENA_Msk (1UL << 24)
+#define DWT_CTRL_CYCCNTENA_Msk      (1UL << 0)
 
 #define SysTick             ((SysTick_Type *)SysTick_BASE)
 #define NVIC                ((NVIC_Type *)NVIC_BASE)
@@ -162,6 +186,9 @@ typedef struct
 #define SCB_SHCSR_BUSFAULTENA_Msk           (1UL << SCB_SHCSR_BUSFAULTENA_Pos)
 #define SCB_SHCSR_USGFAULTENA_Pos           18U
 #define SCB_SHCSR_USGFAULTENA_Msk           (1UL << SCB_SHCSR_USGFAULTENA_Pos)
+
+#define SCB_SCR_SLEEPDEEP_Pos               2U
+#define SCB_SCR_SLEEPDEEP_Msk               (1UL << SCB_SCR_SLEEPDEEP_Pos)
 
 #define CPACR_CP10_POS       20U
 #define CPACR_CP11_POS       22U

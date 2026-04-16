@@ -4,6 +4,8 @@
 #include "mcu_pheripherial.h"
 #include "sched.h"
 #include "mem.h"
+#include "timer.h"
+#include "stats.h"
 
 volatile uint32_t global_systick = 0;
 
@@ -30,6 +32,8 @@ static void    idle_task(void);
 static void core_faults_init(void);
 static void find_high_priority_task(void);
 static void __attribute__((used)) init_helper(void);
+static void update_task_runtime_on_switch(void);
+static void set_current_task_start_time(void);
 
 static uint32_t __attribute__((used)) __get_psp(void);
 static void     __attribute__((used)) __set_psp(uint32_t current_psp_value);
@@ -176,7 +180,32 @@ __attribute__((naked, used)) void scheduler_init(void)
 static void scheduler_start(void)
 {
     systick_init();
+    set_current_task_start_time();
     __asm volatile("svc 0");
+}
+
+static void __attribute__((used)) update_task_runtime_on_switch(void)
+{
+    if (current_running_node == NULL)
+    {
+        return;
+    }
+
+    uint32_t now = timer_get_us();
+    if (current_running_node->last_run_start_us != 0U)
+    {
+        current_running_node->runtime_us += now - current_running_node->last_run_start_us;
+    }
+}
+
+static void __attribute__((used)) set_current_task_start_time(void)
+{
+    if (current_running_node == NULL)
+    {
+        return;
+    }
+
+    current_running_node->last_run_start_us = timer_get_us();
 }
 
 inline uint32_t get_systick_counter(void)
@@ -209,6 +238,15 @@ void set_time_slice_ticks(uint32_t ticks)
 void SysTick_Handler(void)
 {
     global_systick++;
+    stats_tick();
+
+    if ((current_running_node != NULL) &&
+        (current_running_node == head_node) &&
+        (current_running_node->current_state == TASK_WAKE))
+    {
+        stats_idle_enter();
+    }
+
     tick_count++;
 
     uint8_t need_switch = task_wake();
@@ -297,7 +335,10 @@ __attribute__((naked)) void PendSV_Handler(void)
         "STMDB R0!, {R4-R11}    \n"
         "PUSH {R3, LR}          \n"
         "BL __set_psp           \n"
+        "BL update_task_runtime_on_switch \n"
         "BL fair_priority_sched \n"
+        "BL stats_context_switch \n"
+        "BL set_current_task_start_time \n"
         "BL __get_psp           \n"
         "POP {R3, LR}           \n"
         "LDMIA R0!, {R4-R11}    \n"
@@ -345,6 +386,8 @@ static void __attribute__((used)) task_stack_init(void)
         }
 
         iter->psp_value = stack;
+        iter->runtime_us = 0U;
+        iter->last_run_start_us = 0U;
         iter = iter->next_tcb_node;
     } while (iter != head_node);
 }
@@ -377,13 +420,16 @@ static void create_idle_task(void)
 
     uint32_t *stack = find_stack_area(IDLE_TASK_STACK_SIZE);
 
-    idle->block_count        = 0U;
-    idle->current_state      = TASK_WAKE;
-    idle->psp_value          = stack;
-    idle->task_handler       = idle_task;
-    idle->base_priority      = 0U;
-    idle->effective_priority = 0U;
-    idle->waiting_on         = NULL;
+    idle->block_count         = 0U;
+    idle->current_state       = TASK_WAKE;
+    idle->psp_value           = stack;
+    idle->task_handler        = idle_task;
+    idle->base_priority       = 0U;
+    idle->effective_priority  = 0U;
+    idle->name                = "idle";
+    idle->runtime_us          = 0U;
+    idle->last_run_start_us   = 0U;
+    idle->waiting_on          = NULL;
 
     for (uint8_t i = 0U; i < HELD_MUTEX_MAX; i++)
     {
@@ -394,7 +440,7 @@ static void create_idle_task(void)
     head_node = idle;
 }
 
-uint8_t create_task(uint8_t priority, void (*handler)(void), uint32_t stack_words)
+uint8_t create_task(uint8_t priority, void (*handler)(void), uint32_t stack_words, const char *name)
 {
     if (handler == NULL)
     {
@@ -414,13 +460,16 @@ uint8_t create_task(uint8_t priority, void (*handler)(void), uint32_t stack_word
 
     uint32_t *stack = find_stack_area(stack_words);
 
-    tcb->block_count        = 0U;
-    tcb->current_state      = TASK_WAKE;
-    tcb->psp_value          = stack;
-    tcb->base_priority      = priority;
-    tcb->effective_priority = priority;
-    tcb->task_handler       = handler;
-    tcb->waiting_on         = NULL;
+    tcb->block_count         = 0U;
+    tcb->current_state       = TASK_WAKE;
+    tcb->psp_value           = stack;
+    tcb->base_priority       = priority;
+    tcb->effective_priority  = priority;
+    tcb->task_handler        = handler;
+    tcb->name                = name;
+    tcb->runtime_us          = 0U;
+    tcb->last_run_start_us   = 0U;
+    tcb->waiting_on          = NULL;
 
     for (uint8_t i = 0U; i < HELD_MUTEX_MAX; i++)
     {

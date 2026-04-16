@@ -40,6 +40,19 @@
 #define FLASH_ACR_DCEN          (1U << 10)
 #define FLASH_ACR_PRFTEN        (1U << 8)
 
+#define RCC_APB1ENR_PWREN      (1U << 28)
+
+#define PWR_CR_LPDS            (1U << 0)
+#define PWR_CR_PDDS            (1U << 1)
+#define PWR_CR_CWUF            (1U << 2)
+
+typedef struct {
+    volatile uint32_t CR;
+    volatile uint32_t CSR;
+} PWR_TypeDef;
+
+#define PWR ((PWR_TypeDef *) PWR_BASE)
+
 #define TIM2_BASE             (APB1PERIPH_BASE + 0x0000UL)
 #define TIM3_BASE             (APB1PERIPH_BASE + 0x0400UL)
 #define TIM4_BASE             (APB1PERIPH_BASE + 0x0800UL)
