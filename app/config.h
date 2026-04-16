@@ -1,7 +1,7 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
-//Change here your mcu specific base (HSI clk) and its supported highest (PLL clk) freq
+//Change here your mcu base (HSI clk) and its supported highest (PLL clk) freq
 
 #define BASE_CLOCK_SPEED        16000000U
 #define HIGHEST_CLOCK_SPEED     84000000U
