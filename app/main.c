@@ -1,4 +1,4 @@
-#include "stm32f4xx.h"
+#include "mcu_pheripherial.h"
 #include "sched.h"
 #include "gpio.h"
 #include "uart.h"
@@ -105,9 +105,9 @@ void green_led_task(void)
     while (1)
     {
         gpio_write(GPIOB, GREEN_LED, 1);
-        task_delay(500);
+        task_delay(1000);
         gpio_write(GPIOB, GREEN_LED, 0);
-        task_delay(500);
+        task_delay(1000);
     }
 }
 

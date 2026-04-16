@@ -2,7 +2,7 @@
 #define SCHED_H
 
 #include <stdint.h>
-#include "stm32f4xx.h"
+#include "mcu_pheripherial.h"
 
 extern volatile uint32_t global_systick;
 extern uint32_t SystemCoreClock;

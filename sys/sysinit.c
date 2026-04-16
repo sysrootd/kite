@@ -1,5 +1,5 @@
 #include <stdint.h>
-#include "stm32f4xx.h"
+#include "mcu_pheripherial.h"
 
 #define CLOCK_SET_25_PERCENTAGE     BASE_CLOCK_SPEED
 #define CLOCK_SET_50_PERCENTAGE     ((HIGHEST_CLOCK_SPEED * 50U) / 100U)
@@ -11,7 +11,7 @@
 #define CLOCK_PROFILE_HIGH      2U
 #define CLOCK_PROFILE_MAX      3U
 
-#include "config.h"
+#include "../app/config.h"
 
 #ifndef ENABLE_FPU
 #define ENABLE_FPU 0
@@ -32,42 +32,6 @@ extern uint32_t _ebss;
 extern void __libc_init_array(void);
 extern int main(void);
 extern void SystemInit(void);
-
-#define CPACR_CP10_POS       20U
-#define CPACR_CP11_POS       22U
-#define CPACR_CP10_CP11_FULL (0xF << CPACR_CP10_POS)
-
-#define MPU_BASE             (0xE000ED90UL)
-#define MPU_CTRL_ENABLE_Pos  0U
-#define MPU_CTRL_ENABLE_Msk  (1UL << MPU_CTRL_ENABLE_Pos)
-#define MPU_CTRL_PRIVDEFENA_Pos 2U
-#define MPU_CTRL_PRIVDEFENA_Msk (1UL << MPU_CTRL_PRIVDEFENA_Pos)
-#define MPU_RASR_ENABLE_Pos  0U
-#define MPU_RASR_ENABLE_Msk  (1UL << MPU_RASR_ENABLE_Pos)
-#define MPU_RASR_SIZE_Pos    1U
-#define MPU_RASR_SIZE_Msk    (0x1FU << MPU_RASR_SIZE_Pos)
-#define MPU_RASR_FULL_ACCESS (0x3U << 24)
-
-typedef struct
-{
-    volatile uint32_t TYPE;
-    volatile uint32_t CTRL;
-    volatile uint32_t RNR;
-    volatile uint32_t RBAR;
-    volatile uint32_t RASR;
-} MPU_TypeDef;
-
-#define MPU ((MPU_TypeDef *)MPU_BASE)
-
-static inline void data_synchronization_barrier(void)
-{
-    __asm volatile ("dsb 0xF" : : : "memory");
-}
-
-static inline void instruction_synchronization_barrier(void)
-{
-    __asm volatile ("isb 0xF" : : : "memory");
-}
 
 static void enable_fpu(void);
 static void enable_mpu(void);
