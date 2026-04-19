@@ -13,7 +13,7 @@ INC_DIR     = inc
 CFLAGS  = -mcpu=cortex-m4 -mthumb -mfpu=fpv4-sp-d16 -mfloat-abi=hard -g3 -Wall -O0 \
           -ffunction-sections -fdata-sections \
           -ffreestanding -nostdlib \
-          -I$(INC_DIR) -I$(SYS_DIR)
+          -I$(INC_DIR) -I$(SYS_DIR) -I$(APP_DIR)
 
 LDFLAGS = -T $(SYS_DIR)/linker.ld -Wl,--gc-sections \
           -nostdlib

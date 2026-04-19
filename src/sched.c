@@ -571,7 +571,18 @@ static void idle_task(void)
 {
     while (1)
     {
+#ifdef ENABLE_STOP_MODE
+        RCC->APB1ENR |= RCC_APB1ENR_PWREN;
+        PWR->CR |= PWR_CR_CWUF;
+        PWR->CR |= PWR_CR_LPDS;
+        PWR->CR &= ~PWR_CR_PDDS;
+       
         __asm volatile("wfi");
+
+        PWR->CR &= ~PWR_CR_LPDS;
+#else
+        __asm volatile("wfi");
+#endif
     }
 }
 

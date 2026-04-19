@@ -21,4 +21,7 @@
 /* Enable/disable the MPU at startup. */
 #define ENABLE_MPU 1
 
+/* Enable/disable STOP mode. */
+#define ENABLE_STOP_MODE 0
+
 #endif /* CONFIG_H */
