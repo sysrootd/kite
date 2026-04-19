@@ -5,7 +5,6 @@
 #include "sched.h"
 #include "mem.h"
 #include "timer.h"
-#include "stats.h"
 
 volatile uint32_t global_systick = 0;
 
@@ -238,14 +237,6 @@ void set_time_slice_ticks(uint32_t ticks)
 void SysTick_Handler(void)
 {
     global_systick++;
-    stats_tick();
-
-    if ((current_running_node != NULL) &&
-        (current_running_node == head_node) &&
-        (current_running_node->current_state == TASK_WAKE))
-    {
-        stats_idle_enter();
-    }
 
     tick_count++;
 
@@ -337,7 +328,6 @@ __attribute__((naked)) void PendSV_Handler(void)
         "BL __set_psp           \n"
         "BL update_task_runtime_on_switch \n"
         "BL fair_priority_sched \n"
-        "BL stats_context_switch \n"
         "BL set_current_task_start_time \n"
         "BL __get_psp           \n"
         "POP {R3, LR}           \n"

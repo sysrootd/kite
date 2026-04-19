@@ -3,99 +3,129 @@
 #include "gpio.h"
 #include "uart.h"
 #include "timer.h"
-#include "stats.h"
 #include "config.h"
 
-#define RED_LED       13U
-#define GREEN_LED     14U
-#define BAUD_RATE     115200U
+#define RED_LED            13U
+#define GREEN_LED          14U
+#define BAUD_RATE          115200U
+#define TIMER_CLOCK_HZ     SystemCoreClock
+#define RTOS_TIMER_HZ      1000U
 
 static mutex_t uart_mutex;
+static volatile uint32_t low_priority_ticks = 0U;
 
-static void blink_task(void)
+// Hardware timer callback
+static void periodic_timer_cb(void)
+{
+    //minimal
+}
+
+// ---------------------------------------------------------
+// TASK 1: High Priority (Impatience)
+// Tries to get the mutex often, holds it briefly.
+// ---------------------------------------------------------
+static void high_priority_task(void)
 {
     while (1)
     {
+        mutex_lock(&uart_mutex);
+        uart_printf(USART2, "[HIGH] Acquired UART. Quick message!\n\r");
+        mutex_unlock(&uart_mutex);
+        
         gpio_write(GPIOB, RED_LED, 1);
-        task_delay(500);
+        task_delay(500); 
         gpio_write(GPIOB, RED_LED, 0);
-        task_delay(500);
+        task_delay(500); // Sleep and try again
     }
 }
 
-static void heartbeat_task(void)
+// ---------------------------------------------------------
+// TASK 2: Medium Priority (The Resource Hog)
+// Gets the mutex and holds onto it for a long time to force 
+// the high-priority task to wait in the blocked state.
+// ---------------------------------------------------------
+static void medium_priority_task(void)
 {
     while (1)
     {
+        mutex_lock(&uart_mutex);
+        uart_printf(USART2, "[MED] Acquired UART. Holding for a long time...\n\r");
+        
+        // Simulating a slow blocking process while holding the mutex
+        task_delay(300); 
+        
+        uart_printf(USART2, "[MED] Releasing UART now.\n\r");
+        mutex_unlock(&uart_mutex);
+        
+        task_delay(400); // Give other tasks a chance
+    }
+}
+
+// ---------------------------------------------------------
+// TASK 3: Low Priority (Starvation Monitor)
+// Runs continuously. If this stops printing, the scheduler
+// is starving low priority tasks during contention.
+// ---------------------------------------------------------
+static void low_priority_task(void)
+{
+    while (1)
+    {
+        low_priority_ticks++;
+        
+        // Only try to print every 10 ticks to avoid completely 
+        // flooding the UART, but prove it's still alive.
+        if (low_priority_ticks % 10 == 0)
+        {
+            mutex_lock(&uart_mutex);
+            uart_printf(USART2, "[LOW] Alive! Background ticks: %lu\n\r", (unsigned long)low_priority_ticks);
+            mutex_unlock(&uart_mutex);
+        }
+        
         gpio_write(GPIOB, GREEN_LED, 1);
         task_delay(100);
         gpio_write(GPIOB, GREEN_LED, 0);
-        task_delay(900);
+        task_delay(100);
     }
 }
 
-static void cpu_workload_task(void)
+void TIM2_IRQHandler(void)
 {
-    while (1)
-    {
-        uint32_t start_us = timer_get_us();
-        uint32_t work = 0U;
-
-        for (volatile uint32_t i = 0; i < 600000U; i++)
-        {
-            work += (i & 1U);
-        }
-
-        uint32_t elapsed = timer_get_us() - start_us;
-
-        mutex_lock(&uart_mutex);
-        uart_printf(USART2,
-            "[WORK] run=%lu us work=%lu\n\r",
-            (unsigned long)elapsed,
-            (unsigned long)work);
-        mutex_unlock(&uart_mutex);
-
-        task_delay(2000);
-    }
-}
-
-static void stats_task(void)
-{
-    while (1)
-    {
-        mutex_lock(&uart_mutex);
-        stats_report(USART2);
-        mutex_unlock(&uart_mutex);
-
-        task_delay(3000);
-    }
+    timer_irq_handler(TIM2);
 }
 
 int main(void)
 {
+    // 1. Hardware Init
     gpio_init(GPIOB, RED_LED, OUTPUT, PP, FAST, PU, 0);
     gpio_init(GPIOB, GREEN_LED, OUTPUT, PP, FAST, PU, 0);
-
     uart_init(USART2, BAUD_RATE);
-    timer_init();
-    stats_init();
 
+    // 2. Timer Init
+    timer_us_init(TIM5, TIMER_CLOCK_HZ);
+    timer_start(TIM5);
+    timer_set_callback(TIM2, periodic_timer_cb);
+    timer_init(TIM2, TIMER_CLOCK_HZ, RTOS_TIMER_HZ, TIMER_PERIODIC);
+    NVIC_EnableIRQ(TIM2_IRQn);
+    timer_start(TIM2);
+
+    // 3. RTOS Primitives
     mutex_init(&uart_mutex);
 
-    uart_printf(USART2,
-        "Kite RTOS boot: CPU=%lu Hz, DWT=%u\n\r",
-        (unsigned long)SystemCoreClock,
-        timer_has_cycle_counter() ? 1U : 0U);
+    uart_printf(USART2, "\n\r=================================\n\r");
+    uart_printf(USART2, ">>>>>Kite RTOS<<<<<\n\r");
+    uart_printf(USART2, "CPU=%lu Hz\n\r", (unsigned long)SystemCoreClock);
+    uart_printf(USART2, "=================================\n\r");
 
-    create_task(1, blink_task,     64U, "blink");
-    create_task(1, heartbeat_task, 64U, "heartbeat");
-    create_task(2, cpu_workload_task, 128U, "workload");
-    create_task(3, stats_task,     128U, "stats");
+    // 4. Task Creation
+    create_task(3, high_priority_task, 128U, "high_task");
+    create_task(2, medium_priority_task, 128U, "med_task");
+    create_task(1, low_priority_task, 128U, "low_task");
 
+    // 5. RTOS start
     kite_start();
 
     while (1)
     {
-        __asm volatile ("wfi");
+        __asm volatile("wfi");
     }
 }
