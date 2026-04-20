@@ -14,9 +14,9 @@ static void high_task(void)
     while (1)
     {
         mutex_lock(&uart_mutex);
-        uart_printf(USART2, "H\n\r");
+        uart_printf(USART2, "High task\n\r");
         mutex_unlock(&uart_mutex);
-        task_delay(10);
+        task_delay(100);
     }
 }
 
@@ -25,10 +25,10 @@ static void medium_task(void)
     while (1)
     {
         mutex_lock(&uart_mutex);
-        uart_printf(USART2, "M\n\r");
+        uart_printf(USART2, "Medium task\n\r");
         task_delay(50);
         mutex_unlock(&uart_mutex);
-        task_delay(20);
+        task_delay(100);
     }
 }
 
@@ -37,8 +37,11 @@ static void low_task(void)
     volatile uint32_t i;
     while (1)
     {
+        mutex_lock(&uart_mutex);
+        uart_printf(USART2, "Low task\n\r");
+        mutex_unlock(&uart_mutex);
         for (i = 0; i < 10000; i++);
-        task_delay(5);
+        task_delay(500);
     }
 }
 
@@ -58,9 +61,9 @@ static void led_task_2(void)
     while (1)
     {
         gpio_write(GPIOB, RED_LED, 1);
-        task_delay(100);
+        task_delay(200);
         gpio_write(GPIOB, RED_LED, 0);
-        task_delay(100);
+        task_delay(200);
     }
 }
 
