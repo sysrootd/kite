@@ -14,10 +14,12 @@ extern uint32_t _estack;
 #define IDLE_TASK_STACK_SIZE   64U
 #define TICK_HZ                1000U
 
-#define MAX_TASKS         16U  /* Max concurrent tasks for internal pool */
+#define MAX_TASKS         16U
 #define SCHED_TIME_SLICE  5U
 #define HELD_MUTEX_MAX    4U
 #define PSP_VALUE_OFFSET  0
+
+#define PRIO_LEVELS  32U
 
 #define TASK_SLEEP    0
 #define TASK_WAKE     1
@@ -47,6 +49,8 @@ KITE_STATIC_ASSERT(SCHED_TIME_SLICE >= 1U,
     "SCHED_TIME_SLICE must be at least 1 tick");
 KITE_STATIC_ASSERT(IDLE_TASK_STACK_SIZE >= 32U,
     "IDLE_TASK_STACK_SIZE too small, minimum 32 words");
+KITE_STATIC_ASSERT(PRIO_LEVELS <= 32U,
+    "PRIO_LEVELS must be <= 32 to fit in a single 32-bit bitmap word");
 
 void sched_enter_critical(void);
 void sched_exit_critical(void);
@@ -64,13 +68,17 @@ struct mutex;
 typedef struct mutex mutex_t;
 
 struct semaphore {
-    int32_t count;
+    int32_t  count;
+    TCB_t   *wq_head;
+    uint32_t wq_bitmap;
 };
 
 struct mutex {
     uint8_t  locked;
     TCB_t   *owner;
     uint8_t  highest_waiting_prio;
+    TCB_t   *wq_head;
+    uint32_t wq_bitmap;
 };
 
 struct TCB {
@@ -78,17 +86,18 @@ struct TCB {
     uint32_t   block_count;
     uint8_t    current_state;
     void     (*task_handler)(void);
-
     uint8_t    base_priority;
     uint8_t    effective_priority;
-
     const char *name;
     uint32_t    runtime_us;
     uint32_t    last_run_start_us;
-
     TCB_t     *next_tcb_node;
     void      *waiting_on;
     mutex_t   *held_mutex[HELD_MUTEX_MAX];
+    TCB_t     *rq_next;
+    TCB_t     *rq_prev;
+    TCB_t     *sl_next;
+    TCB_t     *wq_next;
 };
 
 void kite_start(void);
@@ -114,4 +123,4 @@ void MemManage_Handler(void);
 void BusFault_Handler(void);
 void UsageFault_Handler(void);
 
-#endif
+#endif /* SCHED_H */

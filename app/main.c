@@ -47,9 +47,9 @@ static void led_task_1(void)
     while (1)
     {
         gpio_write(GPIOB, GREEN_LED, 1);
-        task_delay(100);
+        task_delay(200);
         gpio_write(GPIOB, GREEN_LED, 0);
-        task_delay(100);
+        task_delay(200);
     }
 }
 
