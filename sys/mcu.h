@@ -1,7 +1,7 @@
-#ifndef MCU_PHERIPHERIAL_H
-#define MCU_PHERIPHERIAL_H
+#ifndef MCU_H
+#define MCU_H
 
-#include "corem4_pheripherial.h"
+#include "coreM4.h"
 
 //--------------------------------STM32F4 MCU peripheral definitions-------------------------------
 #define PERIPH_BASE           0x40000000UL
@@ -239,4 +239,4 @@ typedef struct {
 
 #define FLASH               ((FLASH_TypeDef *) FLASH_R_BASE)
 
-#endif // MCU_PHERIPHERIAL_H
+#endif // MCU_H

@@ -1,4 +1,4 @@
-#include "mcu_pheripherial.h"
+#include "mcu.h"
 #include "sched.h"
 #include "gpio.h"
 #include "uart.h"

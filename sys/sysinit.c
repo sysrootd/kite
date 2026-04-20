@@ -1,5 +1,5 @@
 #include <stdint.h>
-#include "mcu_pheripherial.h"
+#include "mcu.h"
 
 #define CLOCK_SET_25_PERCENTAGE     BASE_CLOCK_SPEED
 #define CLOCK_SET_50_PERCENTAGE     ((HIGHEST_CLOCK_SPEED * 50U) / 100U)

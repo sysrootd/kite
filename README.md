@@ -19,8 +19,8 @@ programming on Cortex‑M4 devices.
 
 - STM32 development board
 - Copy the STM32CubeIDE/CubeMX-generated `linker.ld` and `startup.S` into the `sys/` directory
-- Update `sys/mcu_pheripherial.h` for your specific STM32 MCU / board peripherals
-- Update `sys/corem4_pheripherial.h` if Cortex-M4 core register/interrupt definitions need adjustment
+- Update `sys/mcu.h` for your specific STM32 MCU / board peripherals
+- Update `sys/coreM4.h` if Cortex-M4 core register/interrupt definitions need adjustment
 - Tweak `app/config.h` for system clock and startup configuration
 - ARM GCC toolchain (`arm-none-eabi-gcc`)
 - `make`
@@ -34,8 +34,8 @@ Platform-specific support files live in `sys/`:
 
 - `sys/startup.S` — copy from STM32CubeIDE/CubeMX
 - `sys/linker.ld` — copy from STM32CubeIDE/CubeMX
-- `sys/mcu_pheripherial.h` — MCU peripheral addresses and register structs
-- `sys/corem4_pheripherial.h` — Cortex-M4 core definitions and CMSIS-style helpers
+- `sys/mcu.h` — MCU peripheral addresses and register structs
+- `sys/coreM4.h` — Cortex-M4 core definitions and CMSIS-style helpers
 
 ## Tool Chain Install
 

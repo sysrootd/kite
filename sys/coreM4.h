@@ -1,5 +1,5 @@
-#ifndef COREM4_PHERIPHERIAL_H
-#define COREM4_PHERIPHERIAL_H
+#ifndef COREM4_H
+#define COREM4_H
 
 #include <stdint.h>
 
@@ -363,4 +363,4 @@ static inline uint32_t SysTick_Config(uint32_t ticks)
     return 0UL;
 }
 
-#endif // COREM4_PHERIPHERIAL_H
+#endif // COREM4_H

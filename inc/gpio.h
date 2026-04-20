@@ -1,7 +1,7 @@
 #ifndef GPIO_H
 #define GPIO_H
 
-#include "mcu_pheripherial.h"
+#include "mcu.h"
 
 //RCC AHB1ENR bits
 

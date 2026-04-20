@@ -1,7 +1,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include "mcu_pheripherial.h"
+#include "mcu.h"
 #include "sched.h"
 #include "mem.h"
 #include "timer.h"

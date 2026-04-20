@@ -1,7 +1,7 @@
 #include <stdarg.h>
 #include <stdint.h>
 
-#include "mcu_pheripherial.h"
+#include "mcu.h"
 #include "uart.h"
 
 extern uint32_t SystemCoreClock;

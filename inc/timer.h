@@ -2,7 +2,7 @@
 #define TIMER_H
 
 #include <stdint.h>
-#include "mcu_pheripherial.h"
+#include "mcu.h"
 
 typedef enum
 {
