@@ -2,7 +2,6 @@
 #include "sched.h"
 #include "gpio.h"
 #include "uart.h"
-#include "config.h"
 
 #define RED_LED    13U
 #define GREEN_LED  14U
@@ -73,11 +72,11 @@ int main(void)
 
     mutex_init(&uart_mutex);
 
-    create_task(4, high_task, 256U, "high");
-    create_task(3, medium_task, 256U, "medium");
-    create_task(2, low_task, 256U, "low");
-    create_task(1, led_task_1, 256U, "led1");
-    create_task(1, led_task_2, 256U, "led2");
+    create_task(4, high_task,   128U, "high");
+    create_task(3, medium_task, 128U, "medium");
+    create_task(2, low_task,    128U, "low");
+    create_task(1, led_task_1,  128U, "led1");
+    create_task(1, led_task_2,  128U, "led2");
 
     kite_start();
 
