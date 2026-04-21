@@ -49,10 +49,8 @@ static void led_task_1(void)
 {
     while (1)
     {
-        gpio_write(GPIOB, GREEN_LED, 1);
-        task_delay(100);
-        gpio_write(GPIOB, GREEN_LED, 0);
-        task_delay(100);
+        gpio_toggle(GPIOB, GREEN_LED);
+        task_delay(5000);
     }
 }
 
@@ -60,10 +58,9 @@ static void led_task_2(void)
 {
     while (1)
     {
-        gpio_write(GPIOB, RED_LED, 1);
-        task_delay(200);
-        gpio_write(GPIOB, RED_LED, 0);
-        task_delay(200);
+        gpio_toggle(GPIOB, RED_LED);
+        task_delay(500);
+
     }
 }
 
