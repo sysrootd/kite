@@ -1,14 +1,15 @@
+
+
 #include <stddef.h>
 #include <stdint.h>
 
 #include "mcu.h"
 #include "sched.h"
 #include "mem.h"
-#include "timer.h"
 
 volatile uint32_t global_systick = 0;
 
-TCB_t *current_running_node = NULL;
+TCB_t *current_running_node  = NULL;
 TCB_t *head_node             = NULL;
 TCB_t *link_node             = NULL;
 
@@ -19,11 +20,23 @@ static uint32_t  msp_start;
 static volatile uint32_t tick_count       = 0;
 static          uint32_t time_slice_ticks = SCHED_TIME_SLICE;
 
-
 static TCB_t   *ready_queue[PRIO_LEVELS];
 static uint32_t ready_bitmap = 0U;
 
 static TCB_t *sleep_list_head = NULL;
+
+static mutex_t *held_mutex_table[MAX_TASKS][HELD_MUTEX_MAX];
+static uint8_t  task_count = 0U;   
+
+static uint8_t  tcb_index_of(TCB_t *t);  
+
+typedef struct {
+    TCB_t        *tcb;
+    void        (*handler)(void);
+} task_init_entry_t;
+
+static task_init_entry_t task_init_table[MAX_TASKS];
+static uint8_t           task_init_count = 0U;
 
 __attribute__((naked, used)) void scheduler_init(void);
 
@@ -34,9 +47,8 @@ static uint8_t task_wake(void);
 static void    idle_task(void);
 
 static void core_faults_init(void);
+
 static void __attribute__((used)) init_helper(void);
-static void update_task_runtime_on_switch(void);
-static void set_current_task_start_time(void);
 
 static uint32_t __attribute__((used)) __get_psp(void);
 static void     __attribute__((used)) __set_psp(uint32_t current_psp_value);
@@ -45,7 +57,6 @@ static void     __attribute__((used)) task_stack_init(void);
 static uint32_t *find_stack_area(uint32_t stack_words);
 static TCB_t    *alloc_new_tcb_node(void);
 static void      create_idle_task(void);
-static void      __attribute__((used)) fair_priority_sched(void);
 
 static uint8_t update_task_priority(TCB_t *task, uint8_t new_prio);
 static uint8_t highest_waiter_priority(mutex_t *m);
@@ -61,9 +72,69 @@ static void svc_semaphore_post(semaphore_t *sem);
 static void svc_mutex_lock(mutex_t *m);
 static void svc_mutex_unlock(mutex_t *m);
 
+static uint8_t tcb_index_of(TCB_t *t)
+{
+    for (uint8_t i = 0U; i < task_init_count; i++)
+    {
+        if (task_init_table[i].tcb == t)
+        {
+            return i;
+        }
+    }
+    
+    while (1) {}
+}
+
+static mutex_t **held_row(TCB_t *t)
+{
+    return held_mutex_table[tcb_index_of(t)];
+}
+
+static uint8_t held_alloc_slot(TCB_t *t)
+{
+    uint16_t bm = t->held_mutex_bitmap;
+    for (uint8_t i = 0U; i < HELD_MUTEX_MAX; i++)
+    {
+        if ((bm & (1U << i)) == 0U)
+        {
+            return i;
+        }
+    }
+    return HELD_MUTEX_MAX;   
+}
+
+static void held_set(TCB_t *t, uint8_t slot, mutex_t *m)
+{
+    held_row(t)[slot]    = m;
+    t->held_mutex_bitmap |= (uint16_t)(1U << slot);
+}
+
+static void held_clear_mutex(TCB_t *t, mutex_t *m)
+{
+    mutex_t **row = held_row(t);
+    for (uint8_t i = 0U; i < HELD_MUTEX_MAX; i++)
+    {
+        if (row[i] == m)
+        {
+            row[i]                = NULL;
+            t->held_mutex_bitmap &= (uint16_t)~(1U << i);
+            return;
+        }
+    }
+}
+
+static mutex_t *held_get(TCB_t *t, uint8_t slot)
+{
+    if ((t->held_mutex_bitmap & (1U << slot)) == 0U)
+    {
+        return NULL;
+    }
+    return held_row(t)[slot];
+}
+
 static inline void rq_add(TCB_t *t)
 {
-    uint8_t p = t->effective_priority;
+    uint8_t p = TCB_EFF_PRIO(t);
 
     if (ready_queue[p] == NULL)
     {
@@ -74,19 +145,18 @@ static inline void rq_add(TCB_t *t)
     }
     else
     {
-        TCB_t *head    = ready_queue[p];
-        TCB_t *tail    = head->rq_prev;
-        tail->rq_next  = t;
-        t->rq_prev     = tail;
-        t->rq_next     = head;
-        head->rq_prev  = t;
-        
+        TCB_t *head   = ready_queue[p];
+        TCB_t *tail   = head->rq_prev;
+        tail->rq_next = t;
+        t->rq_prev    = tail;
+        t->rq_next    = head;
+        head->rq_prev = t;
     }
 }
 
 static inline void rq_remove(TCB_t *t)
 {
-    uint8_t p = t->effective_priority;
+    uint8_t p = TCB_EFF_PRIO(t);
 
     if (t->rq_next == t)
     {
@@ -116,14 +186,14 @@ static inline TCB_t *rq_highest(void)
 
 static void sl_insert(TCB_t *t)
 {
-    t->current_state = TASK_SLEEP;
-    t->sl_next       = NULL;
+    TCB_SET_STATE(t, TASK_SLEEP);
+    t->sl_next = NULL;
 
     if (sleep_list_head == NULL ||
         (int32_t)(t->block_count - sleep_list_head->block_count) <= 0)
     {
-        t->sl_next       = sleep_list_head;
-        sleep_list_head  = t;
+        t->sl_next      = sleep_list_head;
+        sleep_list_head = t;
         return;
     }
 
@@ -139,11 +209,11 @@ static void sl_insert(TCB_t *t)
 
 static void wq_enqueue(TCB_t **wq_head, uint32_t *wq_bitmap, TCB_t *t)
 {
-    uint8_t p    = t->effective_priority;
-    *wq_bitmap  |= (1U << p);
-    t->wq_next   = NULL;
+    uint8_t p   = TCB_EFF_PRIO(t);
+    *wq_bitmap |= (1U << p);
+    t->wq_next  = NULL;
 
-    if ((*wq_head == NULL) || (p > (*wq_head)->effective_priority))
+    if ((*wq_head == NULL) || (p > TCB_EFF_PRIO(*wq_head)))
     {
         t->wq_next = *wq_head;
         *wq_head   = t;
@@ -152,7 +222,7 @@ static void wq_enqueue(TCB_t **wq_head, uint32_t *wq_bitmap, TCB_t *t)
 
     TCB_t *curr = *wq_head;
     while ((curr->wq_next != NULL) &&
-           (curr->wq_next->effective_priority >= p))
+           (TCB_EFF_PRIO(curr->wq_next) >= p))
     {
         curr = curr->wq_next;
     }
@@ -168,11 +238,11 @@ static TCB_t *wq_dequeue_highest(TCB_t **wq_head, uint32_t *wq_bitmap)
         return NULL;
     }
 
-    uint8_t p  = t->effective_priority;
+    uint8_t p  = TCB_EFF_PRIO(t);
     *wq_head   = t->wq_next;
     t->wq_next = NULL;
 
-    if ((*wq_head == NULL) || ((*wq_head)->effective_priority != p))
+    if ((*wq_head == NULL) || (TCB_EFF_PRIO(*wq_head) != p))
     {
         *wq_bitmap &= ~(1U << p);
     }
@@ -185,11 +255,11 @@ static void wq_reorder_for_blocked_task(TCB_t *task, uint8_t new_prio)
     mutex_t *m = (mutex_t *)task->waiting_on;
     if (m == NULL)
     {
-        task->effective_priority = new_prio;
+        TCB_SET_EFF_PRIO(task, new_prio);
         return;
     }
 
-    uint8_t old_p = task->effective_priority;
+    uint8_t old_p = TCB_EFF_PRIO(task);
 
     
     if (m->wq_head == task)
@@ -216,7 +286,7 @@ static void wq_reorder_for_blocked_task(TCB_t *task, uint8_t new_prio)
         TCB_t  *curr      = m->wq_head;
         while (curr != NULL)
         {
-            if (curr->effective_priority == old_p)
+            if (TCB_EFF_PRIO(curr) == old_p)
             {
                 still_old = 1U;
                 break;
@@ -230,10 +300,10 @@ static void wq_reorder_for_blocked_task(TCB_t *task, uint8_t new_prio)
     }
 
     
-    task->effective_priority = new_prio;
+    TCB_SET_EFF_PRIO(task, new_prio);
     m->wq_bitmap |= (1U << new_prio);
 
-    if ((m->wq_head == NULL) || (new_prio > m->wq_head->effective_priority))
+    if ((m->wq_head == NULL) || (new_prio > TCB_EFF_PRIO(m->wq_head)))
     {
         task->wq_next = m->wq_head;
         m->wq_head    = task;
@@ -242,7 +312,7 @@ static void wq_reorder_for_blocked_task(TCB_t *task, uint8_t new_prio)
     {
         TCB_t *curr = m->wq_head;
         while ((curr->wq_next != NULL) &&
-               (curr->wq_next->effective_priority >= new_prio))
+               (TCB_EFF_PRIO(curr->wq_next) >= new_prio))
         {
             curr = curr->wq_next;
         }
@@ -250,10 +320,8 @@ static void wq_reorder_for_blocked_task(TCB_t *task, uint8_t new_prio)
         curr->wq_next = task;
     }
 
-    
     m->highest_waiting_prio = highest_waiter_priority(m);
 }
-
 
 static volatile uint32_t critical_nesting = 0;
 static          uint32_t saved_basepri    = 0;
@@ -269,7 +337,7 @@ void sched_enter_critical(void)
         "dsb                 \n"
         "isb                 \n"
         : "=r" (current_basepri)
-        : "r" (KERNEL_INTERRUPT_MASK)
+        : "r"  (KERNEL_INTERRUPT_MASK)
         : "memory"
     );
 
@@ -309,7 +377,6 @@ static inline void request_context_switch(void)
     SCB->ICSR |= SCB_ICSR_PENDSVSET_Msk;
 }
 
-
 void kite_start(void)
 {
     scheduler_init();
@@ -330,7 +397,6 @@ static void find_high_priority_task(void)
 static void __attribute__((used)) init_helper(void)
 {
     msp_start = (uint32_t)next_task_psp;
-    
     find_high_priority_task();
     core_faults_init();
 }
@@ -353,41 +419,14 @@ __attribute__((naked, used)) void scheduler_init(void)
 static void scheduler_start(void)
 {
     systick_init();
-    set_current_task_start_time();
+    
     __asm volatile("svc 0");
-}
-
-
-static void __attribute__((used)) update_task_runtime_on_switch(void)
-{
-    if (current_running_node == NULL)
-    {
-        return;
-    }
-
-    uint32_t now = timer_get_us();
-    if (current_running_node->last_run_start_us != 0U)
-    {
-        current_running_node->runtime_us +=
-            now - current_running_node->last_run_start_us;
-    }
-}
-
-static void __attribute__((used)) set_current_task_start_time(void)
-{
-    if (current_running_node == NULL)
-    {
-        return;
-    }
-
-    current_running_node->last_run_start_us = timer_get_us();
 }
 
 inline uint32_t get_systick_counter(void)
 {
     return global_systick;
 }
-
 
 static void systick_init(void)
 {
@@ -421,7 +460,7 @@ static uint8_t task_wake(void)
         TCB_t *t        = sleep_list_head;
         sleep_list_head = t->sl_next;
         t->sl_next      = NULL;
-        t->current_state = TASK_WAKE;
+        TCB_SET_STATE(t, TASK_WAKE);
         rq_add(t);
         woke = 1U;
     }
@@ -434,7 +473,7 @@ void SysTick_Handler(void)
     global_systick++;
     tick_count++;
 
-    uint8_t need_switch = task_wake();     
+    uint8_t need_switch = task_wake();
 
     if (tick_count >= time_slice_ticks)
     {
@@ -447,7 +486,6 @@ void SysTick_Handler(void)
         request_context_switch();
     }
 }
-
 
 __attribute__((naked)) void SVC_Handler(void)
 {
@@ -501,7 +539,8 @@ __attribute__((naked)) static void svc_start_first_task(void)
     __asm volatile(
         "LDR  R0, =current_running_node    \n"
         "LDR  R0, [R0]                     \n"
-        "LDR  R0, [R0, %[off]]             \n"
+        
+        "LDR  R0, [R0, #0]                 \n"
         "LDMIA R0!, {R4-R11}               \n"
         "MSR  PSP, R0                      \n"
         "MOV  R0, #3                       \n"
@@ -509,27 +548,22 @@ __attribute__((naked)) static void svc_start_first_task(void)
         "ISB                               \n"
         "LDR  LR, =0xFFFFFFFD              \n"
         "BX   LR                           \n"
-        :
-        : [off] "I" (PSP_VALUE_OFFSET)
     );
 }
-
 
 __attribute__((naked)) void PendSV_Handler(void)
 {
     __asm volatile(
-        "MRS R0, PSP                      \n"
-        "STMDB R0!, {R4-R11}              \n"
-        "PUSH {R3, LR}                    \n"
-        "BL __set_psp                     \n"
-        "BL update_task_runtime_on_switch \n"
-        "BL fair_priority_sched           \n"   
-        "BL set_current_task_start_time   \n"
-        "BL __get_psp                     \n"
-        "POP {R3, LR}                     \n"
-        "LDMIA R0!, {R4-R11}              \n"
-        "MSR PSP, R0                      \n"
-        "BX LR                            \n"
+        "MRS  R0, PSP                          \n"
+        "STMDB R0!, {R4-R11}                   \n"
+        "PUSH {R3, LR}                         \n"
+        "BL   __set_psp                        \n"
+        "BL   fair_priority_sched_and_guard    \n"  
+        "BL   __get_psp                        \n"
+        "POP  {R3, LR}                         \n"
+        "LDMIA R0!, {R4-R11}                   \n"
+        "MSR  PSP, R0                          \n"
+        "BX   LR                               \n"
     );
 }
 
@@ -543,57 +577,57 @@ static void __attribute__((used)) __set_psp(uint32_t current_psp_value)
     current_running_node->psp_value = (uint32_t *)current_psp_value;
 }
 
-static void __attribute__((used)) fair_priority_sched(void)
+static void __attribute__((used)) fair_priority_sched_and_guard(void)
 {
     if ((current_running_node != NULL) &&
-        (current_running_node->current_state == TASK_WAKE))
+        (TCB_STATE(current_running_node) == TASK_WAKE))
     {
-        uint8_t p      = current_running_node->effective_priority;
+        uint8_t p      = TCB_EFF_PRIO(current_running_node);
         ready_queue[p] = current_running_node->rq_next;
     }
 
-    current_running_node = rq_highest();   
-}
+    current_running_node = rq_highest();
 
+    
+}
 
 static void __attribute__((used)) task_stack_init(void)
 {
-    TCB_t *iter = head_node;
-
-    while (iter != NULL)
+    for (uint8_t idx = 0U; idx < task_init_count; idx++)
     {
+        TCB_t        *iter    = task_init_table[idx].tcb;
+        void        (*handler)(void) = task_init_table[idx].handler;
+
         uint32_t *stack_top = iter->psp_value;
         uint32_t  aligned   = ((uint32_t)stack_top) & ~0x7U;
         uint32_t *stack     = (uint32_t *)aligned;
 
-        *(--stack) = 0x01000000U;            
-        *(--stack) = (uint32_t)iter->task_handler; 
-        *(--stack) = 0xFFFFFFFDU;            
-        *(--stack) = 0x0000000CU;            
-        *(--stack) = 0x00000003U;            
-        *(--stack) = 0x00000002U;            
-        *(--stack) = 0x00000001U;            
-        *(--stack) = 0x00000000U;            
+        *(--stack) = 0x01000000U;       
+        *(--stack) = (uint32_t)handler; 
+        *(--stack) = 0xFFFFFFFDU;       
+        *(--stack) = 0x0000000CU;       
+        *(--stack) = 0x00000003U;       
+        *(--stack) = 0x00000002U;       
+        *(--stack) = 0x00000001U;       
+        *(--stack) = 0x00000000U;       
 
-        for (int i = 0; i < 8; i++)          
+        for (int i = 0; i < 8; i++)     
         {
             *(--stack) = 0U;
         }
 
-        iter->psp_value        = stack;
-        iter->runtime_us       = 0U;
-        iter->last_run_start_us = 0U;
-
-        iter = iter->next_tcb_node;          
+        iter->psp_value = stack;
     }
 }
 
-
 static uint32_t *find_stack_area(uint32_t stack_words)
 {
-    stack_words   = (stack_words + 1U) & ~1U;
+    
+    stack_words = (stack_words + 1U) & ~1U;
+
     new_task_psp  = next_task_psp;
     next_task_psp -= stack_words;
+
     return new_task_psp;
 }
 
@@ -602,11 +636,12 @@ static TCB_t *alloc_new_tcb_node(void)
     TCB_t *node = TCB_pool();
     if (node != NULL)
     {
-        node->next_tcb_node = NULL;
-        node->rq_next       = NULL;
-        node->rq_prev       = NULL;
-        node->sl_next       = NULL;
-        node->wq_next       = NULL;
+        node->next_tcb_node   = NULL;
+        node->rq_next         = NULL;
+        node->rq_prev         = NULL;
+        node->sl_next         = NULL;
+        node->wq_next         = NULL;
+        node->held_mutex_bitmap = 0U;
     }
     return node;
 }
@@ -621,32 +656,39 @@ static void create_idle_task(void)
 
     uint32_t *stack = find_stack_area(IDLE_TASK_STACK_SIZE);
 
-    idle->block_count        = 0U;
-    idle->current_state      = TASK_WAKE;
-    idle->psp_value          = stack;
-    idle->task_handler       = idle_task;
-    idle->base_priority      = 0U;
-    idle->effective_priority = 0U;
-    idle->name               = "idle";
-    idle->runtime_us         = 0U;
-    idle->last_run_start_us  = 0U;
-    idle->waiting_on         = NULL;
+    idle->block_count  = 0U;
+    idle->psp_value    = stack;
+    idle->waiting_on   = NULL;
 
-    for (uint8_t i = 0U; i < HELD_MUTEX_MAX; i++)
+    TCB_INIT_STATE_PRIO(idle, TASK_WAKE, 0U, 0U);
+
+#ifdef SCHED_DEBUG
+    idle->name = "idle";
+#endif
+
+    
+    if (task_init_count < MAX_TASKS)
     {
-        idle->held_mutex[i] = NULL;
+        task_init_table[task_init_count].tcb     = idle;
+        task_init_table[task_init_count].handler = idle_task;
+        task_init_count++;
     }
 
     link_node = idle;
     head_node = idle;
 
-    rq_add(idle);   
+    rq_add(idle);
 }
 
 uint8_t create_task(uint8_t priority, void (*handler)(void),
                     uint32_t stack_words, const char *name)
 {
     if (handler == NULL)
+    {
+        return 0U;
+    }
+
+    if (task_count >= MAX_TASKS)
     {
         return 0U;
     }
@@ -664,32 +706,34 @@ uint8_t create_task(uint8_t priority, void (*handler)(void),
 
     uint32_t *stack = find_stack_area(stack_words);
 
-    tcb->block_count        = 0U;
-    tcb->current_state      = TASK_WAKE;
-    tcb->psp_value          = stack;
-    tcb->base_priority      = priority;
-    tcb->effective_priority = priority;
-    tcb->task_handler       = handler;
-    tcb->name               = name;
-    tcb->runtime_us         = 0U;
-    tcb->last_run_start_us  = 0U;
-    tcb->waiting_on         = NULL;
+    tcb->block_count  = 0U;
+    tcb->psp_value    = stack;
+    tcb->waiting_on   = NULL;
 
-    for (uint8_t i = 0U; i < HELD_MUTEX_MAX; i++)
-    {
-        tcb->held_mutex[i] = NULL;
-    }
+    TCB_INIT_STATE_PRIO(tcb, TASK_WAKE, priority, priority);
+
+#ifdef SCHED_DEBUG
+    tcb->name = name;
+#else
+    (void)name;
+#endif
 
     
+    if (task_init_count < MAX_TASKS)
+    {
+        task_init_table[task_init_count].tcb     = tcb;
+        task_init_table[task_init_count].handler = handler;
+        task_count = task_init_count;   
+        task_init_count++;
+    }
+
     link_node->next_tcb_node = tcb;
     link_node                = tcb;
 
-    
     rq_add(tcb);
 
     return 1U;
 }
-
 
 void task_yield(void)
 {
@@ -709,7 +753,6 @@ void task_sleep_until(uint32_t *last_wake, uint32_t period)
     __asm volatile("svc 3" : : "r"(r0), "r"(r1) : "memory");
 }
 
-
 static void idle_task(void)
 {
     while (1)
@@ -728,7 +771,6 @@ static void idle_task(void)
 #endif
     }
 }
-
 
 static void svc_task_delay(uint32_t ticks)
 {
@@ -766,14 +808,13 @@ static void svc_task_sleep_until(uint32_t *last_wake, uint32_t period)
     {
         current_running_node->block_count = next_wake;
         rq_remove(current_running_node);
-        sl_insert(current_running_node);   
+        sl_insert(current_running_node);
     }
 
     EXIT_CRITICAL();
 
     request_context_switch();
 }
-
 
 void semaphore_init(semaphore_t *sem, int32_t initial_count)
 {
@@ -807,8 +848,8 @@ static void svc_semaphore_wait(semaphore_t *sem)
 
     if (sem->count < 0)
     {
-        current_running_node->waiting_on    = sem;
-        current_running_node->current_state = TASK_BLOCKED;
+        current_running_node->waiting_on = sem;
+        TCB_SET_STATE(current_running_node, TASK_BLOCKED);
 
         rq_remove(current_running_node);
         wq_enqueue(&sem->wq_head, &sem->wq_bitmap, current_running_node);
@@ -838,8 +879,8 @@ static void svc_semaphore_post(semaphore_t *sem)
 
         if (best != NULL)
         {
-            best->waiting_on    = NULL;
-            best->current_state = TASK_WAKE;
+            best->waiting_on = NULL;
+            TCB_SET_STATE(best, TASK_WAKE);
             rq_add(best);
 
             EXIT_CRITICAL();
@@ -850,7 +891,6 @@ static void svc_semaphore_post(semaphore_t *sem)
 
     EXIT_CRITICAL();
 }
-
 
 void mutex_init(mutex_t *m)
 {
@@ -884,24 +924,24 @@ static uint8_t highest_waiter_priority(mutex_t *m)
 
 static uint8_t update_task_priority(TCB_t *task, uint8_t new_prio)
 {
-    if (task->effective_priority == new_prio)
+    if (TCB_EFF_PRIO(task) == new_prio)
     {
         return 0U;
     }
 
-    if (task->current_state == TASK_WAKE)
+    if (TCB_STATE(task) == TASK_WAKE)
     {
         rq_remove(task);
-        task->effective_priority = new_prio;
+        TCB_SET_EFF_PRIO(task, new_prio);
         rq_add(task);
     }
-    else if (task->current_state == TASK_BLOCKED)
+    else if (TCB_STATE(task) == TASK_BLOCKED)
     {
         wq_reorder_for_blocked_task(task, new_prio);
     }
-    else 
+    else
     {
-        task->effective_priority = new_prio;
+        TCB_SET_EFF_PRIO(task, new_prio);
     }
 
     return 1U;
@@ -925,14 +965,14 @@ static void propagate_priority(mutex_t *m, uint8_t prio)
             current_m->highest_waiting_prio = prio;
         }
 
-        if (owner->effective_priority >= prio)
+        if (TCB_EFF_PRIO(owner) >= prio)
         {
             break;
         }
 
         update_task_priority(owner, prio);
 
-        if (owner->current_state != TASK_BLOCKED)
+        if (TCB_STATE(owner) != TASK_BLOCKED)
         {
             break;
         }
@@ -954,23 +994,14 @@ static void svc_mutex_lock(mutex_t *m)
 
     if (m->locked == 0U)
     {
-        
-        uint8_t slot = HELD_MUTEX_MAX;
-        for (uint8_t i = 0U; i < HELD_MUTEX_MAX; i++)
-        {
-            if (current_running_node->held_mutex[i] == NULL)
-            {
-                slot = i;
-                break;
-            }
-        }
+        uint8_t slot = held_alloc_slot(current_running_node);
 
         if (slot < HELD_MUTEX_MAX)
         {
-            m->locked                              = 1U;
-            m->owner                               = current_running_node;
-            m->highest_waiting_prio                = 0U;
-            current_running_node->held_mutex[slot] = m;
+            m->locked               = 1U;
+            m->owner                = current_running_node;
+            m->highest_waiting_prio = 0U;
+            held_set(current_running_node, slot, m);
         }
         else
         {
@@ -979,11 +1010,10 @@ static void svc_mutex_lock(mutex_t *m)
     }
     else
     {
-        
-        current_running_node->waiting_on    = m;
-        current_running_node->current_state = TASK_BLOCKED;
+        current_running_node->waiting_on = m;
+        TCB_SET_STATE(current_running_node, TASK_BLOCKED);
 
-        uint8_t my_prio = current_running_node->effective_priority;
+        uint8_t my_prio = TCB_EFF_PRIO(current_running_node);
         if (my_prio > m->highest_waiting_prio)
         {
             m->highest_waiting_prio = my_prio;
@@ -1016,49 +1046,32 @@ static void svc_mutex_unlock(mutex_t *m)
 
     ENTER_CRITICAL();
 
-    
-    for (uint8_t i = 0U; i < HELD_MUTEX_MAX; i++)
-    {
-        if (current_running_node->held_mutex[i] == m)
-        {
-            current_running_node->held_mutex[i] = NULL;
-            break;
-        }
-    }
+    held_clear_mutex(current_running_node, m);
 
     TCB_t *next_owner = wq_dequeue_highest(&m->wq_head, &m->wq_bitmap);
 
     if (next_owner != NULL)
     {
-        
-        uint8_t slot = HELD_MUTEX_MAX;
-        for (uint8_t i = 0U; i < HELD_MUTEX_MAX; i++)
-        {
-            if (next_owner->held_mutex[i] == NULL)
-            {
-                slot = i;
-                break;
-            }
-        }
+        uint8_t slot = held_alloc_slot(next_owner);
 
         if (slot < HELD_MUTEX_MAX)
         {
-            next_owner->held_mutex[slot] = m;
+            held_set(next_owner, slot, m);
         }
         else
         {
             while (1) {}
         }
 
-        next_owner->waiting_on    = NULL;
-        next_owner->current_state = TASK_WAKE;
+        next_owner->waiting_on = NULL;
+        TCB_SET_STATE(next_owner, TASK_WAKE);
         rq_add(next_owner);
 
         m->owner                = next_owner;
         m->locked               = 1U;
-        m->highest_waiting_prio = highest_waiter_priority(m);  
+        m->highest_waiting_prio = highest_waiter_priority(m);
 
-        if (m->highest_waiting_prio > next_owner->effective_priority)
+        if (m->highest_waiting_prio > TCB_EFF_PRIO(next_owner))
         {
             update_task_priority(next_owner, m->highest_waiting_prio);
         }
@@ -1072,14 +1085,14 @@ static void svc_mutex_unlock(mutex_t *m)
         m->highest_waiting_prio = 0U;
     }
 
-    if (current_running_node->effective_priority !=
-        current_running_node->base_priority)
+    
+    if (TCB_EFF_PRIO(current_running_node) != TCB_BASE_PRIO(current_running_node))
     {
-        uint8_t max_inherited = current_running_node->base_priority;
+        uint8_t max_inherited = TCB_BASE_PRIO(current_running_node);
 
         for (uint8_t i = 0U; i < HELD_MUTEX_MAX; i++)
         {
-            mutex_t *held = current_running_node->held_mutex[i];
+            mutex_t *held = held_get(current_running_node, i);
             if ((held != NULL) &&
                 (held->highest_waiting_prio > max_inherited))
             {
@@ -1098,7 +1111,6 @@ static void svc_mutex_unlock(mutex_t *m)
     }
 }
 
-
 __attribute__((naked)) void HardFault_Handler(void)
 {
     __asm volatile(
@@ -1116,6 +1128,11 @@ void hardfault(uint32_t *stack)
     while (1);
 }
 
-void MemManage_Handler(void)  { while (1); }
+void MemManage_Handler(void)
+{
+    
+    while (1);
+}
+
 void BusFault_Handler(void)   { while (1); }
 void UsageFault_Handler(void) { while (1); }

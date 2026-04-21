@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include "mcu.h"
+#include "config.h"
 
 extern volatile uint32_t global_systick;
 extern uint32_t SystemCoreClock;
@@ -14,16 +15,11 @@ extern uint32_t _estack;
 #define IDLE_TASK_STACK_SIZE   64U
 #define TICK_HZ                1000U
 
-#define MAX_TASKS         16U
-#define SCHED_TIME_SLICE  5U
-#define HELD_MUTEX_MAX    4U
-#define PSP_VALUE_OFFSET  0
+#define PRIO_LEVELS            32U
 
-#define PRIO_LEVELS  32U
-
-#define TASK_SLEEP    0
-#define TASK_WAKE     1
-#define TASK_BLOCKED  2
+#define TASK_SLEEP    0U
+#define TASK_WAKE     1U
+#define TASK_BLOCKED  2U
 
 #define KERNEL_INTERRUPT_PRIORITY  15U
 #define KERNEL_INTERRUPT_MASK      (KERNEL_INTERRUPT_PRIORITY << (8U - __NVIC_PRIO_BITS))
@@ -42,7 +38,7 @@ extern uint32_t _estack;
 KITE_STATIC_ASSERT(HELD_MUTEX_MAX >= 1U,
     "HELD_MUTEX_MAX must be at least 1");
 KITE_STATIC_ASSERT(HELD_MUTEX_MAX <= 16U,
-    "HELD_MUTEX_MAX too large, check TCB size vs stack budget");
+    "HELD_MUTEX_MAX must be <= 16 (bitmap is uint16_t)");
 KITE_STATIC_ASSERT(TICK_HZ >= 1U && TICK_HZ <= 10000U,
     "TICK_HZ out of sane range (1 - 10000)");
 KITE_STATIC_ASSERT(SCHED_TIME_SLICE >= 1U,
@@ -82,29 +78,52 @@ struct mutex {
 };
 
 struct TCB {
-    uint32_t  *psp_value;
-    uint32_t   block_count;
-    uint8_t    current_state;
-    void     (*task_handler)(void);
-    uint8_t    base_priority;
-    uint8_t    effective_priority;
-    const char *name;
-    uint32_t    runtime_us;
-    uint32_t    last_run_start_us;
-    TCB_t     *next_tcb_node;
-    void      *waiting_on;
-    mutex_t   *held_mutex[HELD_MUTEX_MAX];
-    TCB_t     *rq_next;
+    
+    uint32_t  *psp_value;       
+    uint32_t   block_count;     
+    uint16_t   state_prio;
+    uint16_t   held_mutex_bitmap;
+    void      *waiting_on;      
+
+    TCB_t     *next_tcb_node;   
+    TCB_t     *rq_next;         
     TCB_t     *rq_prev;
-    TCB_t     *sl_next;
-    TCB_t     *wq_next;
+    TCB_t     *sl_next;         
+    TCB_t     *wq_next;         
+
+#ifdef SCHED_DEBUG
+    const char *name;           
+#endif
 };
+
+#define TCB_STATE(t)           ((uint8_t)( (t)->state_prio        & 0x03U))
+#define TCB_BASE_PRIO(t)       ((uint8_t)(((t)->state_prio >> 2U) & 0x1FU))
+#define TCB_EFF_PRIO(t)        ((uint8_t)(((t)->state_prio >> 7U) & 0x1FU))
+
+#define TCB_SET_STATE(t,s)     ((t)->state_prio = (uint16_t)(       \
+                                    ((t)->state_prio & ~0x0003U) |  \
+                                    ((s) & 0x03U)))
+
+#define TCB_SET_BASE_PRIO(t,p) ((t)->state_prio = (uint16_t)(       \
+                                    ((t)->state_prio & ~0x007CU) |  \
+                                    (((p) & 0x1FU) << 2U)))
+
+#define TCB_SET_EFF_PRIO(t,p)  ((t)->state_prio = (uint16_t)(       \
+                                    ((t)->state_prio & ~0x0F80U) |  \
+                                    (((p) & 0x1FU) << 7U)))
+
+#define TCB_INIT_STATE_PRIO(t, state, base, eff)                     \
+    ((t)->state_prio = (uint16_t)(                                   \
+        ((state) & 0x03U)         |                                  \
+        (((base) & 0x1FU) << 2U) |                                   \
+        (((eff)  & 0x1FU) << 7U)))
 
 void kite_start(void);
 
 uint32_t get_systick_counter(void);
 
-uint8_t  create_task(uint8_t priority, void (*handler)(void), uint32_t stack_words, const char *name);
+uint8_t  create_task(uint8_t priority, void (*handler)(void),
+                     uint32_t stack_words, const char *name);
 void     task_yield(void);
 void     task_delay(uint32_t ticks);
 void     task_sleep_until(uint32_t *last_wake, uint32_t period);
@@ -123,4 +142,4 @@ void MemManage_Handler(void);
 void BusFault_Handler(void);
 void UsageFault_Handler(void);
 
-#endif /* SCHED_H */
+#endif 

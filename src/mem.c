@@ -1,11 +1,11 @@
 #include <stddef.h>
 #include <stdint.h>
-
 #include "mem.h"
 
-static uint8_t  tcb_pool_mem[TCB_POOL_SIZE] __attribute__((aligned(8)));
-static uint8_t *pool_ptr = tcb_pool_mem;
-static uint8_t *pool_end = tcb_pool_mem + TCB_POOL_SIZE;
+static uint32_t tcb_pool_mem[TCB_POOL_WORDS];
+
+static uint8_t *pool_ptr = (uint8_t *)tcb_pool_mem;
+static uint8_t *pool_end = (uint8_t *)(tcb_pool_mem + TCB_POOL_WORDS);
 
 TCB_t *TCB_pool(void)
 {
@@ -17,7 +17,7 @@ TCB_t *TCB_pool(void)
     }
 
     TCB_t *tcb = (TCB_t *)pool_ptr;
-    pool_ptr  += size;
+    pool_ptr += size;
 
     return tcb;
 }

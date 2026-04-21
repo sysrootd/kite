@@ -204,6 +204,14 @@ typedef struct {
 #define MPU_RASR_SIZE_Pos    1U
 #define MPU_RASR_SIZE_Msk    (0x1FU << MPU_RASR_SIZE_Pos)
 #define MPU_RASR_FULL_ACCESS (0x3U << 24)
+#define MPU_RASR_AP_Pos               24U
+#define MPU_RASR_AP_Msk               (0x7UL << MPU_RASR_AP_Pos)
+#define MPU_RASR_XN_Pos               28U
+#define MPU_RASR_XN_Msk               (0x1UL << MPU_RASR_XN_Pos)
+#define MPU_RBAR_REGION_Pos           0U
+#define MPU_RBAR_REGION_Msk           (0xFUL << MPU_RBAR_REGION_Pos)
+#define MPU_RBAR_VALID_Pos            4U
+#define MPU_RBAR_VALID_Msk            (0x1UL << MPU_RBAR_VALID_Pos)
 
 typedef struct
 {

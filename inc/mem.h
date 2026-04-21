@@ -2,14 +2,14 @@
 #define MEM_H
 
 #include <stddef.h>
+#include <stdint.h>
 #include "sched.h"
 
-#define TCB_POOL_SIZE  512U
+#define WORD_SIZE        sizeof(uint32_t)
+#define TCB_POOL_WORDS   512U
 
-KITE_STATIC_ASSERT((TCB_POOL_SIZE % 8U) == 0U,
-    "TCB_POOL_SIZE must be a multiple of 8");
-KITE_STATIC_ASSERT(TCB_POOL_SIZE >= 256U,
-    "TCB_POOL_SIZE too small for any useful task count");
+KITE_STATIC_ASSERT((TCB_POOL_WORDS * WORD_SIZE) >= 2048U,
+                   "Pool must be at least 2KB");
 
 TCB_t *TCB_pool(void);
 
