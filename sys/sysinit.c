@@ -1,6 +1,8 @@
 #include <stdint.h>
 #include "mcu.h"
 
+#include "../app/config.h"
+
 #define CLOCK_SET_25_PERCENTAGE     BASE_CLOCK_SPEED
 #define CLOCK_SET_50_PERCENTAGE     ((HIGHEST_CLOCK_SPEED * 50U) / 100U)
 #define CLOCK_SET_75_PERCENTAGE     ((HIGHEST_CLOCK_SPEED * 75U) / 100U)
@@ -9,9 +11,7 @@
 #define CLOCK_PROFILE_LOW       0U
 #define CLOCK_PROFILE_MEDIUM    1U
 #define CLOCK_PROFILE_HIGH      2U
-#define CLOCK_PROFILE_MAX      3U
-
-#include "../app/config.h"
+#define CLOCK_PROFILE_MAX       3U
 
 #ifndef ENABLE_FPU
 #define ENABLE_FPU 0

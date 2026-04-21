@@ -8,12 +8,12 @@
 
 /* Choose one of the clock profiles defined */
 
-//  CLOCK_PROFILE_LOW
-//  CLOCK_PROFILE_MEDIUM
-//  CLOCK_PROFILE_HIGH
-//  CLOCK_PROFILE_MAX
+//  CLOCK_PROFILE_LOW       BASE_CLOCK_SPEED
+//  CLOCK_PROFILE_MEDIUM    (50%)
+//  CLOCK_PROFILE_HIGH      (75%)
+//  CLOCK_PROFILE_MAX       HIGHEST_CLOCK_SPEED(100%)
 
-#define SYSTEM_CLOCK_PROFILE CLOCK_PROFILE_MAX
+#define SYSTEM_CLOCK_PROFILE CLOCK_PROFILE_LOW
 
 /* Enable/disable the FPU at startup. */
 #define ENABLE_FPU 1
@@ -29,6 +29,7 @@
 #define SCHED_DEBUG 0 
 
 /* Maximum no of tasks that will be created*/
+/*>>>>IMP: Don't Define more than 31 tasks(total tasks <= 31) <<<<*/
 #define MAX_TASKS              16U
 
 /* Min Time slice scheduler give for each task in run time(5ms is idle) */
