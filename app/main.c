@@ -72,7 +72,7 @@ static void buzzer_task(void)
         gpio_write(GPIOB, BUZZER, 1);
         task_delay(500);
         gpio_write(GPIOB, BUZZER, 0);
-        task_delay(1000);
+        task_delay(10000);
     }
 }
 

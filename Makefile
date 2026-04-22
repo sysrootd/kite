@@ -5,10 +5,10 @@ SIZE    = arm-none-eabi-size
 
 TARGET_NAME = kite
 OBJDIR      = build
-SRC_DIR     = src
+SRC_DIR     = core/src
 SYS_DIR     = sys
 APP_DIR     = app
-INC_DIR     = inc
+INC_DIR     = core/inc
 
 CFLAGS  = -mcpu=cortex-m4 -mthumb -mfpu=fpv4-sp-d16 -mfloat-abi=hard -g3 -Wall -O0 \
           -ffunction-sections -fdata-sections \
