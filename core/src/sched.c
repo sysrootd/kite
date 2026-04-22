@@ -592,16 +592,16 @@ __attribute__((naked)) static void svc_start_first_task(void)
 __attribute__((naked)) void PendSV_Handler(void)
 {
     __asm volatile(
-        "MRS  R0, PSP                          \n"
-        "STMDB R0!, {R4-R11}                   \n"
-        "PUSH {R3, LR}                         \n"
-        "BL   __set_psp                        \n"
-        "BL   fair_priority_sched_and_guard    \n"  
-        "BL   __get_psp                        \n"
-        "POP  {R3, LR}                         \n"
-        "LDMIA R0!, {R4-R11}                   \n"
-        "MSR  PSP, R0                          \n"
-        "BX   LR                               \n"
+        "MRS  R0, PSP                       \n"
+        "STMDB R0!, {R4-R11}                \n"
+        "PUSH {R3, LR}                      \n"
+        "BL   __set_psp                     \n"
+        "BL   scheduler                     \n"  
+        "BL   __get_psp                     \n"
+        "POP  {R3, LR}                      \n"
+        "LDMIA R0!, {R4-R11}                \n"
+        "MSR  PSP, R0                       \n"
+        "BX   LR                            \n"
     );
 }
 
@@ -615,7 +615,7 @@ static void __attribute__((used)) __set_psp(uint32_t current_psp_value)
     current_running_node->psp_value = (uint32_t *)current_psp_value;
 }
 
-static void __attribute__((used)) fair_priority_sched_and_guard(void)
+static void __attribute__((used)) scheduler(void)
 {
     if ((current_running_node != NULL) &&
         (TCB_STATE(current_running_node) == TASK_WAKE))
