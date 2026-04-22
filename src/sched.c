@@ -80,7 +80,8 @@ static uint8_t tcb_index_of(TCB_t *t)
         }
     }
     
-    while (1) {}
+    __asm volatile("udf #0");
+    return 0U;
 }
 
 static mutex_t **held_row(TCB_t *t)
@@ -178,6 +179,10 @@ static inline void rq_remove(TCB_t *t)
 
 static inline TCB_t *rq_highest(void)
 {
+    if (ready_bitmap == 0U)
+    {
+        return NULL;
+    }
     uint8_t p = (uint8_t)(31U - __builtin_clz(ready_bitmap));
     return ready_queue[p];
 }
@@ -431,7 +436,7 @@ static void systick_init(void)
     SysTick_Config(SystemCoreClock / TICK_HZ);
 
     NVIC_SetPriority(PendSV_IRQn,  0xFF);
-    NVIC_SetPriority(SysTick_IRQn, 0x00);
+    NVIC_SetPriority(SysTick_IRQn, KERNEL_INTERRUPT_PRIORITY);
     NVIC_SetPriority(SVCall_IRQn,  0x01);
 }
 
@@ -686,7 +691,7 @@ uint8_t create_task(uint8_t priority, void (*handler)(void),
         return 0U;
     }
 
-    if (task_count >= MAX_TASKS)
+    if (task_init_count >= MAX_TASKS)
     {
         return 0U;
     }
@@ -716,14 +721,10 @@ uint8_t create_task(uint8_t priority, void (*handler)(void),
     (void)name;
 #endif
 
-    
-    if (task_init_count < MAX_TASKS)
-    {
-        task_init_table[task_init_count].tcb     = tcb;
-        task_init_table[task_init_count].handler = handler;
-        task_count = task_init_count;   
-        task_init_count++;
-    }
+    task_init_table[task_init_count].tcb     = tcb;
+    task_init_table[task_init_count].handler = handler;
+    task_init_count++;
+    task_count = task_init_count;
 
     link_node->next_tcb_node = tcb;
     link_node                = tcb;
@@ -1003,7 +1004,7 @@ static void svc_mutex_lock(mutex_t *m)
         }
         else
         {
-            while (1) {}   
+            __asm volatile("udf #0");
         }
     }
     else
@@ -1058,7 +1059,7 @@ static void svc_mutex_unlock(mutex_t *m)
         }
         else
         {
-            while (1) {}
+            __asm volatile("udf #0");
         }
 
         next_owner->waiting_on = NULL;
