@@ -19,7 +19,7 @@
 #define ENABLE_FPU 1
 
 /* Enable/disable STOP mode. */
-#define ENABLE_STOP_MODE 0
+#define ENABLE_STOP_MODE 1
 
 /* Enable/disable Debug mode for each task (each task will have a const string as task name)*/
 // Will enable name memeber in tcb of a task stack that holds task name to make debug ease
@@ -29,10 +29,10 @@
 /*>>>>IMP: Don't Define more than 31 tasks(total tasks <= 31) <<<<*/
 #define MAX_TASKS              16U
 
-/* Min Time slice scheduler give for each task in run time(5ms is idle) */
+/* Min Time slice that scheduler give for each task in run time(5ms is idle) */
 #define SCHED_TIME_SLICE       5U
 
-/* Maximum no mutex that are going to use in a single task(mutex nesting) */
+/* Maximum number of mutexs that are going to use in a single task(mutex nesting) */
 #define HELD_MUTEX_MAX         4U
 
 #endif /* CONFIG_H */

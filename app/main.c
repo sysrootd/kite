@@ -3,6 +3,7 @@
 #include "gpio.h"
 #include "uart.h"
 
+#define BUZZER     12U
 #define RED_LED    13U
 #define GREEN_LED  14U
 #define BAUD_RATE  115200U
@@ -64,10 +65,22 @@ static void led_task_2(void)
     }
 }
 
+static void buzzer_task(void)
+{
+    while (1)
+    {
+        gpio_write(GPIOB, BUZZER, 1);
+        task_delay(500);
+        gpio_write(GPIOB, BUZZER, 0);
+        task_delay(1000);
+    }
+}
+
 int main(void)
 {
     gpio_init(GPIOB, RED_LED, OUTPUT, PP, FAST, PU, 0);
     gpio_init(GPIOB, GREEN_LED, OUTPUT, PP, FAST, PU, 0);
+    gpio_init(GPIOB, BUZZER, OUTPUT, PP, FAST, PU, 0);
     uart_init(USART2, BAUD_RATE);
 
     mutex_init(&uart_mutex);
@@ -77,6 +90,7 @@ int main(void)
     create_task(2, low_task,    64U, "low");
     create_task(1, led_task_1,  64U, "led1");
     create_task(1, led_task_2,  64U, "led2");
+    create_task(1, buzzer_task, 64U, "buzzer");
 
     uart_printf(USART2, ">>>>>BOOT: KITE RTOS<<<<\n\r");
     uart_printf(USART2, "SYSTEM CLOCK: %luMz\n\r\n", SystemCoreClock);
