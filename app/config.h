@@ -18,9 +18,6 @@
 /* Enable/disable the FPU at startup. */
 #define ENABLE_FPU 1
 
-/* Enable/disable the MPU at startup. */
-#define ENABLE_MPU 1
-
 /* Enable/disable STOP mode. */
 #define ENABLE_STOP_MODE 0
 

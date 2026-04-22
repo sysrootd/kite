@@ -17,10 +17,6 @@
 #define ENABLE_FPU 0
 #endif
 
-#ifndef ENABLE_MPU
-#define ENABLE_MPU 0
-#endif
-
 uint32_t SystemCoreClock;
 
 extern uint32_t _sidata;
@@ -106,9 +102,7 @@ void SystemInit(void)
     enable_fpu();
 #endif
 
-#if ENABLE_MPU
     enable_mpu();
-#endif
 
     clock_reset_to_safe_hsi();
 

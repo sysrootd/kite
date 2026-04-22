@@ -24,6 +24,9 @@ extern uint32_t _estack;
 #define KERNEL_INTERRUPT_PRIORITY  15U
 #define KERNEL_INTERRUPT_MASK      (KERNEL_INTERRUPT_PRIORITY << (8U - __NVIC_PRIO_BITS))
 
+#define STACK_GUARD_MPU_REGION  1U
+#define STACK_GUARD_SIZE_WORDS  8U
+
 #define SVC_START_FIRST_TASK  0U
 #define SVC_YIELD             1U
 #define SVC_DELAY             2U
@@ -83,7 +86,8 @@ struct TCB {
     uint32_t   block_count;     
     uint16_t   state_prio;
     uint16_t   held_mutex_bitmap;
-    void      *waiting_on;      
+    void      *waiting_on;
+    uint32_t  *stack_guard_base ; 
 
     TCB_t     *next_tcb_node;   
     TCB_t     *rq_next;         

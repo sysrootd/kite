@@ -52,13 +52,16 @@ static uint32_t __attribute__((used)) __get_psp(void);
 static void     __attribute__((used)) __set_psp(uint32_t current_psp_value);
 static void     __attribute__((used)) task_stack_init(void);
 
-static uint32_t *find_stack_area(uint32_t stack_words);
+static uint32_t *find_stack_area(uint32_t stack_words, uint32_t **guard_base_out);
 static TCB_t    *alloc_new_tcb_node(void);
 static void      create_idle_task(void);
 
 static uint8_t update_task_priority(TCB_t *task, uint8_t new_prio);
 static uint8_t highest_waiter_priority(mutex_t *m);
 static void    propagate_priority(mutex_t *m, uint8_t prio);
+
+static void mpu_init(void);
+static void mpu_update_stack_guard(TCB_t *t);
 
 static void __attribute__((used)) SVC_Handler_C(uint32_t *stack_frame);
 __attribute__((naked)) static void svc_start_first_task(void);
@@ -385,11 +388,43 @@ void kite_start(void)
     scheduler_init();
 }
 
+static void mpu_init(void)
+{
+    MPU->RNR  = STACK_GUARD_MPU_REGION;
+    MPU->RBAR = 0U;
+    MPU->RASR = 0U;
+
+    __DSB();
+    __ISB();
+}
+
+static void mpu_update_stack_guard(TCB_t *t)
+{
+    MPU->RNR = STACK_GUARD_MPU_REGION;
+
+    if ((t == NULL) || (t->stack_guard_base == NULL))
+    {
+        MPU->RASR = 0U;
+        return;
+    }
+
+    MPU->RBAR = ((uint32_t)t->stack_guard_base)
+                | MPU_RBAR_VALID_Msk
+                | (STACK_GUARD_MPU_REGION & MPU_RBAR_REGION_Msk);
+
+    MPU->RASR = MPU_RASR_ENABLE_Msk
+                | (4U << MPU_RASR_SIZE_Pos)
+                | (0U << MPU_RASR_AP_Pos)
+                | MPU_RASR_XN_Msk;
+}
+
 static void core_faults_init(void)
 {
     SCB->SHCSR |= SCB_SHCSR_MEMFAULTENA_Msk |
                   SCB_SHCSR_BUSFAULTENA_Msk  |
                   SCB_SHCSR_USGFAULTENA_Msk;
+
+    mpu_init();
 }
 
 static void find_high_priority_task(void)
@@ -407,7 +442,7 @@ static void __attribute__((used)) init_helper(void)
 __attribute__((naked, used)) void scheduler_init(void)
 {
     __asm volatile(
-        "PUSH {LR}              \n"
+        "PUSH {R3, LR}          \n"
         "BL   init_helper       \n"
         "POP  {R3, LR}          \n"
         "LDR  R0, =msp_start    \n"
@@ -422,7 +457,7 @@ __attribute__((naked, used)) void scheduler_init(void)
 static void scheduler_start(void)
 {
     systick_init();
-    
+    mpu_update_stack_guard(current_running_node);
     __asm volatile("svc 0");
 }
 
@@ -591,7 +626,7 @@ static void __attribute__((used)) fair_priority_sched_and_guard(void)
 
     current_running_node = rq_highest();
 
-    
+    mpu_update_stack_guard(current_running_node);
 }
 
 static void __attribute__((used)) task_stack_init(void)
@@ -623,13 +658,19 @@ static void __attribute__((used)) task_stack_init(void)
     }
 }
 
-static uint32_t *find_stack_area(uint32_t stack_words)
+static uint32_t *find_stack_area(uint32_t stack_words, uint32_t **guard_base_out)
 {
-    
-    stack_words = (stack_words + 1U) & ~1U;
+    stack_words = (stack_words + 7U) & ~7U;
 
     new_task_psp  = next_task_psp;
     next_task_psp -= stack_words;
+
+    uint32_t guard_addr = ((uint32_t)next_task_psp) & ~31U;
+
+    if (guard_base_out != NULL)
+    {
+        *guard_base_out = (uint32_t *)guard_addr;
+    }
 
     return new_task_psp;
 }
@@ -639,12 +680,13 @@ static TCB_t *alloc_new_tcb_node(void)
     TCB_t *node = TCB_pool();
     if (node != NULL)
     {
-        node->next_tcb_node   = NULL;
-        node->rq_next         = NULL;
-        node->rq_prev         = NULL;
-        node->sl_next         = NULL;
-        node->wq_next         = NULL;
+        node->next_tcb_node     = NULL;
+        node->rq_next           = NULL;
+        node->rq_prev           = NULL;
+        node->sl_next           = NULL;
+        node->wq_next           = NULL;
         node->held_mutex_bitmap = 0U;
+        node->stack_guard_base  = NULL;
     }
     return node;
 }
@@ -657,11 +699,13 @@ static void create_idle_task(void)
         return;
     }
 
-    uint32_t *stack = find_stack_area(IDLE_TASK_STACK_SIZE);
+    uint32_t *stack_guard = NULL;
+    uint32_t *stack = find_stack_area(IDLE_TASK_STACK_SIZE, &stack_guard);
 
-    idle->block_count  = 0U;
-    idle->psp_value    = stack;
-    idle->waiting_on   = NULL;
+    idle->block_count      = 0U;
+    idle->psp_value        = stack;
+    idle->waiting_on       = NULL;
+    idle->stack_guard_base = stack_guard;
 
     TCB_INIT_STATE_PRIO(idle, TASK_WAKE, 0U, 0U);
 
@@ -707,11 +751,13 @@ uint8_t create_task(uint8_t priority, void (*handler)(void),
         return 0U;
     }
 
-    uint32_t *stack = find_stack_area(stack_words);
+    uint32_t *stack_guard = NULL;
+    uint32_t *stack = find_stack_area(stack_words, &stack_guard);
 
-    tcb->block_count  = 0U;
-    tcb->psp_value    = stack;
-    tcb->waiting_on   = NULL;
+    tcb->block_count      = 0U;
+    tcb->psp_value        = stack;
+    tcb->waiting_on       = NULL;
+    tcb->stack_guard_base = stack_guard;
 
     TCB_INIT_STATE_PRIO(tcb, TASK_WAKE, priority, priority);
 
