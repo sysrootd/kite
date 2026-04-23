@@ -5,28 +5,27 @@ SIZE    = arm-none-eabi-size
 
 TARGET_NAME = kite
 OBJDIR      = build
-SRC_DIR     = core/src
-SYS_DIR     = sys
-APP_DIR     = app
-INC_DIR     = core/inc
 
 CFLAGS  = -mcpu=cortex-m4 -mthumb -mfpu=fpv4-sp-d16 -mfloat-abi=hard -g3 -Wall -O0 \
           -ffunction-sections -fdata-sections \
-          -ffreestanding -nostdlib \
-          -I$(INC_DIR) -I$(SYS_DIR) -I$(APP_DIR)
+          -ffreestanding -nostdlib
 
-LDFLAGS = -T $(SYS_DIR)/linker.ld -Wl,--gc-sections \
-          -nostdlib
+LDFLAGS = -T sys/platform/linker.ld -Wl,--gc-sections -nostdlib
 
-C_SRC = $(wildcard $(SRC_DIR)/*.c) $(wildcard $(SYS_DIR)/*.c) $(wildcard $(APP_DIR)/*.c)
-ASM_SRC = $(SYS_DIR)/startup.S
-OBJ   = $(patsubst %.c,$(OBJDIR)/%.o,$(notdir $(C_SRC))) $(OBJDIR)/startup.o
+C_SRC   = $(shell find . -name "*.c")
+ASM_SRC = $(shell find . -name "*.S")
+
+INCLUDES = $(sort $(dir $(shell find . -name "*.h")))
+CFLAGS  += $(addprefix -I,$(INCLUDES))
+
+OBJ = $(patsubst %.c,$(OBJDIR)/%.o,$(C_SRC)) \
+      $(patsubst %.S,$(OBJDIR)/%.o,$(ASM_SRC))
 
 TARGET = $(OBJDIR)/$(TARGET_NAME).elf
 BIN    = $(OBJDIR)/$(TARGET_NAME).bin
 LST    = $(OBJDIR)/$(TARGET_NAME).lst
 
-all: $(OBJDIR) $(TARGET)
+all: $(TARGET)
 
 $(TARGET): $(OBJ)
 	$(CC) $(CFLAGS) $^ $(LDFLAGS) -o $@
@@ -34,20 +33,13 @@ $(TARGET): $(OBJ)
 	$(OBJDUMP) -D $@ > $(LST)
 	$(SIZE) $@
 
-$(OBJDIR)/%.o: $(SRC_DIR)/%.c | $(OBJDIR)
+$(OBJDIR)/%.o: %.c
+	mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) -c $< -o $@
 
-$(OBJDIR)/%.o: $(SYS_DIR)/%.c | $(OBJDIR)
+$(OBJDIR)/%.o: %.S
+	mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) -c $< -o $@
-
-$(OBJDIR)/%.o: $(APP_DIR)/%.c | $(OBJDIR)
-	$(CC) $(CFLAGS) -c $< -o $@
-
-$(OBJDIR)/startup.o: $(ASM_SRC) | $(OBJDIR)
-	$(CC) $(CFLAGS) -c $< -o $@
-
-$(OBJDIR):
-	mkdir -p $(OBJDIR)
 
 burn: $(TARGET)
 	st-flash --connect-under-reset write $(BIN) 0x08000000

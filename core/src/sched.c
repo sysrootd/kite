@@ -50,7 +50,8 @@ static void __attribute__((used)) init_helper(void);
 
 static uint32_t __attribute__((used)) __get_psp(void);
 static void     __attribute__((used)) __set_psp(uint32_t current_psp_value);
-static void     __attribute__((used)) task_stack_init(void);
+static void __attribute__((used, noreturn)) kernel_panic(void);
+static void __attribute__((used)) task_stack_init(void);
 
 static uint32_t *find_stack_area(uint32_t stack_words, uint32_t **guard_base_out);
 static TCB_t    *alloc_new_tcb_node(void);
@@ -385,6 +386,7 @@ static inline void request_context_switch(void)
 
 void kite_start(void)
 {
+    create_idle_task();
     scheduler_init();
 }
 
@@ -472,7 +474,7 @@ static void systick_init(void)
 
     NVIC_SetPriority(PendSV_IRQn,  0xFF);
     NVIC_SetPriority(SysTick_IRQn, KERNEL_INTERRUPT_PRIORITY);
-    NVIC_SetPriority(SVCall_IRQn,  0x01);
+    NVIC_SetPriority(SVCall_IRQn,  KERNEL_INTERRUPT_PRIORITY);
 }
 
 void set_time_slice_ticks(uint32_t ticks)
@@ -596,12 +598,20 @@ __attribute__((naked)) void PendSV_Handler(void)
         "STMDB R0!, {R4-R11}                \n"
         "PUSH {R3, LR}                      \n"
         "BL   __set_psp                     \n"
-        "BL   scheduler                     \n"  
+        "MOV  R1, %[mask]                   \n"
+        "MSR  BASEPRI, R1                   \n"
+        "DSB                                \n"
+        "ISB                                \n"
+        "BL   scheduler                     \n"
+        "MOV  R1, #0                        \n"
+        "MSR  BASEPRI, R1                   \n"
         "BL   __get_psp                     \n"
         "POP  {R3, LR}                      \n"
         "LDMIA R0!, {R4-R11}                \n"
         "MSR  PSP, R0                       \n"
+        "ISB                                \n"
         "BX   LR                            \n"
+        : : [mask] "i" (KERNEL_INTERRUPT_MASK)
     );
 }
 
@@ -620,8 +630,8 @@ static void __attribute__((used)) scheduler(void)
     if ((current_running_node != NULL) &&
         (TCB_STATE(current_running_node) == TASK_WAKE))
     {
-        uint8_t p      = TCB_EFF_PRIO(current_running_node);
-        ready_queue[p] = current_running_node->rq_next;
+        rq_remove(current_running_node);
+        rq_add(current_running_node);
     }
 
     current_running_node = rq_highest();
@@ -640,9 +650,9 @@ static void __attribute__((used)) task_stack_init(void)
         uint32_t  aligned   = ((uint32_t)stack_top) & ~0x7U;
         uint32_t *stack     = (uint32_t *)aligned;
 
-        *(--stack) = 0x01000000U;       
-        *(--stack) = (uint32_t)handler; 
-        *(--stack) = 0xFFFFFFFDU;       
+        *(--stack) = 0x01000000U;
+        *(--stack) = (uint32_t)handler;
+        *(--stack) = (uint32_t)kernel_panic;
         *(--stack) = 0x0000000CU;       
         *(--stack) = 0x00000003U;       
         *(--stack) = 0x00000002U;       
@@ -691,7 +701,7 @@ static TCB_t *alloc_new_tcb_node(void)
     return node;
 }
 
-static void create_idle_task(void)
+static void __attribute((used)) create_idle_task(void)
 {
     TCB_t *idle = alloc_new_tcb_node();
     if (idle == NULL)
@@ -738,11 +748,6 @@ uint8_t create_task(uint8_t priority, void (*handler)(void),
     if (task_init_count >= MAX_TASKS)
     {
         return 0U;
-    }
-
-    if (new_task_psp == next_task_psp)
-    {
-        create_idle_task();
     }
 
     TCB_t *tcb = alloc_new_tcb_node();
@@ -796,6 +801,12 @@ void task_sleep_until(uint32_t *last_wake, uint32_t period)
     register uint32_t *r0 __asm("r0") = last_wake;
     register uint32_t  r1 __asm("r1") = period;
     __asm volatile("svc 3" : : "r"(r0), "r"(r1) : "memory");
+}
+
+static void __attribute__((used, noreturn)) kernel_panic(void)
+{
+
+    while (1) {}
 }
 
 static void idle_task(void)
