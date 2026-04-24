@@ -31,7 +31,7 @@
  *          The heap allocator entry-point @c TCB_pool() is provided by
  *          mem.h / mem.c.
  *
- * @version 1.0.0
+ * @version 4.0.0
  * @date    2025
  */
 
