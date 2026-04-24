@@ -1391,7 +1391,7 @@ static void __attribute__((used)) SVC_Handler_C(uint32_t *stack_frame)
             svc_mutex_unlock((mutex_t *)stack_frame[0]);
             break;
         default:
-            while (1) {}
+            kernel_panic();
     }
 }
 
