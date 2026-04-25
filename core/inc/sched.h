@@ -131,6 +131,8 @@ KITE_STATIC_ASSERT(IDLE_TASK_STACK_SIZE >= 32U,
 KITE_STATIC_ASSERT(PRIO_LEVELS <= 32U,
     "PRIO_LEVELS must be <= 32 (fits in 32-bit bitmap)");
 
+KITE_STATIC_ASSERT(MAX_TASKS <= 31U,
+    "MAX_TASKS must be <= 31 (fits in 32-bit bitmap)");
 /* ============================================================
  *                CRITICAL SECTION CONTROL
  * ============================================================ */

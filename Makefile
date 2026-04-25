@@ -1,55 +1,83 @@
-CC      = arm-none-eabi-gcc
+CC = arm-none-eabi-gcc
 OBJCOPY = arm-none-eabi-objcopy
 OBJDUMP = arm-none-eabi-objdump
-SIZE    = arm-none-eabi-size
+SIZE = arm-none-eabi-size
 
-TARGET_NAME = kite
-OBJDIR      = build
+TARGET = build/kite
+ELF = $(TARGET).elf
+BIN = $(TARGET).bin
+LST = $(TARGET).lst
 
-CFLAGS  = -mcpu=cortex-m4 -mthumb -mfpu=fpv4-sp-d16 -mfloat-abi=hard -g3 -Wall -O0 \
-          -ffunction-sections -fdata-sections \
-          -ffreestanding -nostdlib
+SRC_DIRS = core/src app/src app sys/platform sys/driver
 
+C_SRCS := $(sort $(shell find $(SRC_DIRS) -name '*.c'))
+S_SRCS := $(sort $(shell find $(SRC_DIRS) -name '*.S'))
+
+SRC := $(C_SRCS) $(S_SRCS)
+OBJ := $(patsubst %,build/%.o,$(SRC))
+
+CFLAGS = -mcpu=cortex-m4 -mthumb -mfpu=fpv4-sp-d16 -mfloat-abi=hard -g3 -Wall -O0 -ffunction-sections -fdata-sections -ffreestanding -nostdlib
+INCLUDES = -I./app/ -I./app/inc/ -I./core/inc/ -I./sys/driver/gpio/ -I./sys/driver/timer/ -I./sys/driver/uart/ -I./sys/platform/
 LDFLAGS = -T sys/platform/linker.ld -Wl,--gc-sections -nostdlib
 
-C_SRC   = $(shell find . -name "*.c")
-ASM_SRC = $(shell find . -name "*.S")
+VERBOSE ?= 0
+ifeq ($(VERBOSE),1)
+Q =
+else
+Q = @
+endif
 
-INCLUDES = $(sort $(dir $(shell find . -name "*.h")))
-CFLAGS  += $(addprefix -I,$(INCLUDES))
+all: $(ELF) $(BIN) $(LST) size
 
-OBJ = $(patsubst %.c,$(OBJDIR)/%.o,$(C_SRC)) \
-      $(patsubst %.S,$(OBJDIR)/%.o,$(ASM_SRC))
+build/%.c.o: %.c
+	$(Q)mkdir -p $(dir $@)
+	$(Q)echo "[CC] $<"
+	$(Q)$(CC) $(CFLAGS) $(INCLUDES) -c $< -o $@
 
-TARGET = $(OBJDIR)/$(TARGET_NAME).elf
-BIN    = $(OBJDIR)/$(TARGET_NAME).bin
-LST    = $(OBJDIR)/$(TARGET_NAME).lst
+build/%.S.o: %.S
+	$(Q)mkdir -p $(dir $@)
+	$(Q)echo "[AS] $<"
+	$(Q)$(CC) $(CFLAGS) $(INCLUDES) -c $< -o $@
 
-all: $(TARGET)
+$(ELF): $(OBJ)
+	$(Q)echo "[LD] $@"
+	$(Q)$(CC) $(CFLAGS) $(OBJ) $(LDFLAGS) -o $@
 
-$(TARGET): $(OBJ)
-	$(CC) $(CFLAGS) $^ $(LDFLAGS) -o $@
-	$(OBJCOPY) -O binary $@ $(BIN)
-	$(OBJDUMP) -D $@ > $(LST)
-	$(SIZE) $@
+$(BIN): $(ELF)
+	$(Q)echo "[BIN] $@"
+	$(Q)$(OBJCOPY) -O binary $< $@
 
-$(OBJDIR)/%.o: %.c
-	mkdir -p $(dir $@)
-	$(CC) $(CFLAGS) -c $< -o $@
+$(LST): $(ELF)
+	$(Q)echo "[LST] $@"
+	$(Q)$(OBJDUMP) -D $< > $@
 
-$(OBJDIR)/%.o: %.S
-	mkdir -p $(dir $@)
-	$(CC) $(CFLAGS) -c $< -o $@
+size: $(ELF)
+	$(Q)echo ""
+	$(Q)arm-none-eabi-size -A $(ELF) | \
+	awk 'NR>2 && ($$1==".isr_vector" || $$1==".text" || $$1==".rodata" || $$1==".data" || $$1==".bss") { \
+		printf "%-12s size: %-8d addr: 0x%08X\n", $$1, $$2, $$3; \
+		if ($$1==".isr_vector" || $$1==".text" || $$1==".rodata") flash+=$$2; \
+		if ($$1==".data" || $$1==".bss") ram+=$$2; \
+		total+=$$2; \
+	} END { \
+		printf "--------------------------------\n"; \
+		printf "FLASH total : %d bytes\n", flash; \
+		printf "RAM total   : %d bytes\n", ram; \
+		printf "TOTAL       : %d bytes\n", total; \
+	}'
 
-burn: $(TARGET)
-	st-flash --connect-under-reset write $(BIN) 0x08000000
+burn: $(BIN)
+	$(Q)echo "[FLASH]"
+	$(Q)st-flash --connect-under-reset write $(BIN) 0x08000000
 
 connect:
-	openocd -f /usr/share/openocd/scripts/interface/stlink.cfg \
-	        -f /usr/share/openocd/scripts/target/stm32f4x.cfg
+	$(Q)echo "[OPENOCD]"
+	$(Q)openocd -f /usr/share/openocd/scripts/interface/stlink.cfg \
+	           -f /usr/share/openocd/scripts/target/stm32f4x.cfg
 
-debug: $(TARGET)
-	gdb-multiarch $(TARGET) \
+debug: $(ELF)
+	$(Q)echo "[GDB]"
+	$(Q)gdb-multiarch $(ELF) \
 	    -ex "target extended-remote localhost:3333" \
 	    -ex "monitor reset halt" \
 	    -ex "load" \
@@ -57,6 +85,6 @@ debug: $(TARGET)
 	    -ex "continue"
 
 clean:
-	rm -rf $(OBJDIR)
+	$(Q)rm -rf build
 
-.PHONY: all clean burn connect debug
+.PHONY: burn connect debug
