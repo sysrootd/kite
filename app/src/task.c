@@ -3,7 +3,7 @@
 #include "gpio.h"
 #include "uart.h"
 
-#define UP_SWITCH 8U
+#define UP_SWITCH  8U
 #define DN_SWITCH  9u
 #define RED_LED    13U
 #define GREEN_LED  14U
@@ -49,7 +49,7 @@ static void low_task(void)
     }
 }
 
-static void led_task_1(void)
+static void led_task(void)
 {
     while (1)
     {
@@ -79,7 +79,7 @@ void tasks_init(void)
 
     create_task(4, high_task,   64U, "high");
     create_task(3, medium_task, 64U, "medium");
-    create_task(2, led_task_1,  64U, "led1");
+    create_task(2, led_task,    64U, "led1");
     create_task(1, low_task,    64U, "low");
 
     uart_printf(USART2, ">>>>>BOOT: KITE RTOS<<<<\n\r");

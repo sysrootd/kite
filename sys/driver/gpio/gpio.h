@@ -276,7 +276,7 @@ static inline void gpio_exti_route(GPIO_TypeDef *port, int pin) {
  */
 static inline void gpio_irq_set_trigger(int pin, int trigger) {
     uint32_t mask = (1UL << (uint32_t)pin);
-);
+
     if (trigger & GPIO_TRIGGER_RISING)  EXTI->RTSR |=  mask;
     else                                EXTI->RTSR &= ~mask;
 
