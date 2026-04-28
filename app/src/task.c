@@ -82,6 +82,6 @@ void tasks_init(void)
     create_task(2, led_task,    64U, "led1");
     create_task(1, low_task,    64U, "low");
 
-    uart_printf(USART2, ">>>>>BOOT: KITE RTOS<<<<\n\r");
+    uart_printf(USART2, ">>>>>BOOTING: KITE RTOS<<<<\n\r");
     uart_printf(USART2, "SYSTEM CLOCK: %luMz\n\r\n", SystemCoreClock);
 }
