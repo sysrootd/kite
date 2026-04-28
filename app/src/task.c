@@ -3,7 +3,8 @@
 #include "gpio.h"
 #include "uart.h"
 
-#define BUZZER     12U
+#define UP_SWITCH 8U
+#define DN_SWITCH  9u
 #define RED_LED    13U
 #define GREEN_LED  14U
 #define BAUD_RATE  115200U
@@ -28,7 +29,6 @@ static void medium_task(void)
     {
         mutex_lock(&uart_mutex);
         uart_printf(USART2, "Medium task\n\r");
-        task_delay(50);
         mutex_unlock(&uart_mutex);
         task_delay(100);
     }
@@ -58,23 +58,18 @@ static void led_task_1(void)
     }
 }
 
-static void led_task_2(void)
+void EXTI9_5_IRQHandler(void)
 {
-    while (1)
+    if (gpio_irq_is_pending(DN_SWITCH))
     {
-        gpio_toggle(GPIOB, RED_LED);
-        task_delay(500);
+        gpio_write(GPIOB, RED_LED, 1);
+        gpio_irq_clear_pending(DN_SWITCH);
     }
-}
-
-static void buzzer_task(void)
-{
-    while (1)
+ 
+    if (gpio_irq_is_pending(UP_SWITCH))
     {
-        gpio_write(GPIOB, BUZZER, 1);
-        task_delay(100);
-        gpio_write(GPIOB, BUZZER, 0);
-        task_delay(10000);
+        gpio_write(GPIOB, RED_LED, 0);
+        gpio_irq_clear_pending(UP_SWITCH);
     }
 }
 
@@ -85,8 +80,6 @@ void tasks_init(void)
     create_task(4, high_task,   64U, "high");
     create_task(3, medium_task, 64U, "medium");
     create_task(2, led_task_1,  64U, "led1");
-    create_task(2, led_task_2,  64U, "led2");
-    create_task(2, buzzer_task, 64U, "buzzer");
     create_task(1, low_task,    64U, "low");
 
     uart_printf(USART2, ">>>>>BOOT: KITE RTOS<<<<\n\r");
