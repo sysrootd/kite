@@ -8,46 +8,27 @@
 
 volatile uint32_t global_systick = 0;
 
-
 TCB_t *current_running_node  = NULL;
-
-
 TCB_t *head_node             = NULL;
-
-
 TCB_t *link_node             = NULL;
 
 
 static uint32_t *new_task_psp  = STACK_START;
-
-
 static uint32_t *next_task_psp = STACK_START;
-
-
 static uint32_t  msp_start;
 
 
 static volatile uint32_t tick_count       = 0;
-
-
-static          uint32_t time_slice_ticks = SCHED_TIME_SLICE;
+static uint32_t time_slice_ticks = SCHED_TIME_SLICE;
 
 
 static TCB_t   *ready_queue[PRIO_LEVELS];
-
-
 static uint32_t ready_bitmap = 0U;
-
-
 static TCB_t *sleep_list_head = NULL;
 
 
 static mutex_t *held_mutex_table[MAX_TASKS][HELD_MUTEX_MAX];
-
-
 static uint8_t  task_count = 0U;
-
-
 static uint8_t  tcb_index_of(TCB_t *t);
 
 
@@ -60,7 +41,7 @@ typedef struct {
 static task_init_entry_t task_init_table[MAX_TASKS];
 
 
-static uint8_t           task_init_count = 0U;
+static uint8_t task_init_count = 0U;
 
 
 static inline void request_context_switch(void);
@@ -108,9 +89,7 @@ static void svc_mutex_unlock(mutex_t *m);
 
 
 static volatile uint32_t critical_nesting = 0;
-
-
-static          uint32_t saved_basepri    = 0;
+static uint32_t saved_basepri    = 0;
 
 
 void sched_enter_critical(void)
