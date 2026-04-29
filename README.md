@@ -15,6 +15,9 @@ programming on Cortex‑M4 devices.
 
 ---
 
+## Documentation
+https://rawcdn.githack.com/sysrootd/kite/refs/heads/main/kite.html
+
 ## Requirements
 
 - STM32 development board
