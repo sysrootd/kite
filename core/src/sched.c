@@ -39,11 +39,7 @@ typedef struct {
 
 
 static task_init_entry_t task_init_table[MAX_TASKS];
-
-
 static uint8_t task_init_count = 0U;
-
-
 static inline void request_context_switch(void);
 
 
