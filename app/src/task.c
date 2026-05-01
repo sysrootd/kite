@@ -5,6 +5,7 @@
 
 #define UP_SWITCH  8U
 #define DN_SWITCH  9u
+#define BUZZER     12U
 #define RED_LED    13U
 #define GREEN_LED  14U
 #define BAUD_RATE  115200U
@@ -63,12 +64,14 @@ void EXTI9_5_IRQHandler(void)
     if (gpio_irq_is_pending(DN_SWITCH))
     {
         gpio_write(GPIOB, RED_LED, 1);
+        gpio_write(GPIOB, BUZZER, 0);
         gpio_irq_clear_pending(DN_SWITCH);
     }
  
     if (gpio_irq_is_pending(UP_SWITCH))
     {
         gpio_write(GPIOB, RED_LED, 0);
+         gpio_write(GPIOB, BUZZER, 1);
         gpio_irq_clear_pending(UP_SWITCH);
     }
 }
