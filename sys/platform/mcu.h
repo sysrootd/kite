@@ -129,6 +129,59 @@ typedef struct {
     volatile uint32_t PLLI2SCFGR;
 } RCC_TypeDef;
 
+#define ADC_COMMON_BASE           (ADC1_BASE + 0x300UL)
+
+#define DMA2_BASE                 (AHB1PERIPH_BASE + 0x6400UL)
+#define DMA2                      ((DMA_TypeDef *) DMA2_BASE)
+
+#define DMA2_Stream0_BASE         (DMA2_BASE + 0x010UL)
+#define DMA2_Stream0              ((DMA_Stream_TypeDef *) DMA2_Stream0_BASE)
+
+typedef struct {
+    volatile uint32_t SR;
+    volatile uint32_t CR1;
+    volatile uint32_t CR2;
+    volatile uint32_t SMPR1;
+    volatile uint32_t SMPR2;
+    volatile uint32_t JOFR1;
+    volatile uint32_t JOFR2;
+    volatile uint32_t JOFR3;
+    volatile uint32_t JOFR4;
+    volatile uint32_t HTR;
+    volatile uint32_t LTR;
+    volatile uint32_t SQR1;
+    volatile uint32_t SQR2;
+    volatile uint32_t SQR3;
+    volatile uint32_t JSQR;
+    volatile uint32_t JDR1;
+    volatile uint32_t JDR2;
+    volatile uint32_t JDR3;
+    volatile uint32_t JDR4;
+    volatile uint32_t DR;
+} ADC_TypeDef;
+
+typedef struct {
+    volatile uint32_t CSR;
+    volatile uint32_t CCR;
+    volatile uint32_t CDR;
+} ADC_Common_TypeDef;
+
+typedef struct {
+    volatile uint32_t CR;
+    volatile uint32_t NDTR;
+    volatile uint32_t PAR;
+    volatile uint32_t M0AR;
+    volatile uint32_t M1AR;
+    volatile uint32_t FCR;
+} DMA_Stream_TypeDef;
+
+typedef struct {
+    volatile uint32_t LISR;
+    volatile uint32_t HISR;
+    volatile uint32_t LIFCR;
+    volatile uint32_t HIFCR;
+} DMA_TypeDef;
+
 typedef struct {
     volatile uint32_t IMR;
     volatile uint32_t EMR;
@@ -215,6 +268,7 @@ typedef struct {
 #define SYSCFG              ((SYSCFG_TypeDef *) SYSCFG_BASE)
 
 #define ADC1                ((ADC_TypeDef *) ADC1_BASE)
+#define ADC_COMMON          ((ADC_Common_TypeDef*)ADC_COMMON_BASE)
 
 #define USART1              ((USART_TypeDef *) USART1_BASE)
 #define USART2              ((USART_TypeDef *) USART2_BASE)

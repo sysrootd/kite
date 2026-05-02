@@ -17,7 +17,7 @@ SRC := $(C_SRCS) $(S_SRCS)
 OBJ := $(patsubst %,build/%.o,$(SRC))
 
 CFLAGS = -mcpu=cortex-m4 -mthumb -mfpu=fpv4-sp-d16 -mfloat-abi=hard -g3 -Wall -O0 -ffunction-sections -fdata-sections -ffreestanding -nostdlib
-INCLUDES = -I./app/ -I./app/inc/ -I./core/inc/ -I./sys/driver/gpio/ -I./sys/driver/timer/ -I./sys/driver/uart/ -I./sys/platform/
+INCLUDES = -I./app/ -I./app/inc/ -I./core/inc/ -I./sys/driver/gpio/ -I./sys/driver/adc/ -I./sys/driver/timer/ -I./sys/driver/uart/ -I./sys/platform/
 LDFLAGS = -T sys/platform/linker.ld -Wl,--gc-sections -nostdlib
 
 VERBOSE ?= 0
