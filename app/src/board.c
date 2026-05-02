@@ -24,7 +24,7 @@ void board_init(void)
 
     uart_init(USART2, BAUD_RATE);
 
-    adc_init_pin(GPIOC, LM35);
+    adc_init(GPIOC, LM35);
 
     lcd_init();
 

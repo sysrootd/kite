@@ -1,4 +1,4 @@
-// lcd.c
+// lcd.c(HD44780 lcd 16X2)
 #include "lcd.h"
 
 static void delay_ms(uint32_t ms) {

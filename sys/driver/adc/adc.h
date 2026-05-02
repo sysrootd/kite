@@ -87,7 +87,7 @@ static inline uint16_t adc_read_blocking(ADC_TypeDef *adc) {
 }
 
 
-static inline int adc_init_pin(GPIO_TypeDef *port, int pin)
+static inline int adc_init(GPIO_TypeDef *port, int pin)
 {
     int ch = _adc_channel_from_pin(port, pin);
     if (ch < 0) return -1;
