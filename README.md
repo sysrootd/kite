@@ -16,7 +16,7 @@ programming on Cortex‑M4 devices.
 ---
 
 ## Documentation
-https://rawcdn.githack.com/sysrootd/kite/refs/heads/main/kite.html
+https://rawcdn.githack.com/sysrootd/kite/refs/heads/main/doc.html
 
 ## Requirements
 
