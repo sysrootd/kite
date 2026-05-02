@@ -1,462 +1,1947 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kite RTOS · A journey inside a real-time kernel for ARM Cortex-M</title>
-    <!-- Google Fonts & Simple Icons (Font Awesome) -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    <!-- Mermaid for sequence & flow diagrams -->
-    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kite RTOS — Deep Dive Documentation</title>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+  :root {
+    --navy:    #0a1628;
+    --deep:    #0f2040;
+    --mid:     #1a3a6b;
+    --accent:  #f97316;
+    --gold:    #fbbf24;
+    --teal:    #06b6d4;
+    --green:   #10b981;
+    --red:     #ef4444;
+    --purple:  #8b5cf6;
+    --bg:      #f0f4f8;
+    --card:    #ffffff;
+    --text:    #1e293b;
+    --muted:   #64748b;
+    --border:  #e2e8f0;
+    --code-bg: #0d1117;
+    --font: 'Sora', sans-serif;
+    --mono: 'JetBrains Mono', monospace;
+  }
 
-        body {
-            background: #f5f7fb;
-            font-family: 'Inter', sans-serif;
-            color: #1e2a3e;
-            line-height: 1.5;
-            padding: 2rem 1rem;
-        }
+  * { margin:0; padding:0; box-sizing:border-box; }
 
-        .book-container {
-            max-width: 1300px;
-            margin: 0 auto;
-            background: white;
-            border-radius: 2rem;
-            box-shadow: 0 20px 35px -12px rgba(0, 0, 0, 0.1);
-            overflow: hidden;
-        }
+  html { scroll-behavior: smooth; }
 
-        /* header / hero */
-        .book-header {
-            background: linear-gradient(135deg, #0b2b3d 0%, #1a4a6f 100%);
-            color: white;
-            padding: 3rem 3rem 2.5rem 3rem;
-            border-bottom: 8px solid #f0b27a;
-        }
+  body {
+    font-family: var(--font);
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.7;
+  }
 
-        .book-header h1 {
-            font-size: 3rem;
-            font-weight: 700;
-            letter-spacing: -0.02em;
-            margin-bottom: 0.5rem;
-        }
+  /* ── SIDEBAR NAV ── */
+  .sidebar {
+    position: fixed;
+    top: 0; left: 0;
+    width: 240px;
+    height: 100vh;
+    background: var(--navy);
+    overflow-y: auto;
+    z-index: 100;
+    padding: 0 0 2rem 0;
+  }
 
-        .book-header p {
-            font-size: 1.25rem;
-            opacity: 0.9;
-            max-width: 80%;
-        }
+  .sidebar-brand {
+    padding: 1.5rem 1.2rem;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+    margin-bottom: 0.5rem;
+  }
 
-        .badge {
-            background: #f0b27a;
-            color: #1e2a3e;
-            padding: 0.25rem 0.8rem;
-            border-radius: 40px;
-            font-weight: 600;
-            font-size: 0.8rem;
-            display: inline-block;
-            margin-top: 1rem;
-        }
+  .sidebar-brand .logo {
+    font-size: 1.4rem;
+    font-weight: 800;
+    color: var(--accent);
+    letter-spacing: -0.02em;
+  }
 
-        /* main content */
-        .book-content {
-            padding: 2.5rem 3rem;
-        }
+  .sidebar-brand .subtitle {
+    font-size: 0.7rem;
+    color: rgba(255,255,255,0.4);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-top: 2px;
+  }
 
-        h2 {
-            font-size: 1.8rem;
-            font-weight: 600;
-            margin-top: 2rem;
-            margin-bottom: 1rem;
-            padding-bottom: 0.5rem;
-            border-bottom: 3px solid #e2e8f0;
-            color: #0f3b5c;
-        }
+  .nav-section {
+    padding: 0.75rem 1.2rem 0.25rem;
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: rgba(255,255,255,0.3);
+    font-weight: 600;
+  }
 
-        h3 {
-            font-size: 1.4rem;
-            font-weight: 600;
-            margin: 1.5rem 0 0.75rem 0;
-            color: #1e4a76;
-        }
+  .sidebar a {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1.2rem;
+    color: rgba(255,255,255,0.6);
+    text-decoration: none;
+    font-size: 0.82rem;
+    font-weight: 500;
+    border-left: 3px solid transparent;
+    transition: all 0.15s;
+  }
 
-        h4 {
-            font-weight: 600;
-            color: #2c3e50;
-            margin: 1rem 0 0.4rem 0;
-            font-size: 1.1rem;
-        }
+  .sidebar a:hover, .sidebar a.active {
+    color: #fff;
+    background: rgba(255,255,255,0.06);
+    border-left-color: var(--accent);
+  }
 
-        .card-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 1.5rem;
-            margin: 1.5rem 0;
-        }
+  .sidebar a .dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--muted);
+    flex-shrink: 0;
+  }
 
-        .api-card {
-            background: #f8fafc;
-            border-radius: 1.25rem;
-            padding: 1.2rem 1.5rem;
-            border: 1px solid #e2edf2;
-            transition: all 0.2s;
-            box-shadow: 0 4px 6px -2px rgba(0, 0, 0, 0.03);
-        }
+  /* ── MAIN ── */
+  .main {
+    margin-left: 240px;
+    min-height: 100vh;
+  }
 
-        .api-card:hover {
-            border-color: #cbdde6;
-            background: #ffffff;
-            box-shadow: 0 12px 20px -12px rgba(0, 0, 0, 0.1);
-        }
+  /* ── HERO ── */
+  .hero {
+    background: linear-gradient(135deg, var(--navy) 0%, var(--deep) 50%, #0a2855 100%);
+    color: #fff;
+    padding: 4rem 4rem 3rem;
+    position: relative;
+    overflow: hidden;
+  }
 
-        .api-name {
-            font-family: 'Fira Code', monospace;
-            font-weight: 600;
-            font-size: 1.1rem;
-            background: #eef2ff;
-            display: inline-block;
-            padding: 0.2rem 0.6rem;
-            border-radius: 12px;
-            color: #0f3b5c;
-            margin-bottom: 0.75rem;
-        }
+  .hero::before {
+    content: '';
+    position: absolute;
+    top: -50%; right: -10%;
+    width: 600px; height: 600px;
+    background: radial-gradient(circle, rgba(249,115,22,0.12) 0%, transparent 70%);
+    pointer-events: none;
+  }
 
-        .api-desc {
-            color: #2d3e50;
-            font-size: 0.95rem;
-        }
+  .hero::after {
+    content: '';
+    position: absolute;
+    bottom: -30%; left: 20%;
+    width: 400px; height: 400px;
+    background: radial-gradient(circle, rgba(6,182,212,0.08) 0%, transparent 70%);
+    pointer-events: none;
+  }
 
-        .code-block {
-            background: #0f172a;
-            color: #e2e8f0;
-            border-radius: 1rem;
-            padding: 1rem 1.2rem;
-            overflow-x: auto;
-            font-family: 'Fira Code', monospace;
-            font-size: 0.85rem;
-            margin: 1rem 0;
-            tab-size: 4;
-        }
+  .hero-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    background: rgba(249,115,22,0.15);
+    border: 1px solid rgba(249,115,22,0.3);
+    color: var(--accent);
+    padding: 0.3rem 0.8rem;
+    border-radius: 100px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    margin-bottom: 1.2rem;
+  }
 
-        .inline-code {
-            background: #eef2ff;
-            font-family: 'Fira Code', monospace;
-            font-size: 0.85rem;
-            padding: 0.2rem 0.4rem;
-            border-radius: 6px;
-            color: #0c4a6e;
-        }
+  .hero h1 {
+    font-size: 3.5rem;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    line-height: 1.1;
+    margin-bottom: 1rem;
+  }
 
-        .note {
-            background: #eef9ff;
-            border-left: 5px solid #3b82f6;
-            padding: 1rem 1.2rem;
-            border-radius: 1rem;
-            margin: 1.2rem 0;
-        }
+  .hero h1 span { color: var(--accent); }
 
-        .warning {
-            background: #fff8e7;
-            border-left: 5px solid #f59e0b;
-            padding: 1rem 1.2rem;
-            border-radius: 1rem;
-            margin: 1.2rem 0;
-        }
+  .hero p {
+    font-size: 1.1rem;
+    color: rgba(255,255,255,0.7);
+    max-width: 600px;
+    margin-bottom: 2rem;
+  }
 
-        .mermaid {
-            background: #ffffff;
-            padding: 1rem;
-            border-radius: 1.2rem;
-            margin: 1.5rem 0;
-            text-align: center;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-        }
+  .hero-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+  }
 
-        footer {
-            background: #f1f5f9;
-            padding: 1.5rem 3rem;
-            text-align: center;
-            color: #4b5563;
-            font-size: 0.85rem;
-            border-top: 1px solid #e2e8f0;
-        }
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    background: rgba(255,255,255,0.07);
+    border: 1px solid rgba(255,255,255,0.12);
+    color: rgba(255,255,255,0.85);
+    padding: 0.35rem 0.8rem;
+    border-radius: 8px;
+    font-size: 0.78rem;
+    font-weight: 500;
+  }
 
-        @media (max-width: 700px) {
-            .book-header p { max-width: 100%; }
-            .book-content { padding: 1.5rem; }
-            .book-header { padding: 2rem; }
-        }
+  .chip-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+  }
 
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin: 1.5rem 0;
-            background: #fefefe;
-            border-radius: 1rem;
-            overflow: hidden;
-            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-        }
-        th {
-            background: #e6f0f5;
-            text-align: left;
-            padding: 0.75rem 1rem;
-            font-weight: 600;
-        }
-        td {
-            border-top: 1px solid #e2edf2;
-            padding: 0.75rem 1rem;
-        }
-    </style>
+  /* ── SECTION ── */
+  .section {
+    padding: 3rem 4rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .section:last-child { border-bottom: none; }
+
+  .section-label {
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--accent);
+    margin-bottom: 0.5rem;
+  }
+
+  h2 {
+    font-size: 1.9rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    color: var(--navy);
+    margin-bottom: 1rem;
+  }
+
+  h3 {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--mid);
+    margin: 2rem 0 0.75rem;
+  }
+
+  h4 {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text);
+    margin: 1.5rem 0 0.5rem;
+  }
+
+  p { margin-bottom: 1rem; color: #334155; font-size: 0.96rem; }
+
+  /* ── CARDS ── */
+  .grid { display: grid; gap: 1.25rem; margin: 1.5rem 0; }
+  .grid-2 { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+  .grid-3 { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+  .grid-4 { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 1.25rem 1.4rem;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    transition: all 0.2s;
+  }
+
+  .card:hover {
+    border-color: #cbd5e1;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+    transform: translateY(-2px);
+  }
+
+  .card-icon {
+    font-size: 1.6rem;
+    margin-bottom: 0.6rem;
+  }
+
+  .card h4 {
+    margin-top: 0;
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--navy);
+  }
+
+  .card p {
+    font-size: 0.85rem;
+    color: var(--muted);
+    margin-bottom: 0;
+  }
+
+  .card-accent { border-top: 3px solid var(--accent); }
+  .card-teal   { border-top: 3px solid var(--teal); }
+  .card-green  { border-top: 3px solid var(--green); }
+  .card-purple { border-top: 3px solid var(--purple); }
+  .card-gold   { border-top: 3px solid var(--gold); }
+  .card-red    { border-top: 3px solid var(--red); }
+
+  /* ── CODE ── */
+  .code-wrap {
+    background: var(--code-bg);
+    border-radius: 12px;
+    overflow: hidden;
+    margin: 1.25rem 0;
+    border: 1px solid #21262d;
+  }
+
+  .code-header {
+    background: #161b22;
+    padding: 0.6rem 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid #21262d;
+  }
+
+  .code-dots {
+    display: flex;
+    gap: 6px;
+  }
+
+  .code-dots span {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+  }
+
+  .code-dots .r { background: #ff5f57; }
+  .code-dots .y { background: #febc2e; }
+  .code-dots .g { background: #28c840; }
+
+  .code-title {
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    color: #8b949e;
+  }
+
+  pre {
+    padding: 1.25rem;
+    overflow-x: auto;
+    font-family: var(--mono);
+    font-size: 0.82rem;
+    line-height: 1.7;
+    color: #e6edf3;
+    tab-size: 4;
+  }
+
+  .kw  { color: #ff7b72; }
+  .fn  { color: #d2a8ff; }
+  .str { color: #a5d6ff; }
+  .num { color: #79c0ff; }
+  .cmt { color: #8b949e; font-style: italic; }
+  .tp  { color: #ffa657; }
+  .mac { color: #e3b341; }
+
+  code {
+    font-family: var(--mono);
+    font-size: 0.83em;
+    background: #e2e8f0;
+    color: #0f172a;
+    padding: 0.15em 0.45em;
+    border-radius: 5px;
+  }
+
+  /* ── CALLOUTS ── */
+  .callout {
+    border-radius: 12px;
+    padding: 1rem 1.25rem;
+    margin: 1.25rem 0;
+    display: flex;
+    gap: 0.75rem;
+    align-items: flex-start;
+  }
+
+  .callout-icon { font-size: 1.2rem; flex-shrink: 0; margin-top: 0.1rem; }
+
+  .callout-body h5 {
+    font-size: 0.9rem;
+    font-weight: 700;
+    margin-bottom: 0.25rem;
+  }
+
+  .callout-body p { margin: 0; font-size: 0.87rem; }
+
+  .callout-info    { background: #eff6ff; border-left: 4px solid #3b82f6; }
+  .callout-warn    { background: #fffbeb; border-left: 4px solid var(--gold); }
+  .callout-success { background: #f0fdf4; border-left: 4px solid var(--green); }
+  .callout-tip     { background: #fdf4ff; border-left: 4px solid var(--purple); }
+  .callout-danger  { background: #fff1f2; border-left: 4px solid var(--red); }
+
+  /* ── MERMAID ── */
+  .diagram-wrap {
+    background: #fff;
+    border-radius: 14px;
+    border: 1px solid var(--border);
+    padding: 1.5rem;
+    margin: 1.5rem 0;
+    overflow-x: auto;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+  }
+
+  .diagram-wrap .caption {
+    text-align: center;
+    font-size: 0.78rem;
+    color: var(--muted);
+    margin-top: 0.75rem;
+    font-style: italic;
+  }
+
+  /* ── TABLE ── */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1.5rem 0;
+    font-size: 0.88rem;
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+  }
+
+  thead tr { background: var(--navy); color: #fff; }
+  th { padding: 0.85rem 1.1rem; font-weight: 600; text-align: left; }
+  td { padding: 0.8rem 1.1rem; border-top: 1px solid var(--border); vertical-align: top; }
+  tbody tr:nth-child(even) { background: #f8fafc; }
+  tbody tr:hover { background: #f1f5f9; }
+
+  /* ── VISUAL DIAGRAMS (SVG-based custom) ── */
+  .memory-map {
+    display: flex;
+    flex-direction: column;
+    width: 220px;
+    margin: 1rem auto;
+    border: 2px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    font-size: 0.8rem;
+    font-family: var(--mono);
+  }
+
+  .mem-row {
+    padding: 0.5rem 0.8rem;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .mem-row:last-child { border-bottom: none; }
+
+  .state-flow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    margin: 2rem 0;
+  }
+
+  .state-box {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.3rem;
+  }
+
+  .state-pill {
+    padding: 0.5rem 1.2rem;
+    border-radius: 100px;
+    font-size: 0.82rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+  }
+
+  .state-sub {
+    font-size: 0.68rem;
+    color: var(--muted);
+  }
+
+  .state-arrow {
+    font-size: 1.4rem;
+    color: var(--muted);
+    margin-top: -0.5rem;
+  }
+
+  /* ── TCB LAYOUT ── */
+  .tcb-diagram {
+    display: grid;
+    grid-template-columns: 1fr 2fr;
+    gap: 1.5rem;
+    align-items: start;
+    margin: 1.5rem 0;
+  }
+
+  .tcb-struct {
+    background: var(--code-bg);
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid #21262d;
+  }
+
+  .tcb-row {
+    display: flex;
+    border-bottom: 1px solid #21262d;
+  }
+
+  .tcb-row:last-child { border-bottom: none; }
+
+  .tcb-type {
+    padding: 0.45rem 0.7rem;
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    color: var(--teal);
+    background: rgba(6,182,212,0.06);
+    border-right: 1px solid #21262d;
+    min-width: 100px;
+    display: flex;
+    align-items: center;
+  }
+
+  .tcb-name {
+    padding: 0.45rem 0.7rem;
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    color: #e6edf3;
+    flex: 1;
+    display: flex;
+    align-items: center;
+  }
+
+  .tcb-name span {
+    font-size: 0.65rem;
+    color: #8b949e;
+    margin-left: 0.5rem;
+  }
+
+  .tcb-legend { font-size: 0.85rem; }
+  .tcb-legend li { padding: 0.3rem 0; }
+
+  /* ── STACK FRAME ── */
+  .stack-frame {
+    display: flex;
+    flex-direction: column;
+    width: 280px;
+    margin: 0 auto;
+  }
+
+  .sf-row {
+    display: flex;
+    align-items: stretch;
+    border: 1px solid var(--border);
+    border-top: none;
+    font-size: 0.78rem;
+  }
+
+  .sf-row:first-child { border-top: 1px solid var(--border); border-radius: 8px 8px 0 0; }
+  .sf-row:last-child  { border-radius: 0 0 8px 8px; }
+
+  .sf-addr {
+    width: 70px;
+    padding: 0.4rem 0.5rem;
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    color: var(--muted);
+    background: #f8fafc;
+    border-right: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+  }
+
+  .sf-name {
+    flex: 1;
+    padding: 0.4rem 0.75rem;
+    font-family: var(--mono);
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+  }
+
+  .sf-note {
+    font-size: 0.68rem;
+    color: var(--muted);
+    padding: 0.4rem 0.5rem;
+    display: flex;
+    align-items: center;
+  }
+
+  .sf-auto { background: #fef3c7; }
+  .sf-soft { background: #ede9fe; }
+  .sf-sp   { background: #dcfce7; font-weight: 700; color: var(--green); }
+  .sf-label {
+    font-size: 0.68rem;
+    text-align: center;
+    color: var(--muted);
+    padding: 0.25rem 0;
+    font-style: italic;
+  }
+
+  /* ── PRIORITY BITMAP ── */
+  .bitmap-vis {
+    display: flex;
+    gap: 3px;
+    margin: 1rem 0;
+    flex-wrap: wrap;
+  }
+
+  .bit {
+    width: 30px; height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    font-weight: 700;
+    border: 2px solid transparent;
+  }
+
+  .bit-on  { background: var(--accent); color: #fff; }
+  .bit-off { background: #f1f5f9; color: #94a3b8; border-color: var(--border); }
+  .bit-high { background: var(--teal); color: #fff; }
+
+  /* ── PRIORITY INHERITANCE ── */
+  .pi-diagram {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+    margin: 1.5rem 0;
+  }
+
+  .pi-step {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1rem;
+    text-align: center;
+    position: relative;
+  }
+
+  .pi-step-num {
+    position: absolute;
+    top: -10px; left: 50%;
+    transform: translateX(-50%);
+    background: var(--accent);
+    color: #fff;
+    font-size: 0.7rem;
+    font-weight: 700;
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .pi-task {
+    display: inline-block;
+    padding: 0.4rem 0.75rem;
+    border-radius: 8px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    margin: 0.2rem;
+  }
+
+  .pi-high   { background: #fee2e2; color: var(--red); }
+  .pi-mid    { background: #fef3c7; color: #92400e; }
+  .pi-low    { background: #dcfce7; color: #166534; }
+  .pi-boosted { background: #dbeafe; color: #1e40af; border: 2px solid #3b82f6; }
+
+  .pi-mutex {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    background: #f3e8ff;
+    color: #7c3aed;
+    padding: 0.3rem 0.6rem;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    margin: 0.4rem 0;
+  }
+
+  .pi-step p { font-size: 0.78rem; color: var(--muted); margin-bottom: 0; }
+
+  /* ── SVC TABLE ── */
+  .svc-table {
+    width: 100%;
+    border-collapse: collapse;
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    margin: 1.5rem 0;
+  }
+
+  .svc-table th { background: var(--mid); color: #fff; padding: 0.75rem 1rem; text-align: left; font-size: 0.85rem; }
+  .svc-table td { padding: 0.7rem 1rem; border-top: 1px solid var(--border); font-size: 0.85rem; vertical-align: middle; }
+  .svc-num {
+    display: inline-block;
+    background: var(--navy);
+    color: #fff;
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 0.2rem 0.5rem;
+    border-radius: 6px;
+    min-width: 28px;
+    text-align: center;
+  }
+
+  /* ── ACCORDION ── */
+  .accordion { border: 1px solid var(--border); border-radius: 12px; overflow: hidden; margin: 1.25rem 0; }
+
+  .acc-item { border-bottom: 1px solid var(--border); }
+  .acc-item:last-child { border-bottom: none; }
+
+  .acc-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 1.25rem;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.92rem;
+    color: var(--navy);
+    background: #fafafa;
+    transition: background 0.15s;
+    user-select: none;
+  }
+
+  .acc-header:hover { background: #f1f5f9; }
+
+  .acc-header .arrow {
+    font-size: 0.8rem;
+    transition: transform 0.2s;
+    color: var(--muted);
+  }
+
+  .acc-body {
+    display: none;
+    padding: 1.25rem;
+    background: #fff;
+  }
+
+  .acc-body.open { display: block; }
+  .acc-body p { font-size: 0.88rem; }
+
+  /* ── FOOTER ── */
+  footer {
+    background: var(--navy);
+    color: rgba(255,255,255,0.5);
+    text-align: center;
+    padding: 1.5rem;
+    font-size: 0.8rem;
+    margin-left: 240px;
+  }
+
+  footer span { color: var(--accent); }
+
+  /* ── SCROLLBAR ── */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+
+  @media (max-width: 900px) {
+    .sidebar { display: none; }
+    .main, footer { margin-left: 0; }
+    .hero, .section { padding: 2rem 1.5rem; }
+    .tcb-diagram { grid-template-columns: 1fr; }
+    .pi-diagram { grid-template-columns: 1fr; }
+  }
+</style>
 </head>
 <body>
-<div class="book-container">
-    <div class="book-header">
-        <h1><i class="fas fa-microchip"></i> Kite RTOS </h1>
-        <p>An educational real-time kernel for ARM Cortex‑M</p>
-        <div class="badge"><i class="fas fa-code"></i> 32 priority levels · Preemptive · MPU stack guard · Designed for clarity</div>
-    </div>
-    <div class="book-content">
-        <!-- INTRO -->
-        <section>
-            <h2><i class="fas fa-feather-alt"></i> 1. Philosophy & architecture</h2>
-            <p>Kite RTOS is a compact, preemptive kernel written for Cortex‑M MCUs (STM32, etc.). It provides tick-driven scheduling, blocking synchronization (semaphores, mutexes with <strong>priority inheritance</strong>), and a clean SVC‑based system call interface. The design emphasizes deterministic behaviour, low overhead, and educational transparency.</p>
-            <div class="note">
-                <i class="fas fa-lightbulb"></i> <strong>Core design pillars:</strong> <br>
-                • Round‑robin time slicing (configurable ticks).<br>
-                • Bitmap ready-queue (O(1) highest priority lookup).<br>
-                • Sleep list sorted by wakeup time (delta‑list).<br>
-                • Critical sections via BASEPRI masking.<br>
-                • MPU stack guard for stack overflow detection.
-            </div>
-        </section>
 
-        <!-- DATA STRUCTURES -->
-        <section>
-            <h2><i class="fas fa-database"></i> 2. Key data structures</h2>
-            <div class="card-grid">
-                <div class="api-card"><span class="api-name">TCB_t</span><div class="api-desc">Task Control Block: holds PSP, state+priority (packed), blocking counters, mutex ownership bitmap, waiting queues pointers. Embedded in doubly linked ready list and sleep/wait queues.</div></div>
-                <div class="api-card"><span class="api-name">semaphore_t</span><div class="api-desc">Counting semaphore: <span class="inline-code">count</span> + priority‑sorted waiting queue (<span class="inline-code">wq_head/wq_bitmap</span>).</div></div>
-                <div class="api-card"><span class="api-name">mutex_t</span><div class="api-desc">Mutex with priority inheritance: owner, highest waiter priority, wait queue, and nested holding per TCB.</div></div>
-                <div class="api-card"><span class="api-name">Ready queue</span><div class="api-desc">Array of 32 lists, plus a 32‑bit bitmap. Task enqueue/dequeue O(1) per priority.</div></div>
-            </div>
-            <p>The TCB packs <span class="inline-code">state_prio</span> into a 16‑bit field: 2 bits state (SLEEP/WAKE/BLOCKED), 5 bits base priority, 5 bits effective priority (used for inheritance). Fast bit manipulations via macros <span class="inline-code">TCB_EFF_PRIO()</span> etc.</p>
-        </section>
+<!-- SIDEBAR -->
+<nav class="sidebar">
+  <div class="sidebar-brand">
+    <div class="logo">🪁 Kite RTOS</div>
+    <div class="subtitle">ARM Cortex-M Kernel</div>
+  </div>
+  <div class="nav-section">Getting Started</div>
+  <a href="#overview"><span class="dot"></span>Overview</a>
+  <a href="#architecture"><span class="dot"></span>Architecture</a>
+  <div class="nav-section">Core Concepts</div>
+  <a href="#tcb"><span class="dot"></span>Task Control Block</a>
+  <a href="#scheduler"><span class="dot"></span>Scheduler & Queues</a>
+  <a href="#context-switch"><span class="dot"></span>Context Switch</a>
+  <a href="#memory"><span class="dot"></span>Memory & Stack</a>
+  <div class="nav-section">Execution Flow</div>
+  <a href="#boot"><span class="dot"></span>Boot Sequence</a>
+  <a href="#systick"><span class="dot"></span>SysTick & Timer</a>
+  <a href="#svc"><span class="dot"></span>SVC System Calls</a>
+  <div class="nav-section">Synchronization</div>
+  <a href="#semaphore"><span class="dot"></span>Semaphores</a>
+  <a href="#mutex"><span class="dot"></span>Mutex & Inheritance</a>
+  <div class="nav-section">Reference</div>
+  <a href="#critical"><span class="dot"></span>Critical Sections</a>
+  <a href="#mpu"><span class="dot"></span>MPU Stack Guard</a>
+  <a href="#api"><span class="dot"></span>API Reference</a>
+  <a href="#config"><span class="dot"></span>Configuration</a>
+</nav>
 
-        <!-- SCHEDULER FLOW DIAGRAM -->
-        <section>
-            <h2><i class="fas fa-project-diagram"></i> 3. Context switch flow</h2>
-            <div class="mermaid">
-                flowchart TD
-                    A[SysTick IRQ] --> B[global_systick++]
-                    B --> C{task_wake check}
-                    C -->|wake any| D[Move from sleep → ready]
-                    D --> E{time slice expired?}
-                    C -->|no wake| E
-                    E -->|yes| F[Request PendSV]
-                    E -->|no| G[Exit SysTick]
-                    F --> H[PendSV_Handler]
-                    H --> I[Save current task context<br>R4-R11 onto its PSP]
-                    I --> J[Call scheduler]
-                    J --> K[Select highest priority task<br>via ready_bitmap]
-                    K --> L[mpu_update_stack_guard]
-                    L --> M[Restore new task's PSP<br>pop R4-R11, bx lr]
-            </div>
-            <p>Every tick: increment global tick, traverse sleep list and move ready tasks. If time slice counter reaches <span class="inline-code">SCHED_TIME_SLICE</span>, context switch is requested via <span class="inline-code">PendSV</span>. PendSV is the lowest priority exception, ensuring clean context switch.</p>
-            <div class="note">
-                <strong>⚡ SVC calls:</strong> All kernel services (<span class="inline-code">task_delay, sem_wait, mutex_lock, …</span>) use SVC instructions. <span class="inline-code">SVC_Handler</span> extracts the immediate number and forwards to the right service, running with kernel privileges.
-            </div>
-        </section>
+<!-- MAIN -->
+<div class="main">
 
-        <!-- TASK MANAGEMENT APIs -->
-        <section>
-            <h2><i class="fas fa-tasks"></i> 4. Task management API</h2>
-            <table>
-                <tr><th>Function</th><th>Description</th><th>Usage notes</th></tr>
-                <tr><td class="inline-code">uint8_t create_task(priority, handler, stack_words, name)</td><td>Dynamically creates a task with given priority and stack size (words).</td><td>Stack guard region added automatically (MPU). Task is immediately ready.</td></tr>
-                <tr><td class="inline-code">void kite_start(void)</td><td>Starts RTOS scheduler – never returns.</td><td>Creates idle task (priority 0), initializes SysTick, fires first task.</td></tr>
-                <tr><td class="inline-code">void task_yield(void)</td><td>Voluntary context switch.</td><td>Requests PendSV; caller yields CPU to next ready task.</td></tr>
-                <tr><td class="inline-code">void task_delay(uint32_t ticks)</td><td>Block current task for given ticks.</td><td>Task inserted into sleep list sorted by absolute wakeup time.</td></tr>
-                <tr><td class="inline-code">void task_sleep_until(uint32_t *last_wake, uint32_t period)</td><td>Periodic wakeup with drift correction.</td><td>Sets absolute next wake and blocks until that tick.</td></tr>
-                <tr><td class="inline-code">void set_time_slice_ticks(uint32_t ticks)</td><td>Adjust round‑robin time quantum.</td><td>Default = <span class="inline-code">SCHED_TIME_SLICE</span>.</td></tr>
-            </table>
-
-            <div class="code-block">
-                // Example: two tasks with LED toggling
-                void led_task(void) {
-                    while(1) {
-                        GPIOC->ODR ^= (1<<13);
-                        task_delay(500);
-                    }
-                }
-                void main(void) {
-                    create_task(2, led_task, 128, "LED");
-                    kite_start();
-                }
-            </div>
-        </section>
-
-        <!-- Synchronization primitives -->
-        <section>
-            <h2><i class="fas fa-handshake"></i> 5. Synchronization: semaphores & mutexes</h2>
-            <h3>📌 Counting semaphores</h3>
-            <p><span class="inline-code">semaphore_init(sem, initial_count)</span> – <span class="inline-code">semaphore_wait()</span> decrements count, blocks if negative. <span class="inline-code">semaphore_post()</span> increments, unblocks highest‑priority waiter.</p>
-            <div class="mermaid">
-                sequenceDiagram
-                    participant TaskLow
-                    participant TaskHigh
-                    participant Sem as Semaphore(count=0)
-                    TaskHigh->>Sem: sem_wait() -> blocks
-                    TaskLow->>Sem: sem_post()
-                    Sem->>TaskHigh: unblock (highest priority)
-                    TaskHigh->>TaskHigh: runs
-            </div>
-
-            <h3>🔒 Mutex with priority inheritance</h3>
-            <p><span class="inline-code">mutex_init()</span> – recursive ownership tracking: each TCB holds a bitmap of owned mutexes (max <span class="inline-code">HELD_MUTEX_MAX</span>). When a higher-priority task waits on a mutex, the owner's effective priority <strong>inherits</strong> the waiter's priority to avoid unbounded priority inversion.</p>
-            <div class="code-block">
-                mutex_t console_mutex;
-                void task_uart(void) {
-                    mutex_lock(&console_mutex);
-                    // critical output
-                    mutex_unlock(&console_mutex);
-                }
-            </div>
-            <div class="note">
-                <i class="fas fa-gem"></i> <strong>Priority inheritance logic:</strong> When a task blocks on a mutex, <span class="inline-code">propagate_priority()</span> walks the chain of mutex owners and boosts their effective priority. After unlock, the original base priority is restored if no longer needed.
-            </div>
-        </section>
-
-        <!-- API deep dive + Internal helpers -->
-        <section>
-            <h2><i class="fas fa-cogs"></i> 6. Internal kernel flow – from SVC to reschedule</h2>
-            <p>All system calls are marshalled via SVC. Example: <span class="inline-code">task_delay(10)</span> triggers <span class="inline-code">svc 2</span> → <span class="inline-code">SVC_Handler_C</span> calls <span class="inline-code">svc_task_delay</span>. In critical section it sets block_count = global_systick+ticks, removes from ready queue and inserts into sleep list. Then PendSV is triggered.</p>
-            <div class="mermaid">
-                flowchart LR
-                    A[User task] -->|SVC #2| B[SVC_Handler]
-                    B --> C[Extract SVC number]
-                    C --> D[svc_task_delay]
-                    D --> E[ENTER_CRITICAL]
-                    E --> F[Remove from ready queue & add to sleep list]
-                    F --> G[EXIT_CRITICAL]
-                    G --> H[request_context_switch<br>PendSV set]
-                    H --> I[PendSV_Handler runs reschedule]
-            </div>
-            <h4>Critical sections & interrupt masking</h4>
-            <p><span class="inline-code">sched_enter_critical()</span> raises BASEPRI to <span class="inline-code">KERNEL_INTERRUPT_PRIORITY</span> (level 15) — disables interrupts with priority ≥15. Nested critical sections are counted.</p>
-            <h4>MPU stack overflow guard</h4>
-            <p>Each task stack is followed by a 32‑byte guard region (size configurable via <span class="inline-code">STACK_GUARD_SIZE_WORDS</span>). The MPU region #1 is reconfigured on each context switch to protect the current task’s guard area → any overflow triggers MemManage fault.</p>
-        </section>
-
-        <!-- Config & static asserts -->
-        <section>
-            <h2><i class="fas fa-sliders-h"></i> 7. Configurable parameters (config.h)</h2>
-            <table>
-                <tr><th>Macro</th><th>Meaning</th><th>Constraints</th></tr>
-                <tr><td class="inline-code">MAX_TASKS</td><td>max number of tasks (≤31)</td><td>fits in bitmap</td></tr>
-                <tr><td class="inline-code">PRIO_LEVELS</td><td>#priority levels (max 32)</td><td>32-bit ready bitmap</td></tr>
-                <tr><td class="inline-code">SCHED_TIME_SLICE</td><td>round-robin quantum (ticks)</td><td>≥1 tick</td></tr>
-                <tr><td class="inline-code">HELD_MUTEX_MAX</td><td>max mutex per task nesting</td><td>≤16 (bitmap)</td></tr>
-                <tr><td class="inline-code">TICK_HZ</td><td>SysTick frequency</td><td>1–10000 Hz</td></tr>
-                <tr><td class="inline-code">ENABLE_STOP_MODE</td><td>idle task enters low‑power WFI</td><td>optional</td></tr>
-            </table>
-            <p>Static assertions at compile time verify sanity (e.g., <span class="inline-code">IDLE_TASK_STACK_SIZE >= 32</span>, <span class="inline-code">HELD_MUTEX_MAX <= 16</span>).</p>
-        </section>
-
-        <!-- Flow Diagram for Mutex Lock -->
-        <section>
-            <h2><i class="fas fa-chart-line"></i> 8. Mutex lock with inheritance — visual walk</h2>
-            <div class="mermaid">
-                graph TD
-                    start[mutex_lock called] --> check{Locked?}
-                    check -->|No| own[Owner = current task, held slot set]
-                    own --> done[Lock acquired]
-                    check -->|Yes| block[Task state = BLOCKED, waiting_on = mutex]
-                    block --> add_wq[Add to mutex wait queue sorted by priority]
-                    add_wq --> prop[propagate_priority: boost owner's effective priority]
-                    prop --> pend[PendSV -> scheduler runs next task]
-                    pend --> unlock_event[Eventually mutex_unlock]
-                    unlock_event --> transfer[Highest waiter becomes new owner]
-            </div>
-            <p>Priority propagation: while the mutex is locked, the owner runs at the priority of the highest waiting task (if higher), thus preventing unbounded inversion.</p>
-        </section>
-
-        <!-- All essential API summary table -->
-        <section>
-            <h2><i class="fas fa-list-ul"></i> 9. Complete API quick reference</h2>
-            <div class="card-grid">
-                <div class="api-card"><span class="api-name">void kite_start(void)</span><div class="api-desc">starts scheduler, never returns</div></div>
-                <div class="api-card"><span class="api-name">uint8_t create_task(prio, handler, stack, name)</span><div class="api-desc">returns 1 on success</div></div>
-                <div class="api-card"><span class="api-name">void task_delay(uint32_t ticks)</span><div class="api-desc">block current task</div></div>
-                <div class="api-card"><span class="api-name">void task_sleep_until(uint32_t *last, uint32_t period)</span><div class="api-desc">absolute periodic delay</div></div>
-                <div class="api-card"><span class="api-name">void semaphore_wait(semaphore_t *)</span><div class="api-desc">P operation, may block</div></div>
-                <div class="api-card"><span class="api-name">void semaphore_post(semaphore_t *)</span><div class="api-desc">V operation, unblock waiter</div></div>
-                <div class="api-card"><span class="api-name">void mutex_lock(mutex_t *)</span><div class="api-desc">lock, with priority inheritance</div></div>
-                <div class="api-card"><span class="api-name">void mutex_unlock(mutex_t *)</span><div class="api-desc">release, adjust inherited priority</div></div>
-                <div class="api-card"><span class="api-name">void task_yield(void)</span><div class="api-desc">cooperative reschedule</div></div>
-                <div class="api-card"><span class="api-name">uint32_t get_systick_counter(void)</span><div class="api-desc">return global tick count</div></div>
-                <div class="api-card"><span class="api-name">void sched_enter/exit_critical()</span><div class="api-desc">nested critical section</div></div>
-            </div>
-        </section>
-
-        <!-- Internal helpers / for curious minds -->
-        <section>
-            <h2><i class="fas fa-brain"></i> 10. Under the hood: interesting routines</h2>
-            <ul style="margin-left: 1.5rem;">
-                <li><span class="inline-code">rq_add / rq_remove</span> – circular doubly linked ready list per priority.</li>
-                <li><span class="inline-code">sl_insert</span> – inserts task into sleep list sorted by absolute wake time (delta method).</li>
-                <li><span class="inline-code">wq_enqueue / wq_dequeue_highest</span> – priority sorted wait queues for semaphores and mutexes.</li>
-                <li><span class="inline-code">held_alloc_slot / held_set</span> – track nested mutexes per task (up to HELD_MUTEX_MAX).</li>
-                <li><span class="inline-code">propagate_priority</span> – while walking mutex ownership chain, boost owner to priority of highest waiter.</li>
-                <li>Stack initialization: initial context frame guarantees that first time task runs, handler function is loaded with correct CPU registers (xPSR, PC, LR, R0-R3).</li>
-            </ul>
-            <div class="warning">
-                <i class="fas fa-microscope"></i> <strong>Pro tip:</strong> The kernel uses <span class="inline-code">__builtin_clz</span> for fast bitmap → highest priority ready task; <span class="inline-code">global_systick</span> is 32-bit and wraps, but delta-comparisons use signed arithmetic to keep correctness.
-            </div>
-        </section>
-
-        <!-- Boot flow sequential diagram -->
-        <section>
-            <h2><i class="fas fa-play-circle"></i> 11. Boot sequence from reset to first task</h2>
-            <div class="mermaid">
-                sequenceDiagram
-                    participant Reset as Reset_Handler
-                    participant Main as main()
-                    participant Kite as kite_start()
-                    participant Sched as scheduler_init()
-                    participant SysTick as SysTick_Handler
-                    participant PendSV as PendSV_Handler
-                    Reset->>Main: C startup, SystemInit
-                    Main->>Kite: create tasks, then kite_start()
-                    Kite->>Kite: create_idle_task()
-                    Kite->>Sched: branch to scheduler_init
-                    Sched->>Sched: init_helper, set MSP, task_stack_init
-                    Sched->>Sched: scheduler_start(), enable SysTick, MPU guard
-                    Sched->>PendSV: svc 0 (start first task)
-                    PendSV->>PendSV: load PSP of highest ready task
-                    PendSV->>SysTick: periodic tick fires, yields when needed
-            </div>
-            <p>The very first SVC call (<span class="inline-code">svc_start_first_task</span>) loads the PSP of the highest priority task, sets CONTROL register to use PSP, and returns to user mode — the task begins execution.</p>
-        </section>
-
-        <!-- final notes -->
-        <div class="note">
-            <i class="fas fa-graduation-cap"></i> <strong>Learning takeaways:</strong> This RTOS demonstrates real-world techniques: bitmap scheduling, O(1) priority selection, MPU-assisted stack overflow detection, priority inheritance for mutexes, and minimal interrupt latency via BASEPRI critical sections. Each component works together to build a deterministic, preemptive kernel suitable for embedded control systems.
-        </div>
-        <p style="margin-top: 1.5rem;">Explore <span class="inline-code">sched.c</span> , <span class="inline-code">sched.h</span> and adjust <span class="inline-code">config.h</span> to your MCU. The source is BSD-style licensed — modify, experiment, and master embedded RTOS concepts.</p>
-    </div>
-    <footer>
-        <i class="fas fa-book-open"></i> Kite RTOS — designed for clarity, built for Cortex‑M.  <i class="fas fa-heart" style="color:#e26d5c;"></i>   <span style="font-family: monospace;">#preemptive #priority_inheritance #education</span>
-    </footer>
+<!-- HERO -->
+<div class="hero">
+  <div class="hero-badge">📚 Developer Documentation</div>
+  <h1>Kite <span>RTOS</span></h1>
+  <p>A preemptive, priority-based real-time kernel for ARM Cortex-M microcontrollers.</p>
+  <div class="hero-chips">
+    <div class="chip"><span class="chip-dot" style="background:#f97316"></span>32 Priority Levels</div>
+    <div class="chip"><span class="chip-dot" style="background:#06b6d4"></span>Preemptive Scheduling</div>
+    <div class="chip"><span class="chip-dot" style="background:#10b981"></span>Priority Inheritance</div>
+    <div class="chip"><span class="chip-dot" style="background:#8b5cf6"></span>MPU Stack Guard</div>
+    <div class="chip"><span class="chip-dot" style="background:#fbbf24"></span>SVC System Calls</div>
+    <div class="chip"><span class="chip-dot" style="background:#ef4444"></span>Cortex-M3/M4</div>
+  </div>
 </div>
+
+<!-- ───────────────────────────── OVERVIEW ── -->
+<section class="section" id="overview">
+  <div class="section-label">01 — Introduction</div>
+  <h2>What is Kite RTOS?</h2>
+
+  <p>Imagine you're a chef in a busy restaurant. You have to cook three dishes at the same time — a soup, a steak, and a salad. You don't literally do all three simultaneously; you <em>switch between them quickly</em>, checking the steak while the soup simmers. A Real-Time Operating System (RTOS) does exactly this for a microcontroller — it lets multiple <strong>tasks</strong> share one CPU by switching between them so fast it feels simultaneous.</p>
+
+  <p>Kite RTOS is an educational, production-quality kernel written in C for ARM Cortex-M processors (like those on STM32 boards). It provides everything needed for deterministic, multi-task embedded software.</p>
+
+  <div class="grid grid-2">
+    <div class="card card-accent">
+      <div class="card-icon">⚡</div>
+      <h4>Preemptive Scheduling</h4>
+      <p>Higher-priority tasks instantly interrupt lower-priority ones. No task can hog the CPU unfairly.</p>
+    </div>
+    <div class="card card-teal">
+      <div class="card-icon">🗓️</div>
+      <h4>Round-Robin Time Slicing</h4>
+      <p>Equal-priority tasks share the CPU in configurable time slices. Every task gets a fair turn.</p>
+    </div>
+    <div class="card card-green">
+      <div class="card-icon">🔒</div>
+      <h4>Priority Inheritance</h4>
+      <p>Prevents priority inversion — a low-priority task temporarily borrows the priority of a high-priority waiter.</p>
+    </div>
+    <div class="card card-purple">
+      <div class="card-icon">🛡️</div>
+      <h4>MPU Stack Guard</h4>
+      <p>Hardware memory protection catches stack overflows per-task before they corrupt other data.</p>
+    </div>
+    <div class="card card-gold">
+      <div class="card-icon">🧩</div>
+      <h4>SVC System Calls</h4>
+      <p>Clean ARM SVC-based interface for all kernel services — delay, yield, semaphore, mutex.</p>
+    </div>
+    <div class="card card-red">
+      <div class="card-icon">🎯</div>
+      <h4>O(1) Scheduler</h4>
+      <p>32-bit bitmap lets the scheduler find the highest-priority ready task in a single CPU instruction.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────────────── ARCHITECTURE ── -->
+<section class="section" id="architecture">
+  <div class="section-label">02 — High-Level View</div>
+  <h2>System Architecture</h2>
+
+  <p>The diagram below shows how Kite RTOS layers sit on top of the ARM Cortex-M hardware and below your application tasks.</p>
+
+  <div class="diagram-wrap">
+    <div class="mermaid">
+graph TB
+  subgraph APP["🖥️  Application Layer"]
+    T1["Task A\n(priority 5)"]
+    T2["Task B\n(priority 3)"]
+    T3["Idle Task\n(priority 0)"]
+  end
+
+  subgraph KITE["🪁  Kite RTOS Kernel (sched.c / sched.h)"]
+    direction LR
+    SCH["Scheduler\nready_bitmap + ready_queue"]
+    CTX["Context Switch\nPendSV_Handler"]
+    SVC_H["SVC Dispatcher\nSVC_Handler_C"]
+    SL["Sleep List\nsl_insert / task_wake"]
+    SYNC["Sync Primitives\nSemaphore · Mutex"]
+    MPU_G["MPU Stack Guard\nmpu_update_stack_guard"]
+  end
+
+  subgraph HW["⚙️  ARM Cortex-M Hardware"]
+    ST["SysTick\n1000 Hz"]
+    PV["PendSV\n(lowest priority)"]
+    SV["SVCall"]
+    MPU_H["MPU"]
+    NVIC["NVIC"]
+  end
+
+  APP --> KITE
+  KITE --> HW
+    </div>
+    <div class="caption">Figure 1 — Kite RTOS layered architecture</div>
+  </div>
+
+  <div class="callout callout-info">
+    <div class="callout-icon">💡</div>
+    <div class="callout-body">
+      <h5>Key Insight: Three special ARM exceptions drive the entire kernel</h5>
+      <p><strong>SysTick</strong> fires every 1ms — it's the heartbeat. <strong>SVCall</strong> handles system calls from tasks. <strong>PendSV</strong> (lowest priority of all) performs the actual context switch after all other interrupts are done.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────────────── TCB ── -->
+<section class="section" id="tcb">
+  <div class="section-label">03 — Core Data Structure</div>
+  <h2>Task Control Block (TCB)</h2>
+
+  <p>A Task Control Block is the "ID card" of every task. It stores everything the kernel needs to remember about a task when it's not running — like a bookmark that saves your place in a book.</p>
+
+  <div class="tcb-diagram">
+    <div class="tcb-struct">
+      <div style="background:#161b22; padding:0.5rem 0.8rem; font-family:var(--mono); font-size:0.72rem; color:#8b949e; border-bottom:1px solid #21262d;">struct TCB  (TCB_t)</div>
+      <div class="tcb-row"><div class="tcb-type">uint32_t *</div><div class="tcb-name">psp_value <span>← saved stack pointer</span></div></div>
+      <div class="tcb-row"><div class="tcb-type">uint32_t</div><div class="tcb-name">block_count <span>← wake-up tick</span></div></div>
+      <div class="tcb-row"><div class="tcb-type">uint16_t</div><div class="tcb-name">state_prio <span>← packed field ↓</span></div></div>
+      <div class="tcb-row"><div class="tcb-type">uint16_t</div><div class="tcb-name">held_mutex_bitmap</div></div>
+      <div class="tcb-row"><div class="tcb-type">void *</div><div class="tcb-name">waiting_on <span>← sem/mutex ptr</span></div></div>
+      <div class="tcb-row"><div class="tcb-type">uint32_t *</div><div class="tcb-name">stack_guard_base</div></div>
+      <div class="tcb-row"><div class="tcb-type">TCB_t *</div><div class="tcb-name">next_tcb_node</div></div>
+      <div class="tcb-row"><div class="tcb-type">TCB_t *</div><div class="tcb-name">rq_next / rq_prev <span>← ready queue</span></div></div>
+      <div class="tcb-row"><div class="tcb-type">TCB_t *</div><div class="tcb-name">sl_next <span>← sleep list</span></div></div>
+      <div class="tcb-row"><div class="tcb-type">TCB_t *</div><div class="tcb-name">wq_next <span>← wait queue</span></div></div>
+    </div>
+    <div>
+      <p><strong>The <code>state_prio</code> field</strong> is a clever 16-bit packing — three pieces of data in one word:</p>
+      <div class="diagram-wrap" style="margin:0.75rem 0">
+        <div class="mermaid">
+packet-beta
+0-1: "state (2b)"
+2-6: "base_prio (5b)"
+7-11: "eff_prio (5b)"
+12-15: "unused (4b)"
+        </div>
+        <div class="caption">Figure 2 — state_prio bit layout</div>
+      </div>
+      <ul style="font-size:0.85rem; margin-left:1.2rem; color:#334155;">
+        <li style="padding:0.3rem 0"><strong>bits [1:0]</strong> — state: <code>SLEEP=0</code>, <code>WAKE=1</code>, <code>BLOCKED=2</code></li>
+        <li style="padding:0.3rem 0"><strong>bits [6:2]</strong> — base priority (set at creation, never changes)</li>
+        <li style="padding:0.3rem 0"><strong>bits [11:7]</strong> — effective priority (may be boosted by inheritance)</li>
+      </ul>
+
+      <div class="callout callout-tip" style="margin-top:1rem">
+        <div class="callout-icon">🎯</div>
+        <div class="callout-body">
+          <h5>Why pack them together?</h5>
+          <p>A single 16-bit read gives the scheduler all it needs. No extra memory load, no extra pointer chasing — critical in interrupt-driven code.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <h3>Task States</h3>
+  <div class="state-flow">
+    <div class="state-box">
+      <div class="state-pill" style="background:#dcfce7;color:#166534">WAKE (1)</div>
+      <div class="state-sub">In ready queue</div>
+    </div>
+    <div class="state-arrow">→</div>
+    <div class="state-box">
+      <div class="state-pill" style="background:#dbeafe;color:#1d4ed8">RUNNING</div>
+      <div class="state-sub">CPU executing</div>
+    </div>
+    <div class="state-arrow">→</div>
+    <div class="state-box">
+      <div class="state-pill" style="background:#fef3c7;color:#92400e">SLEEP (0)</div>
+      <div class="state-sub">In sleep list</div>
+    </div>
+    <div class="state-arrow">↕</div>
+    <div class="state-box">
+      <div class="state-pill" style="background:#fee2e2;color:#991b1b">BLOCKED (2)</div>
+      <div class="state-sub">Waiting on sem/mutex</div>
+    </div>
+  </div>
+
+  <div class="diagram-wrap">
+    <div class="mermaid">
+stateDiagram-v2
+  [*] --> WAKE : create_task()
+  WAKE --> RUNNING : scheduler picks it
+  RUNNING --> WAKE : time slice expires / yield
+  RUNNING --> SLEEP : task_delay() / sleep_until()
+  RUNNING --> BLOCKED : semaphore_wait() / mutex_lock() (blocked)
+  SLEEP --> WAKE : SysTick — block_count reached
+  BLOCKED --> WAKE : semaphore_post() / mutex_unlock()
+    </div>
+    <div class="caption">Figure 3 — Task state machine</div>
+  </div>
+</section>
+
+<!-- ───────────────────────────── SCHEDULER ── -->
+<section class="section" id="scheduler">
+  <div class="section-label">04 — Scheduling</div>
+  <h2>Scheduler & Priority Queues</h2>
+
+  <h3>Ready Queue — O(1) with a Bitmap</h3>
+  <p>The scheduler maintains an array of 32 circular doubly-linked lists — one per priority level — plus a 32-bit <code>ready_bitmap</code> where bit <em>N</em> is set if any task at priority <em>N</em> is ready.</p>
+
+  <p>Finding the highest-priority ready task takes <strong>one CPU instruction</strong>:</p>
+  <div class="code-wrap">
+    <div class="code-header"><div class="code-dots"><span class="r"></span><span class="y"></span><span class="g"></span></div><div class="code-title">rq_highest() — sched.c</div></div>
+    <pre><span class="kw">static inline</span> <span class="tp">TCB_t</span> *<span class="fn">rq_highest</span>(<span class="kw">void</span>)
+{
+    <span class="kw">if</span> (ready_bitmap == <span class="num">0U</span>) <span class="kw">return</span> NULL;
+
+    <span class="cmt">/* __builtin_clz = Count Leading Zeros
+       31 - clz(bitmap) = index of highest set bit
+       e.g. bitmap = 0b00101000 → clz=2 → p=5         */</span>
+    <span class="tp">uint8_t</span> p = (<span class="tp">uint8_t</span>)(<span class="num">31U</span> - <span class="fn">__builtin_clz</span>(ready_bitmap));
+    <span class="kw">return</span> ready_queue[p];
+}</pre>
+  </div>
+
+  <p>Here's a visual example of the bitmap and ready queue:</p>
+
+  <div class="diagram-wrap">
+    <p style="font-size:0.82rem; color:var(--muted); margin-bottom:0.75rem; text-align:center">
+      3 tasks ready: priority 5, 2, and 1 → <code>ready_bitmap = 0b00100110</code>
+    </p>
+    <div class="bitmap-vis">
+      <div class="bit bit-off">31</div>
+      <div class="bit bit-off">…</div>
+      <div class="bit bit-off">6</div>
+      <div class="bit bit-high">5</div>
+      <div class="bit bit-off">4</div>
+      <div class="bit bit-off">3</div>
+      <div class="bit bit-on">2</div>
+      <div class="bit bit-on">1</div>
+      <div class="bit bit-off">0</div>
+    </div>
+    <p style="font-size:0.78rem; text-align:center; color:var(--muted); margin-top:0.5rem">
+      🟦 Teal = highest set bit (priority 5) → scheduler picks from <code>ready_queue[5]</code>
+    </p>
+    <div class="caption">Figure 4 — ready_bitmap with 3 priorities active</div>
+  </div>
+
+  <h3>Round-Robin within a Priority Level</h3>
+  <p>Tasks of the same priority share the CPU using a circular doubly-linked list. After each time slice, the "head" pointer advances to the next task:</p>
+
+  <div class="diagram-wrap">
+    <div class="mermaid">
+graph LR
+  H["ready_queue[5]\n(head pointer)"]
+  H --> A["TaskA\nprio=5"]
+  A -->|rq_next| B["TaskB\nprio=5"]
+  B -->|rq_next| C["TaskC\nprio=5"]
+  C -->|rq_next| A
+  A -->|rq_prev| C
+  B -->|rq_prev| A
+  C -->|rq_prev| B
+    </div>
+    <div class="caption">Figure 5 — Circular doubly-linked list for round-robin at priority 5</div>
+  </div>
+
+  <h3>Sleep List — Sorted by Wake Time</h3>
+  <p>When a task calls <code>task_delay(N)</code>, it's removed from the ready queue and inserted into a singly-linked list sorted by its absolute wake time (<code>global_systick + N</code>). Every SysTick, the list head is checked — if <code>global_systick >= block_count</code>, the task wakes up.</p>
+
+  <div class="callout callout-warn">
+    <div class="callout-icon">⚠️</div>
+    <div class="callout-body">
+      <h5>Tick Wrap-around Handled Correctly</h5>
+      <p><code>global_systick</code> is a 32-bit counter that wraps after ~49 days at 1kHz. Comparisons use <strong>signed arithmetic</strong>: <code>(int32_t)(global_systick - block_count) >= 0</code> — this handles wrap correctly without special cases.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────────────── CONTEXT SWITCH ── -->
+<section class="section" id="context-switch">
+  <div class="section-label">05 — ARM Deep Dive</div>
+  <h2>Context Switch Mechanics</h2>
+
+  <p>A context switch is like a chef handing a recipe card to a colleague. The outgoing chef writes down exactly where they were in the recipe (saves CPU registers), and the incoming chef reads from their own recipe card (restores registers) to continue.</p>
+
+  <h3>The Stack Frame</h3>
+  <p>When ARM Cortex-M takes an exception (like PendSV), it <strong>automatically</strong> saves 8 registers onto the task's Process Stack. The kernel then saves 8 more "callee-saved" registers on top:</p>
+
+  <div style="display:grid; grid-template-columns:1fr 1fr; gap:2rem; margin:1.5rem 0;">
+    <div>
+      <p style="text-align:center; font-size:0.8rem; font-weight:700; color:var(--muted); margin-bottom:0.5rem">↑ HIGHER ADDRESS (SRAM top)</p>
+      <div class="stack-frame">
+        <div class="sf-label sf-auto">Hardware auto-pushed on exception entry</div>
+        <div class="sf-row sf-auto"><div class="sf-addr">PSP+28</div><div class="sf-name">xPSR</div><div class="sf-note">thumb bit</div></div>
+        <div class="sf-row sf-auto"><div class="sf-addr">PSP+24</div><div class="sf-name">PC</div><div class="sf-note">task entry</div></div>
+        <div class="sf-row sf-auto"><div class="sf-addr">PSP+20</div><div class="sf-name">LR (R14)</div><div class="sf-note">return addr</div></div>
+        <div class="sf-row sf-auto"><div class="sf-addr">PSP+16</div><div class="sf-name">R12</div><div class="sf-note"></div></div>
+        <div class="sf-row sf-auto"><div class="sf-addr">PSP+12</div><div class="sf-name">R3</div><div class="sf-note"></div></div>
+        <div class="sf-row sf-auto"><div class="sf-addr">PSP+8</div><div class="sf-name">R2</div><div class="sf-note"></div></div>
+        <div class="sf-row sf-auto"><div class="sf-addr">PSP+4</div><div class="sf-name">R1</div><div class="sf-note"></div></div>
+        <div class="sf-row sf-auto"><div class="sf-addr">PSP+0</div><div class="sf-name">R0</div><div class="sf-note">SVC arg</div></div>
+        <div class="sf-label sf-soft">Software pushed by PendSV_Handler</div>
+        <div class="sf-row sf-soft"><div class="sf-addr">–4</div><div class="sf-name">R11</div><div class="sf-note"></div></div>
+        <div class="sf-row sf-soft"><div class="sf-addr">…</div><div class="sf-name">R10–R5</div><div class="sf-note"></div></div>
+        <div class="sf-row sf-soft"><div class="sf-addr">–32</div><div class="sf-name">R4</div><div class="sf-note"></div></div>
+        <div class="sf-row sf-sp"><div class="sf-addr">new PSP</div><div class="sf-name">← PSP saved here</div><div class="sf-note"></div></div>
+      </div>
+      <p style="text-align:center; font-size:0.8rem; font-weight:700; color:var(--muted); margin-top:0.5rem">↓ LOWER ADDRESS (stack grows down)</p>
+    </div>
+    <div>
+      <h4>PendSV_Handler — Step by Step</h4>
+      <div class="code-wrap">
+        <div class="code-header"><div class="code-dots"><span class="r"></span><span class="y"></span><span class="g"></span></div><div class="code-title">PendSV_Handler (naked ASM)</div></div>
+        <pre><span class="cmt">; 1. Read current task's PSP</span>
+MRS  R0, PSP
+
+<span class="cmt">; 2. Push R4-R11 onto its stack</span>
+STMDB R0!, {R4-R11}
+
+<span class="cmt">; 3. Save new PSP into TCB</span>
+BL   __set_psp
+
+<span class="cmt">; 4. Mask interrupts (BASEPRI)</span>
+MSR  BASEPRI, #mask
+
+<span class="cmt">; 5. Run scheduler → picks next task</span>
+BL   scheduler
+
+<span class="cmt">; 6. Unmask interrupts</span>
+MSR  BASEPRI, #0
+
+<span class="cmt">; 7. Load new task's PSP from TCB</span>
+BL   __get_psp
+
+<span class="cmt">; 8. Pop R4-R11 from new task stack</span>
+LDMIA R0!, {R4-R11}
+
+<span class="cmt">; 9. Set PSP to new task's stack</span>
+MSR  PSP, R0
+
+<span class="cmt">; 10. Return — hardware pops R0-R3,
+;     R12, LR, PC, xPSR automatically</span>
+BX   LR</pre>
+      </div>
+    </div>
+  </div>
+
+  <div class="diagram-wrap">
+    <div class="mermaid">
+sequenceDiagram
+  participant HW as ARM Hardware
+  participant SysTick
+  participant PendSV
+  participant Sched as scheduler()
+  participant TaskA as Task A (outgoing)
+  participant TaskB as Task B (incoming)
+
+  SysTick->>SysTick: global_systick++ / tick_count++
+  SysTick->>SysTick: task_wake() — check sleep list
+  SysTick->>HW: Set PendSV pending (ICSR bit)
+  Note over SysTick,HW: SysTick returns, PendSV fires last
+  HW->>PendSV: PendSV exception entry
+  HW->>TaskA: Auto-saves R0-R3,R12,LR,PC,xPSR → Task A stack
+  PendSV->>TaskA: STMDB — saves R4-R11 → Task A stack
+  PendSV->>TaskA: __set_psp → saves new PSP in TCB_A
+  PendSV->>Sched: BL scheduler
+  Sched->>Sched: rq_remove(A), rq_add(A) if WAKE
+  Sched->>Sched: current = rq_highest() → Task B
+  Sched->>Sched: mpu_update_stack_guard(B)
+  PendSV->>TaskB: __get_psp → loads PSP from TCB_B
+  PendSV->>TaskB: LDMIA — restores R4-R11 from Task B stack
+  PendSV->>HW: BX LR
+  HW->>TaskB: Auto-restores R0-R3,R12,LR,PC,xPSR → Task B runs!
+    </div>
+    <div class="caption">Figure 6 — Full context switch sequence from SysTick to Task B resuming</div>
+  </div>
+</section>
+
+<!-- ───────────────────────────── MEMORY ── -->
+<section class="section" id="memory">
+  <div class="section-label">06 — Memory Layout</div>
+  <h2>Stack Allocation & Memory Layout</h2>
+
+  <p>Kite carves task stacks from the top of SRAM, growing downward. Each new task claims a slice and sets up an MPU guard page below it.</p>
+
+  <div style="display:grid; grid-template-columns:1fr 2fr; gap:2rem; align-items:start; margin:1.5rem 0;">
+    <div>
+      <div class="memory-map">
+        <div class="mem-row" style="background:#0a1628; color:#fff; font-weight:700">
+          <span>SRAM Top</span><span style="color:var(--accent)">_estack</span>
+        </div>
+        <div class="mem-row" style="background:#fef3c7">
+          <span>MSP (kernel stack)</span><span>↓</span>
+        </div>
+        <div class="mem-row" style="background:#dcfce7">
+          <span>Task A stack</span><span>128w</span>
+        </div>
+        <div class="mem-row" style="background:#fee2e2; font-size:0.72rem; color:var(--red)">
+          <span>🛡️ Guard A (MPU)</span><span>32B</span>
+        </div>
+        <div class="mem-row" style="background:#dbeafe">
+          <span>Task B stack</span><span>64w</span>
+        </div>
+        <div class="mem-row" style="background:#fee2e2; font-size:0.72rem; color:var(--red)">
+          <span>🛡️ Guard B (MPU)</span><span>32B</span>
+        </div>
+        <div class="mem-row" style="background:#f3e8ff">
+          <span>Idle stack</span><span>64w</span>
+        </div>
+        <div class="mem-row" style="background:#fee2e2; font-size:0.72rem; color:var(--red)">
+          <span>🛡️ Guard Idle</span><span>32B</span>
+        </div>
+        <div class="mem-row" style="background:#f1f5f9; color:var(--muted)">
+          <span>TCB pool / .data</span><span>↑</span>
+        </div>
+        <div class="mem-row" style="background:#0a1628; color:#fff; font-weight:700">
+          <span>SRAM Bottom</span><span style="color:var(--teal)">0x2000 0000</span>
+        </div>
+      </div>
+    </div>
+    <div>
+      <h4>Stack Allocation Logic</h4>
+      <div class="code-wrap">
+        <div class="code-header"><div class="code-dots"><span class="r"></span><span class="y"></span><span class="g"></span></div><div class="code-title">find_stack_area() — sched.c</div></div>
+        <pre><span class="kw">static</span> <span class="tp">uint32_t</span> *<span class="fn">find_stack_area</span>(
+    <span class="tp">uint32_t</span> stack_words,
+    <span class="tp">uint32_t</span> **guard_base_out)
+{
+    <span class="cmt">/* Round up to 8-word boundary */</span>
+    stack_words = (stack_words + <span class="num">7U</span>) & ~<span class="num">7U</span>;
+
+    new_task_psp  = next_task_psp;
+    next_task_psp -= stack_words;        <span class="cmt">/* carve stack */</span>
+
+    <span class="cmt">/* Guard page: 32-byte aligned just below stack */</span>
+    <span class="tp">uint32_t</span> guard_addr =
+        ((uint32_t)next_task_psp) & ~<span class="num">31U</span>;
+
+    *guard_base_out = (<span class="tp">uint32_t</span> *)guard_addr;
+    <span class="kw">return</span> new_task_psp;
+}</pre>
+      </div>
+
+      <h4>Initial Stack Frame Setup</h4>
+      <p>Before the scheduler runs, <code>task_stack_init()</code> pre-populates each task's stack so the first context restore works correctly:</p>
+      <div class="code-wrap">
+        <div class="code-header"><div class="code-dots"><span class="r"></span><span class="y"></span><span class="g"></span></div><div class="code-title">task_stack_init() — initial frame</div></div>
+        <pre>*(--stack) = <span class="num">0x01000000U</span>;  <span class="cmt">/* xPSR: Thumb bit */</span>
+*(--stack) = (uint32_t)handler; <span class="cmt">/* PC: task entry  */</span>
+*(--stack) = (uint32_t)kernel_panic; <span class="cmt">/* LR: if task returns → panic */</span>
+*(--stack) = <span class="num">0x0000000C</span>;  <span class="cmt">/* R12 */</span>
+*(--stack) = <span class="num">0x00000003</span>;  <span class="cmt">/* R3  */</span>
+*(--stack) = <span class="num">0x00000002</span>;  <span class="cmt">/* R2  */</span>
+*(--stack) = <span class="num">0x00000001</span>;  <span class="cmt">/* R1  */</span>
+*(--stack) = <span class="num">0x00000000</span>;  <span class="cmt">/* R0  */</span>
+<span class="cmt">/* + 8 words of zeros for R4-R11 */</span></pre>
+      </div>
+      <div class="callout callout-success">
+        <div class="callout-icon">✅</div>
+        <div class="callout-body">
+          <h5>Why <code>kernel_panic</code> as the LR?</h5>
+          <p>Tasks in an RTOS should never return — they run infinite loops. If one accidentally returns, the LR (link register) points to <code>kernel_panic()</code> which spins forever, making the bug visible.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────────────── BOOT ── -->
+<section class="section" id="boot">
+  <div class="section-label">07 — Startup</div>
+  <h2>Boot Sequence — From Reset to First Task</h2>
+
+  <p>Let's walk through exactly what happens from power-on to your first task running, step by step.</p>
+
+  <div class="diagram-wrap">
+    <div class="mermaid">
+flowchart TD
+  A["🔌 Power-on / Reset"] --> B["Reset_Handler\n(startup.s)\nCopy .data, zero .bss"]
+  B --> C["main()\nYour application code"]
+  C --> D["create_task(prio, handler, stack, name)\nfor each user task"]
+  D --> E["kite_start()"]
+  E --> F["create_idle_task()\npriority=0, always ready"]
+  F --> G["scheduler_init()\n(naked function)"]
+  G --> H["PUSH LR\nBL init_helper"]
+  H --> I["init_helper()\nSave MSP start\nfind_high_priority_task()\ncore_faults_init()"]
+  I --> J["POP LR\nMSR MSP, msp_start\nBL task_stack_init()"]
+  J --> K["B scheduler_start()"]
+  K --> L["systick_init()\nSysTick @ TICK_HZ\nSet PendSV=0xFF lowest\nSVCall/SysTick=15"]
+  L --> M["mpu_update_stack_guard(highest_task)"]
+  M --> N["SVC #0\n(start first task)"]
+  N --> O["SVC_Handler_C → svc_start_first_task()"]
+  O --> P["Load PSP of highest-priority task\nSet CONTROL=3 (use PSP, unprivileged)\nBX LR → EXC_RETURN"]
+  P --> Q["🎉 First Task Runs!"]
+
+  style A fill:#0a1628,color:#fff,stroke:none
+  style Q fill:#10b981,color:#fff,stroke:none
+  style E fill:#f97316,color:#fff,stroke:none
+    </div>
+    <div class="caption">Figure 7 — Complete boot sequence from reset to first task execution</div>
+  </div>
+
+  <div class="callout callout-info">
+    <div class="callout-icon">🔍</div>
+    <div class="callout-body">
+      <h5>Why does <code>scheduler_init</code> reset the MSP?</h5>
+      <p>Before calling <code>init_helper()</code>, the kernel records the current MSP position (after all task stacks are carved). It then resets MSP to this saved value — this <em>reclaims</em> the stack space used for task stack pointers as clean kernel stack. This way the kernel's own stack stays above all task stacks without overlap.</p>
+    </div>
+  </div>
+
+  <h3>First Task Launch — <code>svc_start_first_task</code></h3>
+  <div class="code-wrap">
+    <div class="code-header"><div class="code-dots"><span class="r"></span><span class="y"></span><span class="g"></span></div><div class="code-title">svc_start_first_task (naked ASM)</div></div>
+    <pre><span class="cmt">; Load pointer to current_running_node</span>
+LDR  R0, =current_running_node
+LDR  R0, [R0]           <span class="cmt">; R0 = TCB pointer</span>
+
+<span class="cmt">; First field of TCB is psp_value</span>
+LDR  R0, [R0, #0]       <span class="cmt">; R0 = saved PSP</span>
+
+<span class="cmt">; Restore R4-R11 (software-saved callee regs)</span>
+LDMIA R0!, {R4-R11}
+
+<span class="cmt">; Set PSP = new stack pointer</span>
+MSR  PSP, R0
+
+<span class="cmt">; Switch to PSP + unprivileged (CONTROL = 0b11)</span>
+MOV  R0, #3
+MSR  CONTROL, R0
+ISB
+
+<span class="cmt">; EXC_RETURN: return to thread mode, use PSP</span>
+LDR  LR, =0xFFFFFFFD
+BX   LR    <span class="cmt">; CPU pops R0-R3,R12,LR,PC,xPSR → task runs!</span></pre>
+  </div>
+</section>
+
+<!-- ───────────────────────────── SYSTICK ── -->
+<section class="section" id="systick">
+  <div class="section-label">08 — Timer & Tick</div>
+  <h2>SysTick Handler — The Kernel Heartbeat</h2>
+
+  <p>Every millisecond (at <code>TICK_HZ = 1000</code>), SysTick fires. This is the heartbeat of the entire kernel:</p>
+
+  <div class="code-wrap">
+    <div class="code-header"><div class="code-dots"><span class="r"></span><span class="y"></span><span class="g"></span></div><div class="code-title">SysTick_Handler — sched.c</div></div>
+    <pre><span class="kw">void</span> <span class="fn">SysTick_Handler</span>(<span class="kw">void</span>)
+{
+    global_systick++;   <span class="cmt">/* advance the master clock */</span>
+    tick_count++;       <span class="cmt">/* time-slice counter */</span>
+
+    <span class="cmt">/* Wake any tasks whose delay has expired */</span>
+    <span class="tp">uint8_t</span> need_switch = <span class="fn">task_wake</span>();
+
+    <span class="cmt">/* Round-robin: has this task used its full slice? */</span>
+    <span class="kw">if</span> (tick_count >= time_slice_ticks)
+    {
+        tick_count  = <span class="num">0U</span>;
+        need_switch = <span class="num">1U</span>;
+    }
+
+    <span class="kw">if</span> (need_switch)
+        <span class="fn">request_context_switch</span>();  <span class="cmt">/* pend PendSV */</span>
+}</pre>
+  </div>
+
+  <div class="diagram-wrap">
+    <div class="mermaid">
+flowchart LR
+  A["SysTick fires\n(every 1ms)"] --> B["global_systick++\ntick_count++"]
+  B --> C["task_wake()\nCheck sleep list head"]
+  C --> D{{"block_count\n<= systick?"}}
+  D -->|Yes| E["Move to ready queue\nneed_switch = 1"]
+  D -->|No| F{{"tick_count >=\ntime_slice?"}}
+  E --> F
+  F -->|Yes| G["Reset tick_count\nneed_switch = 1"]
+  F -->|No| H{{"need_switch?"}}
+  G --> H
+  H -->|Yes| I["Set PENDSV\n(ICSR register)"]
+  H -->|No| J["Return from SysTick"]
+  I --> J
+    </div>
+    <div class="caption">Figure 8 — SysTick handler decision flow</div>
+  </div>
+
+  <div class="callout callout-tip">
+    <div class="callout-icon">🧠</div>
+    <div class="callout-body">
+      <h5>Why PendSV instead of switching directly in SysTick?</h5>
+      <p>SysTick has a fixed priority. If we switched context inside it, we'd block any higher-priority interrupts still pending. PendSV has the <em>lowest possible</em> priority (0xFF), so the context switch only happens after every real interrupt handler has finished — giving minimum interrupt latency to your hardware ISRs.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────────────── SVC ── -->
+<section class="section" id="svc">
+  <div class="section-label">09 — System Calls</div>
+  <h2>SVC — The Kernel Gateway</h2>
+
+  <p>All kernel services are invoked through ARM's <strong>Supervisor Call</strong> (SVC) instruction. This is how user tasks make "requests" to the kernel, similar to how apps call operating system APIs.</p>
+
+  <div class="diagram-wrap">
+    <div class="mermaid">
+flowchart LR
+  A["User Task\ntask_delay(100)"] -->|"SVC #2\n(inline ASM)"| B["SVC_Handler\n(naked)"]
+  B --> C["TST LR, #4\nDetect MSP/PSP"]
+  C -->|"Using PSP\n(thread mode)"| D["MRS R0, PSP\nB SVC_Handler_C"]
+  D --> E["Read SVC number\nfrom PC-2 byte"]
+  E --> F{SVC number}
+  F -->|0| G["svc_start_first_task"]
+  F -->|1| H["request_context_switch\n(yield)"]
+  F -->|2| I["svc_task_delay"]
+  F -->|3| J["svc_task_sleep_until"]
+  F -->|4| K["svc_semaphore_wait"]
+  F -->|5| L["svc_semaphore_post"]
+  F -->|6| M["svc_mutex_lock"]
+  F -->|7| N["svc_mutex_unlock"]
+    </div>
+    <div class="caption">Figure 9 — SVC dispatch path from user call to kernel handler</div>
+  </div>
+
+  <h3>Complete SVC Table</h3>
+  <table class="svc-table">
+    <thead><tr><th>Number</th><th>Name</th><th>User API</th><th>What it does</th></tr></thead>
+    <tbody>
+      <tr><td><span class="svc-num">0</span></td><td>START_FIRST_TASK</td><td><em>internal</em></td><td>Loads PSP of first task, switches to unprivileged PSP mode, begins execution</td></tr>
+      <tr><td><span class="svc-num">1</span></td><td>YIELD</td><td><code>task_yield()</code></td><td>Voluntarily triggers PendSV — moves to back of ready queue at same priority</td></tr>
+      <tr><td><span class="svc-num">2</span></td><td>DELAY</td><td><code>task_delay(ticks)</code></td><td>Removes from ready queue, inserts into sleep list with <code>block_count = systick + ticks</code></td></tr>
+      <tr><td><span class="svc-num">3</span></td><td>SLEEP_UNTIL</td><td><code>task_sleep_until(*last, period)</code></td><td>Absolute periodic sleep — corrects for execution drift in periodic tasks</td></tr>
+      <tr><td><span class="svc-num">4</span></td><td>SEM_WAIT</td><td><code>semaphore_wait(sem)</code></td><td>Decrements count; if < 0, blocks task in semaphore's wait queue</td></tr>
+      <tr><td><span class="svc-num">5</span></td><td>SEM_POST</td><td><code>semaphore_post(sem)</code></td><td>Increments count; unblocks highest-priority waiter if any</td></tr>
+      <tr><td><span class="svc-num">6</span></td><td>MUTEX_LOCK</td><td><code>mutex_lock(m)</code></td><td>Acquires mutex or blocks; triggers priority inheritance if owner is lower priority</td></tr>
+      <tr><td><span class="svc-num">7</span></td><td>MUTEX_UNLOCK</td><td><code>mutex_unlock(m)</code></td><td>Releases mutex; hands to highest waiter; restores owner's original priority</td></tr>
+    </tbody>
+  </table>
+
+  <h3>How SVC Reads Its Own Number</h3>
+  <p>The SVC number is encoded <em>in the instruction itself</em> (e.g., <code>SVC #2</code> is the byte <code>0x02</code> two bytes before the return address). The handler retrieves it by reading <code>PC[-2]</code> from the saved stack frame:</p>
+  <div class="code-wrap">
+    <div class="code-header"><div class="code-dots"><span class="r"></span><span class="y"></span><span class="g"></span></div><div class="code-title">SVC_Handler_C — reading the SVC number</div></div>
+    <pre><span class="kw">static void</span> <span class="fn">SVC_Handler_C</span>(<span class="tp">uint32_t</span> *stack_frame)
+{
+    <span class="cmt">/* stack_frame[6] = saved PC (where SVC was called from) */</span>
+    <span class="tp">uint8_t</span> *pc         = (<span class="tp">uint8_t</span> *)stack_frame[<span class="num">6</span>];
+    <span class="tp">uint8_t</span>  svc_number = pc[-<span class="num">2</span>];  <span class="cmt">/* SVC imm8 is 2 bytes back */</span>
+
+    <span class="kw">switch</span> (svc_number) { ... }
+}</pre>
+  </div>
+</section>
+
+<!-- ───────────────────────────── SEMAPHORE ── -->
+<section class="section" id="semaphore">
+  <div class="section-label">10 — Synchronization</div>
+  <h2>Semaphores — Counting & Signalling</h2>
+
+  <p>A semaphore is like a ticket counter. Imagine a parking lot with 3 spaces — when all spaces fill, new cars wait. When a car leaves, the next waiting car can enter.</p>
+
+  <div class="grid grid-3">
+    <div class="card card-teal">
+      <div class="card-icon">📋</div>
+      <h4>semaphore_t Structure</h4>
+      <p><strong>count</strong> — available resources<br><strong>wq_head</strong> — waiting tasks (sorted by priority)<br><strong>wq_bitmap</strong> — priority bitmap of waiters</p>
+    </div>
+    <div class="card card-green">
+      <div class="card-icon">⬇️</div>
+      <h4>semaphore_wait() — P operation</h4>
+      <p>Decrements count. If count < 0, task is removed from ready queue and placed in semaphore's wait queue.</p>
+    </div>
+    <div class="card card-accent">
+      <div class="card-icon">⬆️</div>
+      <h4>semaphore_post() — V operation</h4>
+      <p>Increments count. If count ≤ 0, the highest-priority waiting task is moved to the ready queue.</p>
+    </div>
+  </div>
+
+  <div class="diagram-wrap">
+    <div class="mermaid">
+sequenceDiagram
+  participant TH as Task High (prio=5)
+  participant TL as Task Low  (prio=2)
+  participant SEM as Semaphore (count=0)
+  participant SCHED as Scheduler
+
+  TH->>SEM: semaphore_wait(sem)
+  Note over SEM: count-- → count=-1 (< 0)
+  SEM->>SCHED: Block Task High, add to wq_head
+  SCHED->>TL: Task Low runs (now highest ready)
+
+  TL->>TL: ... does some work ...
+  TL->>SEM: semaphore_post(sem)
+  Note over SEM: count++ → count=0 (≤ 0)
+  SEM->>SCHED: Unblock Task High (highest waiter)
+  SCHED->>TH: Task High preempts Task Low and runs!
+    </div>
+    <div class="caption">Figure 10 — Semaphore wait and post flow with priority-ordered unblocking</div>
+  </div>
+
+  <h3>Code Example</h3>
+  <div class="code-wrap">
+    <div class="code-header"><div class="code-dots"><span class="r"></span><span class="y"></span><span class="g"></span></div><div class="code-title">Producer / Consumer with semaphore</div></div>
+    <pre><span class="tp">semaphore_t</span> data_ready;
+
+<span class="kw">void</span> <span class="fn">producer_task</span>(<span class="kw">void</span>) {
+    <span class="fn">semaphore_init</span>(&data_ready, <span class="num">0</span>); <span class="cmt">/* start at 0 — consumer must wait */</span>
+    <span class="kw">while</span>(<span class="num">1</span>) {
+        fill_buffer();              <span class="cmt">/* produce data */</span>
+        <span class="fn">semaphore_post</span>(&data_ready); <span class="cmt">/* signal consumer */</span>
+        <span class="fn">task_delay</span>(<span class="num">100</span>);
+    }
+}
+
+<span class="kw">void</span> <span class="fn">consumer_task</span>(<span class="kw">void</span>) {
+    <span class="kw">while</span>(<span class="num">1</span>) {
+        <span class="fn">semaphore_wait</span>(&data_ready); <span class="cmt">/* blocks until producer posts */</span>
+        process_buffer();
+    }
+}</pre>
+  </div>
+</section>
+
+<!-- ───────────────────────────── MUTEX ── -->
+<section class="section" id="mutex">
+  <div class="section-label">11 — Priority Inheritance</div>
+  <h2>Mutex & Priority Inheritance</h2>
+
+  <p>A mutex is like a toilet key on a keyring. Only one person can have the key at a time. But Kite's mutex is smarter — it prevents a nasty problem called <strong>priority inversion</strong>.</p>
+
+  <div class="callout callout-danger">
+    <div class="callout-icon">🚨</div>
+    <div class="callout-body">
+      <h5>The Priority Inversion Problem</h5>
+      <p>A high-priority task waits for a mutex held by a low-priority task. Meanwhile, a medium-priority task preempts the low-priority task — preventing it from ever releasing the mutex. High waits forever! This famously crashed the <em>Mars Pathfinder</em> in 1997.</p>
+    </div>
+  </div>
+
+  <h3>Kite's Solution: Priority Inheritance</h3>
+
+  <div class="pi-diagram">
+    <div class="pi-step">
+      <div class="pi-step-num">1</div>
+      <div class="pi-task pi-low">LowTask (prio 1)</div>
+      <div class="pi-mutex">🔑 holds mutex</div>
+      <div class="pi-task pi-high">HighTask (prio 5)</div>
+      <p>HighTask wants the mutex — it's locked. HighTask blocks.</p>
+    </div>
+    <div class="pi-step">
+      <div class="pi-step-num">2</div>
+      <div class="pi-task pi-boosted">LowTask (prio → 5)</div>
+      <div class="pi-mutex">🔑 still holds mutex</div>
+      <div class="pi-task pi-mid">MidTask (prio 3)</div>
+      <p><code>propagate_priority()</code> boosts LowTask to prio 5 — it now beats MidTask!</p>
+    </div>
+    <div class="pi-step">
+      <div class="pi-step-num">3</div>
+      <div class="pi-task pi-low">LowTask (prio 1)</div>
+      <div class="pi-mutex">🔓 released</div>
+      <div class="pi-task pi-high">HighTask (prio 5)</div>
+      <p>LowTask finishes, releases mutex. Priority restored to 1. HighTask runs immediately.</p>
+    </div>
+  </div>
+
+  <div class="diagram-wrap">
+    <div class="mermaid">
+flowchart TD
+  A["mutex_lock(m) called"] --> B{m->locked?}
+  B -->|No: free| C["Set m->locked=1\nm->owner=current\nheld_set slot in bitmap"]
+  C --> D["Lock acquired ✅"]
+  B -->|Yes: held by another| E["current->waiting_on = m\nTCB_SET_STATE → BLOCKED\nrq_remove(current)"]
+  E --> F["wq_enqueue → sorted by priority"]
+  F --> G["propagate_priority(m, my_prio)"]
+  G --> H{Owner prio\n< my_prio?}
+  H -->|Yes| I["update_task_priority(owner, my_prio)\n(boost owner's effective prio)"]
+  I --> J{Owner also\nblocked on a mutex?}
+  J -->|Yes| K["Walk to next mutex\n(chained inheritance)"]
+  K --> H
+  J -->|No| L["request_context_switch()"]
+  H -->|No: no boost needed| L
+    </div>
+    <div class="caption">Figure 11 — mutex_lock flow with priority inheritance propagation</div>
+  </div>
+
+  <h3>Priority Restoration on Unlock</h3>
+  <div class="code-wrap">
+    <div class="code-header"><div class="code-dots"><span class="r"></span><span class="y"></span><span class="g"></span></div><div class="code-title">svc_mutex_unlock — priority restoration</div></div>
+    <pre><span class="cmt">/* After releasing mutex m, recalculate this task's
+   effective priority — it may still hold other mutexes */</span>
+<span class="kw">if</span> (<span class="fn">TCB_EFF_PRIO</span>(current) != <span class="fn">TCB_BASE_PRIO</span>(current))
+{
+    <span class="tp">uint8_t</span> max_inherited = <span class="fn">TCB_BASE_PRIO</span>(current);
+
+    <span class="kw">for</span> (<span class="tp">uint8_t</span> i = <span class="num">0</span>; i < HELD_MUTEX_MAX; i++)
+    {
+        <span class="tp">mutex_t</span> *held = <span class="fn">held_get</span>(current, i);
+        <span class="kw">if</span> (held && held->highest_waiting_prio > max_inherited)
+            max_inherited = held->highest_waiting_prio;
+    }
+    <span class="cmt">/* Restore to base OR keep boosted if another held
+       mutex still has a high-prio waiter */</span>
+    <span class="fn">update_task_priority</span>(current, max_inherited);
+}</pre>
+  </div>
+
+  <h3>Code Example</h3>
+  <div class="code-wrap">
+    <div class="code-header"><div class="code-dots"><span class="r"></span><span class="y"></span><span class="g"></span></div><div class="code-title">Protecting shared UART with mutex</div></div>
+    <pre><span class="tp">mutex_t</span> uart_mutex;
+
+<span class="kw">void</span> <span class="fn">app_init</span>(<span class="kw">void</span>) {
+    <span class="fn">mutex_init</span>(&uart_mutex);
+}
+
+<span class="kw">void</span> <span class="fn">task_sensor</span>(<span class="kw">void</span>) {
+    <span class="kw">while</span>(<span class="num">1</span>) {
+        <span class="fn">mutex_lock</span>(&uart_mutex);   <span class="cmt">/* acquire exclusive access */</span>
+        uart_print(<span class="str">"Sensor: 42\r\n"</span>);
+        <span class="fn">mutex_unlock</span>(&uart_mutex); <span class="cmt">/* release — next waiter gets it */</span>
+        <span class="fn">task_delay</span>(<span class="num">200</span>);
+    }
+}</pre>
+  </div>
+</section>
+
+<!-- ───────────────────────────── CRITICAL ── -->
+<section class="section" id="critical">
+  <div class="section-label">12 — Interrupt Safety</div>
+  <h2>Critical Sections & BASEPRI Masking</h2>
+
+  <p>A critical section is a region of code that must not be interrupted — like a bank teller who must finish counting money before answering the phone. Kite uses ARM's <code>BASEPRI</code> register to disable only kernel-level interrupts, leaving higher-priority hardware ISRs untouched.</p>
+
+  <div class="code-wrap">
+    <div class="code-header"><div class="code-dots"><span class="r"></span><span class="y"></span><span class="g"></span></div><div class="code-title">sched_enter_critical / sched_exit_critical</div></div>
+    <pre><span class="kw">void</span> <span class="fn">sched_enter_critical</span>(<span class="kw">void</span>)
+{
+    <span class="tp">uint32_t</span> current_basepri;
+    <span class="kw">__asm volatile</span>(
+        <span class="str">"mrs %0, basepri  \n"</span>  <span class="cmt">/* save current BASEPRI */</span>
+        <span class="str">"msr basepri, %1  \n"</span>  <span class="cmt">/* raise to kernel level (15) */</span>
+        <span class="str">"dsb              \n"</span>  <span class="cmt">/* data sync barrier */</span>
+        <span class="str">"isb              \n"</span>  <span class="cmt">/* instruction sync barrier */</span>
+        : <span class="str">"=r"</span>(current_basepri)
+        : <span class="str">"r"</span>(KERNEL_INTERRUPT_MASK) : <span class="str">"memory"</span>
+    );
+    <span class="kw">if</span> (critical_nesting == <span class="num">0U</span>)
+        saved_basepri = current_basepri; <span class="cmt">/* save original on first entry */</span>
+    critical_nesting++;                  <span class="cmt">/* safe to nest */</span>
+}
+
+<span class="kw">void</span> <span class="fn">sched_exit_critical</span>(<span class="kw">void</span>)
+{
+    critical_nesting--;
+    <span class="kw">if</span> (critical_nesting == <span class="num">0U</span>)        <span class="cmt">/* restore only on final exit */</span>
+        <span class="kw">__asm volatile</span>(<span class="str">"msr basepri, %0"</span> :: <span class="str">"r"</span>(saved_basepri) : <span class="str">"memory"</span>);
+}</pre>
+  </div>
+
+  <div class="diagram-wrap">
+    <div class="mermaid">
+graph LR
+  subgraph PRI["Priority levels (lower number = higher priority)"]
+    H["Hardware ISRs\nprio 0-14\n✅ NOT masked"]
+    K["SysTick / SVCall\nprio 15\n🔒 MASKED by BASEPRI=15"]
+    P["PendSV\nprio 255\n🔒 MASKED"]
+    T["Thread Mode\n(tasks)"]
+  end
+    </div>
+    <div class="caption">Figure 12 — BASEPRI=15 blocks only kernel interrupts, hardware ISRs still fire</div>
+  </div>
+
+  <div class="callout callout-success">
+    <div class="callout-icon">✅</div>
+    <div class="callout-body">
+      <h5>Nested critical sections work correctly</h5>
+      <p>If <code>ENTER_CRITICAL()</code> is called twice, only the <em>first</em> call saves the original BASEPRI. Only when <code>EXIT_CRITICAL()</code> brings the nesting counter to 0 is BASEPRI restored. This prevents accidentally re-enabling interrupts mid-nesting.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────────────── MPU ── -->
+<section class="section" id="mpu">
+  <div class="section-label">13 — Hardware Safety</div>
+  <h2>MPU Stack Guard — Catching Stack Overflows</h2>
+
+  <p>The Memory Protection Unit (MPU) can mark memory regions as no-access. Kite places a 32-byte "guard" region just below each task's stack. If a task overflows its stack into this region, the MPU immediately triggers a MemManage fault — catching the bug before it corrupts other data.</p>
+
+  <div class="diagram-wrap">
+    <div class="mermaid">
+flowchart LR
+  A["Task A stack\n(grows ↓)"] --> B["🛡️ MPU Guard\n32 bytes, no-access\n(re-armed on every context switch)"]
+  B --> C["Task B stack\n(protected)"]
+  D["Stack overflow!"] -->|"Access to guard region"| E["MemManage fault!"]
+  E --> F["MemManage_Handler\n(infinite loop / debug)"]
+    </div>
+    <div class="caption">Figure 13 — MPU guard catches stack overflow before corruption</div>
+  </div>
+
+  <div class="code-wrap">
+    <div class="code-header"><div class="code-dots"><span class="r"></span><span class="y"></span><span class="g"></span></div><div class="code-title">mpu_update_stack_guard — called on every context switch</div></div>
+    <pre><span class="kw">static void</span> <span class="fn">mpu_update_stack_guard</span>(<span class="tp">TCB_t</span> *t)
+{
+    MPU->RNR = STACK_GUARD_MPU_REGION;   <span class="cmt">/* select region 1 */</span>
+
+    <span class="kw">if</span> (t == NULL || t->stack_guard_base == NULL) {
+        MPU->RASR = <span class="num">0U</span>;                 <span class="cmt">/* disable guard */</span>
+        <span class="kw">return</span>;
+    }
+
+    <span class="cmt">/* Set base address of this task's guard region */</span>
+    MPU->RBAR = ((uint32_t)t->stack_guard_base)
+                | MPU_RBAR_VALID_Msk
+                | STACK_GUARD_MPU_REGION;
+
+    <span class="cmt">/* 32 bytes (size=4→2^5), no access (AP=0), no exec (XN) */</span>
+    MPU->RASR = MPU_RASR_ENABLE_Msk
+              | (<span class="num">4U</span> << MPU_RASR_SIZE_Pos)  <span class="cmt">/* 2^(4+1) = 32 bytes */</span>
+              | (<span class="num">0U</span> << MPU_RASR_AP_Pos)    <span class="cmt">/* AP=0: no access    */</span>
+              | MPU_RASR_XN_Msk;            <span class="cmt">/* execute never      */</span>
+}</pre>
+  </div>
+</section>
+
+<!-- ───────────────────────────── API ── -->
+<section class="section" id="api">
+  <div class="section-label">14 — API Reference</div>
+  <h2>Complete Public API</h2>
+
+  <div class="accordion">
+
+    <div class="acc-item">
+      <div class="acc-header" onclick="toggleAcc(this)">
+        <span>🚀 Kernel Control — <code>kite_start</code>, <code>create_task</code></span>
+        <span class="arrow">▼</span>
+      </div>
+      <div class="acc-body">
+        <table>
+          <thead><tr><th>Function</th><th>Parameters</th><th>Returns</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><code>kite_start()</code></td>
+              <td>none</td>
+              <td>never returns</td>
+              <td>Creates the idle task, initializes SysTick/MPU, then fires the first task via SVC. Call after all <code>create_task()</code> calls.</td>
+            </tr>
+            <tr>
+              <td><code>create_task()</code></td>
+              <td><code>uint8_t priority</code>, <code>void (*handler)(void)</code>, <code>uint32_t stack_words</code>, <code>const char *name</code></td>
+              <td><code>1</code> success, <code>0</code> failure</td>
+              <td>Allocates a TCB from the pool, carves a stack with MPU guard, and adds the task to the ready queue. Priority 0 is lowest (idle), 31 is highest.</td>
+            </tr>
+            <tr>
+              <td><code>get_systick_counter()</code></td>
+              <td>none</td>
+              <td><code>uint32_t</code></td>
+              <td>Returns the current value of <code>global_systick</code> — milliseconds since boot (at TICK_HZ=1000).</td>
+            </tr>
+            <tr>
+              <td><code>set_time_slice_ticks()</code></td>
+              <td><code>uint32_t ticks</code></td>
+              <td>void</td>
+              <td>Changes the round-robin quantum at runtime. Resets tick counter. Minimum 1 tick.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="acc-item">
+      <div class="acc-header" onclick="toggleAcc(this)">
+        <span>⏱️ Task Timing — <code>task_delay</code>, <code>task_sleep_until</code>, <code>task_yield</code></span>
+        <span class="arrow">▼</span>
+      </div>
+      <div class="acc-body">
+        <table>
+          <thead><tr><th>Function</th><th>Parameters</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><code>task_yield()</code></td>
+              <td>none</td>
+              <td>Triggers SVC #1. Moves the calling task to the back of its priority queue and requests a context switch. Other same-priority tasks get a turn.</td>
+            </tr>
+            <tr>
+              <td><code>task_delay(ticks)</code></td>
+              <td><code>uint32_t ticks</code></td>
+              <td>Blocks the calling task for exactly <em>ticks</em> milliseconds (at default TICK_HZ). Task is inserted into the sleep list, sorted by absolute wake time.</td>
+            </tr>
+            <tr>
+              <td><code>task_sleep_until(*last_wake, period)</code></td>
+              <td><code>uint32_t *last_wake</code>, <code>uint32_t period</code></td>
+              <td>Periodic sleep that corrects for execution drift. Use for precise timing loops — e.g., a control loop that must fire every 10ms regardless of how long the loop body took.</td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="code-wrap" style="margin-top:1rem">
+          <div class="code-header"><div class="code-dots"><span class="r"></span><span class="y"></span><span class="g"></span></div><div class="code-title">Drift-free periodic task using sleep_until</div></div>
+          <pre><span class="kw">void</span> <span class="fn">control_loop_task</span>(<span class="kw">void</span>) {
+    <span class="tp">uint32_t</span> last_wake = <span class="fn">get_systick_counter</span>();
+    <span class="kw">while</span>(<span class="num">1</span>) {
+        <span class="fn">run_pid_controller</span>();     <span class="cmt">/* can take variable time */</span>
+        <span class="fn">task_sleep_until</span>(&last_wake, <span class="num">10</span>); <span class="cmt">/* next wake = last_wake + 10ms */</span>
+    }                            <span class="cmt">/* no drift accumulation! */</span>
+}</pre>
+        </div>
+      </div>
+    </div>
+
+    <div class="acc-item">
+      <div class="acc-header" onclick="toggleAcc(this)">
+        <span>🚦 Semaphores — <code>semaphore_init</code>, <code>semaphore_wait</code>, <code>semaphore_post</code></span>
+        <span class="arrow">▼</span>
+      </div>
+      <div class="acc-body">
+        <table>
+          <thead><tr><th>Function</th><th>Parameters</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><code>semaphore_init(sem, count)</code></td><td><code>semaphore_t *sem</code>, <code>int32_t initial_count</code></td><td>Initializes semaphore. Use <code>count=1</code> for binary, <code>count=N</code> for N resources, <code>count=0</code> for signalling.</td></tr>
+            <tr><td><code>semaphore_wait(sem)</code></td><td><code>semaphore_t *sem</code></td><td>Decrements count. If count becomes negative, calling task blocks in the semaphore's wait queue (sorted by priority).</td></tr>
+            <tr><td><code>semaphore_post(sem)</code></td><td><code>semaphore_t *sem</code></td><td>Increments count. If there are waiters (count was negative), the <em>highest-priority</em> waiter is unblocked and moved to ready queue.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="acc-item">
+      <div class="acc-header" onclick="toggleAcc(this)">
+        <span>🔒 Mutexes — <code>mutex_init</code>, <code>mutex_lock</code>, <code>mutex_unlock</code></span>
+        <span class="arrow">▼</span>
+      </div>
+      <div class="acc-body">
+        <table>
+          <thead><tr><th>Function</th><th>Parameters</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><code>mutex_init(m)</code></td><td><code>mutex_t *m</code></td><td>Initializes mutex to unlocked state. No owner, no waiters.</td></tr>
+            <tr><td><code>mutex_lock(m)</code></td><td><code>mutex_t *m</code></td><td>Acquires mutex or blocks. If locked by another task, triggers priority inheritance up the ownership chain.</td></tr>
+            <tr><td><code>mutex_unlock(m)</code></td><td><code>mutex_t *m</code></td><td>Only the owner can unlock. Hands ownership to the highest-priority waiter if any. Restores calling task's priority.</td></tr>
+          </tbody>
+        </table>
+        <div class="callout callout-warn" style="margin-top:1rem">
+          <div class="callout-icon">⚠️</div>
+          <div class="callout-body">
+            <h5>Mutexes are not binary semaphores</h5>
+            <p>Only the owning task can call <code>mutex_unlock()</code>. Attempting to unlock a mutex you don't own is silently ignored. Unlike semaphores, mutexes implement priority inheritance — always prefer mutex for mutual exclusion, semaphore for signalling.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ───────────────────────────── CONFIG ── -->
+<section class="section" id="config">
+  <div class="section-label">15 — Configuration</div>
+  <h2>Configurable Parameters (config.h)</h2>
+
+  <p>All compile-time tuning is done in <code>config.h</code>. Static assertions in <code>sched.h</code> catch invalid configurations at build time.</p>
+
+  <table>
+    <thead><tr><th>Macro</th><th>Default</th><th>Constraints</th><th>Description</th></tr></thead>
+    <tbody>
+      <tr><td><code>MAX_TASKS</code></td><td>—</td><td>≤ 31</td><td>Maximum number of tasks (including idle). Fits in 32-bit bitmap.</td></tr>
+      <tr><td><code>PRIO_LEVELS</code></td><td>32</td><td>≤ 32</td><td>Number of distinct priority levels. 0 = lowest (idle), 31 = highest.</td></tr>
+      <tr><td><code>SCHED_TIME_SLICE</code></td><td>—</td><td>≥ 1</td><td>Round-robin quantum in ticks. Equal-priority tasks each run for this many ticks.</td></tr>
+      <tr><td><code>HELD_MUTEX_MAX</code></td><td>—</td><td>1–16</td><td>Maximum mutexes a single task can hold simultaneously. Stored as uint16_t bitmap.</td></tr>
+      <tr><td><code>TICK_HZ</code></td><td>1000</td><td>1–10000</td><td>SysTick frequency in Hz. 1000 = 1ms ticks. Drives all timing.</td></tr>
+      <tr><td><code>IDLE_TASK_STACK_SIZE</code></td><td>64</td><td>≥ 32 words</td><td>Stack size (in words) for the idle task.</td></tr>
+      <tr><td><code>ENABLE_STOP_MODE</code></td><td>undefined</td><td>optional</td><td>If defined, idle task enters STM32 STOP mode (WFI with LPDS bit) for ultra-low power.</td></tr>
+      <tr><td><code>SCHED_DEBUG</code></td><td>undefined</td><td>optional</td><td>If defined, each TCB stores a <code>const char *name</code> pointer for debugging.</td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout callout-info">
+    <div class="callout-icon">🔧</div>
+    <div class="callout-body">
+      <h5>Build-time Validation</h5>
+      <p>All these constraints are enforced with <code>_Static_assert</code> — if you violate them (e.g., set <code>MAX_TASKS = 32</code>), the compiler will refuse to build with a descriptive error message. No runtime surprises.</p>
+    </div>
+  </div>
+
+  <h3>Minimal Working Example</h3>
+  <div class="code-wrap">
+    <div class="code-header"><div class="code-dots"><span class="r"></span><span class="y"></span><span class="g"></span></div><div class="code-title">main.c — minimal Kite RTOS application</div></div>
+    <pre><span class="mac">#include</span> <span class="str">"sched.h"</span>
+
+<span class="tp">semaphore_t</span> print_sem;
+<span class="tp">mutex_t</span>     uart_mtx;
+
+<span class="kw">void</span> <span class="fn">led_task</span>(<span class="kw">void</span>) {
+    <span class="kw">while</span>(<span class="num">1</span>) {
+        GPIOC->ODR ^= (<span class="num">1</span> << <span class="num">13</span>);
+        <span class="fn">task_delay</span>(<span class="num">500</span>);
+    }
+}
+
+<span class="kw">void</span> <span class="fn">sensor_task</span>(<span class="kw">void</span>) {
+    <span class="tp">uint32_t</span> last = <span class="fn">get_systick_counter</span>();
+    <span class="kw">while</span>(<span class="num">1</span>) {
+        <span class="tp">int</span> val = read_adc();
+        <span class="fn">mutex_lock</span>(&uart_mtx);
+        uart_printf(<span class="str">"ADC=%d\n"</span>, val);
+        <span class="fn">mutex_unlock</span>(&uart_mtx);
+        <span class="fn">task_sleep_until</span>(&last, <span class="num">100</span>);
+    }
+}
+
+<span class="kw">int</span> <span class="fn">main</span>(<span class="kw">void</span>) {
+    <span class="fn">SystemInit</span>();
+    <span class="fn">gpio_init</span>();
+    <span class="fn">uart_init</span>();
+
+    <span class="fn">mutex_init</span>(&uart_mtx);
+    <span class="fn">semaphore_init</span>(&print_sem, <span class="num">1</span>);
+
+    <span class="fn">create_task</span>(<span class="num">3</span>, led_task,    <span class="num">128</span>, <span class="str">"LED"</span>);
+    <span class="fn">create_task</span>(<span class="num">5</span>, sensor_task, <span class="num">256</span>, <span class="str">"SENSOR"</span>);
+
+    <span class="fn">kite_start</span>();  <span class="cmt">/* never returns */</span>
+}</pre>
+  </div>
+</section>
+
+</div> <!-- /main -->
+
+<footer>
+  🪁 <span>Kite RTOS</span> — Designed for determinism, built for Cortex-M. &nbsp;|&nbsp; ARM · C · Preemptive · Priority Inheritance
+</footer>
+
 <script>
-    mermaid.initialize({ startOnLoad: true, theme: 'default', flowchart: { useMaxWidth: true, curve: 'basis' } });
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'default',
+    flowchart: { useMaxWidth: true, curve: 'basis', htmlLabels: true },
+    sequence: { useMaxWidth: true },
+    themeVariables: {
+      primaryColor: '#0f2040',
+      primaryTextColor: '#fff',
+      primaryBorderColor: '#1a3a6b',
+      lineColor: '#64748b',
+      secondaryColor: '#f0f4f8',
+      tertiaryColor: '#fff'
+    }
+  });
+
+  function toggleAcc(header) {
+    const body = header.nextElementSibling;
+    const arrow = header.querySelector('.arrow');
+    body.classList.toggle('open');
+    arrow.style.transform = body.classList.contains('open') ? 'rotate(180deg)' : '';
+  }
+
+  // Sidebar active link tracking
+  const sections = document.querySelectorAll('section[id], div[id]');
+  const links = document.querySelectorAll('.sidebar a');
+
+  window.addEventListener('scroll', () => {
+    let current = '';
+    sections.forEach(s => {
+      if (window.scrollY >= s.offsetTop - 120) current = s.id;
+    });
+    links.forEach(a => {
+      a.classList.remove('active');
+      if (a.getAttribute('href') === '#' + current) a.classList.add('active');
+    });
+  });
 </script>
 </body>
 </html>
