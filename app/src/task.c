@@ -20,6 +20,21 @@
 
 static mutex_t uart_mutex;
 
+
+int celsious;
+char temp[10];
+char customChar[] = {
+  0x0E,
+  0x0A,
+  0x0E,
+};
+
+void custom_char_temp(char cc[]){
+	int i;
+	for(i=0;i<8;i++)
+        lcd_write_data(cc[i]);
+}
+
 static uint32_t lm35_read_celsius(GPIO_TypeDef *port, int pin)
 {
     uint32_t raw = adc_read_pin(port, pin);
@@ -75,15 +90,21 @@ static void led_task(void)
 static void temp_task(void)
 {
     uint32_t temp_ch10;
+    lcd_write_cmd(0x83);
+    lcd_write_str("Temp:   C");
+    lcd_write_cmd(0x40);
+    custom_char_temp(customChar);
 
     while (1)
     {
         temp_ch10 = lm35_read_celsius(GPIOC, LM35);
-        char temp[10] = {0};
-        mutex_lock(&uart_mutex);
-        uart_printf(USART2, "[TEMP] PC0: %lu C\n\r", temp_ch10);
         itoa(temp_ch10, temp);
-        lcd_write_str(temp);
+        mutex_lock(&uart_mutex);
+        uart_printf(USART2, "TEMP: %u\n\r", temp_ch10);
+        lcd_write_cmd(0x8a);
+        lcd_write_data(0x00);
+		lcd_write_cmd(0x88);
+		lcd_write_str(temp);
         mutex_unlock(&uart_mutex);
 
         task_delay(LM35_SAMPLE_DELAY);
