@@ -21,15 +21,16 @@
 static mutex_t uart_mutex;
 
 
-int celsious;
+uint32_t celsious;
 char temp[10];
+
 char customChar[] = {
   0x0E,
   0x0A,
   0x0E,
 };
 
-void custom_char_temp(char cc[]){
+static void custom_char_temp(char cc[]){
 	int i;
 	for(i=0;i<8;i++)
         lcd_write_data(cc[i]);
