@@ -35,7 +35,7 @@
 #define RED_LED     13U
 #define GREEN_LED   14U
 
-#define LM35_VREF_MV    3300U   /* Reference voltage in mV                 */
+#define LM35_VREF_MV    1200U   /* Reference voltage in mV (calibrated)    */
 #define LM35_ADC_MAX    4095U   /* 12-bit ADC full scale                   */
 #define LM35_MV_PER_DEG   10U  /* LM35 output: 10 mV / °C                 */
 
@@ -67,7 +67,7 @@ static const char customChar[8] = {
 static void load_degree_char(void)
 {
     int i;
-    lcd_write_cmd(0x40);                   /* CGRAM address 0              */
+    lcd_write_cmd(0x40);
     for (i = 0; i < 8; i++)
         lcd_write_data(customChar[i]);
 }
@@ -75,7 +75,8 @@ static void load_degree_char(void)
 static uint32_t lm35_read_celsius(GPIO_TypeDef *port, int pin)
 {
     uint32_t raw = adc_read_pin(port, pin);
-    return (raw * LM35_VREF_MV) / (LM35_ADC_MAX * LM35_MV_PER_DEG);
+    uint32_t temp = (raw * 330U) / 4095U;
+    return temp;
 }
 
 static void uart_print_locked(const char *msg)
@@ -90,6 +91,20 @@ static void led_task(void)
     while (1) {
         gpio_toggle(GPIOB, GREEN_LED);
         task_delay(100);
+    }
+}
+
+static void temp_log_task(void)
+{
+    while (1) {
+        uint32_t raw = adc_read_pin(GPIOC, LM35);
+        uint32_t temp = (raw * 120U) / 4095U;
+        
+        mutex_lock(&uart_mutex);
+        uart_printf(USART2, "ADC: %lu | Temp: %lu C\n\r", raw, temp);
+        mutex_unlock(&uart_mutex);
+        
+        task_delay(SAMPLE_DELAY);
     }
 }
 
@@ -185,9 +200,10 @@ void tasks_init(void)
 
     mutex_init(&uart_mutex);
 
-    create_task(3, led_task,      128U,  "led");
-    create_task(2, producer_task, 128U,  "producer");
-    create_task(1, consumer_task, 128U,  "consumer");
+    create_task(4, led_task,        128U,  "led");
+    create_task(3, temp_log_task,   128U,  "temp_log");
+    create_task(2, producer_task,   128U,  "producer");
+    create_task(1, consumer_task,   128U,  "consumer");
 
     uart_printf(USART2, ">>>>>BOOTING: KITE RTOS<<<<\n\r");
     uart_printf(USART2, "SYSTEM CLOCK: %luHz\n\r\n", SystemCoreClock);
