@@ -43,6 +43,7 @@
 
 // Shared buffer
 static uint32_t shared_temp;
+static uint8_t led_flag;
 
 /*
  * Producer-consumer semaphores (classic two-semaphore pattern):
@@ -86,11 +87,23 @@ static void uart_print_locked(const char *msg)
     mutex_unlock(&uart_mutex);
 }
 
-static void led_task(void)
+static void led1_task(void)
 {
     while (1) {
         gpio_toggle(GPIOB, GREEN_LED);
-        task_delay(100);
+        task_delay(500);
+    }
+}
+
+static void led2_task(void)
+{
+    while (1) {
+        if(led_flag)
+            task_yield();
+        else {
+            gpio_toggle(GPIOB, RED_LED);
+            task_delay(250);
+        }
     }
 }
 
@@ -178,14 +191,14 @@ static void consumer_task(void)
 void EXTI9_5_IRQHandler(void)
 {
     if (gpio_irq_is_pending(DN_SWITCH)) {
-        gpio_write(GPIOB, RED_LED, 1);
-        gpio_write(GPIOB, BUZZER, 0);
+        led_flag = 1;
+        gpio_write(GPIOB, BUZZER, 1);
         gpio_irq_clear_pending(DN_SWITCH);
     }
 
     if (gpio_irq_is_pending(UP_SWITCH)) {
-        gpio_write(GPIOB, RED_LED, 0);
-        gpio_write(GPIOB, BUZZER, 1);
+        led_flag = 0;
+        gpio_write(GPIOB, BUZZER, 0);
         gpio_irq_clear_pending(UP_SWITCH);
     }
 }
@@ -200,7 +213,8 @@ void tasks_init(void)
 
     mutex_init(&uart_mutex);
 
-    create_task(4, led_task,        128U,  "led");
+    create_task(4, led1_task,       128U,  "led1");
+    create_task(4, led2_task,       128U,  "led2");
     create_task(3, temp_log_task,   128U,  "temp_log");
     create_task(2, producer_task,   128U,  "producer");
     create_task(1, consumer_task,   128U,  "consumer");
