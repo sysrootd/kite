@@ -82,9 +82,9 @@ static uint32_t lm35_read_celsius(GPIO_TypeDef *port, int pin)
 
 static void uart_print_locked(const char *msg)
 {
-    mutex_lock(&uart_mutex);
+    kmutex_lock(&uart_mutex);
     uart_printf(USART2, "%s\n\r", msg);
-    mutex_unlock(&uart_mutex);
+    kmutex_unlock(&uart_mutex);
 }
 
 static void led1_task(void)
@@ -115,9 +115,9 @@ static void temp_log_task(void)
         uint32_t raw = adc_read_pin(GPIOC, LM35);
         uint32_t temp = (raw * 120U) / 4095U;
         
-        mutex_lock(&uart_mutex);
+        kmutex_lock(&uart_mutex);
         uart_printf(USART2, "ADC: %lu | Temp: %lu C\n\r", raw, temp);
-        mutex_unlock(&uart_mutex);
+        kmutex_unlock(&uart_mutex);
         
         ktask_delay(SAMPLE_DELAY);
     }
@@ -126,9 +126,9 @@ static void temp_log_task(void)
 /*/
  *
  *  Flow:
- *    1. semaphore_wait(&sem_empty)  – block until there is a free slot
+ *    1. ksem_wait(&sem_empty)  – block until there is a free slot
  *    2. Write a new temperature sample into shared_temp
- *    3. semaphore_post(&sem_full)   – signal the consumer that data is ready
+ *    3. ksem_post(&sem_full)   – signal the consumer that data is ready
  *    4. Log "producer" over UART (mutex-protected)
  *    5. Wait SAMPLE_DELAY ticks before the next reading
  */
@@ -136,13 +136,13 @@ static void producer_task(void)
 {
     while (1) {
         /* Wait for the consumer to have consumed the previous value */
-        semaphore_wait(&sem_empty);
+        ksem_wait(&sem_empty);
 
         /* Critical section: update the shared buffer */
         shared_temp = lm35_read_celsius(GPIOC, LM35);
 
         /* Notify the consumer that new data is available */
-        semaphore_post(&sem_full);
+        ksem_post(&sem_full);
 
         /* UART log – mutex ensures no overlap with consumer's log line */
         uart_print_locked("producer");
@@ -155,10 +155,10 @@ static void producer_task(void)
 /*
  *
  *  Flow:
- *    1. semaphore_wait(&sem_full)   – block until the producer has new data
+ *    1. ksem_wait(&sem_full)   – block until the producer has new data
  *    2. Read shared_temp (safe: producer is blocked on sem_empty)
  *    3. Update LCD display
- *    4. semaphore_post(&sem_empty)  – release the slot for the next sample
+ *    4. ksem_post(&sem_empty)  – release the slot for the next sample
  *    5. Log "consumer" over UART (mutex-protected)
  */
 static void consumer_task(void)
@@ -171,7 +171,7 @@ static void consumer_task(void)
 
     while (1) {
         /* Block until the producer has deposited a new value */
-        semaphore_wait(&sem_full);
+        ksem_wait(&sem_full);
 
         /* Safe to read: producer is now blocked on sem_empty */
         itoa(shared_temp, temp_str);
@@ -183,7 +183,7 @@ static void consumer_task(void)
         lcd_write_data(0x00);          /* custom degree symbol             */
 
         /* Release the slot so the producer can write the next sample */
-        semaphore_post(&sem_empty);
+        ksem_post(&sem_empty);
 
         /* UART log – mutex ensures no overlap with producer's log line */
         uart_print_locked("consumer");
@@ -208,12 +208,12 @@ void EXTI9_5_IRQHandler(void)
 void tasks_init(void)
 {
     /* sem_empty = 1  → one free slot exists in the shared buffer          */
-    semaphore_init(&sem_empty, 1);
+    ksem_init(&sem_empty, 1);
 
     /* sem_full  = 0  → nothing ready to consume yet                       */
-    semaphore_init(&sem_full,  0);
+    ksem_init(&sem_full,  0);
 
-    mutex_init(&uart_mutex);
+    kmutex_init(&uart_mutex);
 
     ktask_create(4, led1_task,       128U,  "led1");
     ktask_create(4, led2_task,       128U,  "led2");

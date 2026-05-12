@@ -930,7 +930,7 @@ static void svc_task_sleep_until(uint32_t *last_wake, uint32_t period)
 }
 
 
-void semaphore_init(semaphore_t *sem, int32_t initial_count)
+void ksem_init(semaphore_t *sem, int32_t initial_count)
 {
     sem->count     = initial_count;
     sem->wq_head   = NULL;
@@ -938,14 +938,14 @@ void semaphore_init(semaphore_t *sem, int32_t initial_count)
 }
 
 
-void semaphore_wait(semaphore_t *sem)
+void ksem_wait(semaphore_t *sem)
 {
     register semaphore_t *r0 __asm("r0") = sem;
     __asm volatile("svc 4" : : "r"(r0) : "memory");
 }
 
 
-void semaphore_post(semaphore_t *sem)
+void ksem_post(semaphore_t *sem)
 {
     register semaphore_t *r0 __asm("r0") = sem;
     __asm volatile("svc 5" : : "r"(r0) : "memory");
@@ -1011,7 +1011,7 @@ static void svc_semaphore_post(semaphore_t *sem)
 }
 
 
-void mutex_init(mutex_t *m)
+void kmutex_init(mutex_t *m)
 {
     m->locked               = 0U;
     m->owner                = NULL;
@@ -1021,14 +1021,14 @@ void mutex_init(mutex_t *m)
 }
 
 
-void mutex_lock(mutex_t *m)
+void kmutex_lock(mutex_t *m)
 {
     register mutex_t *r0 __asm("r0") = m;
     __asm volatile("svc 6" : : "r"(r0) : "memory");
 }
 
 
-void mutex_unlock(mutex_t *m)
+void kmutex_unlock(mutex_t *m)
 {
     register mutex_t *r0 __asm("r0") = m;
     __asm volatile("svc 7" : : "r"(r0) : "memory");
