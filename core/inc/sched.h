@@ -119,11 +119,11 @@ struct TCB {
 
 void    kite_start(void);
 uint32_t get_systick_counter(void);
-uint8_t  create_task(uint8_t priority, void (*handler)(void),
+uint8_t  ktask_create(uint8_t priority, void (*handler)(void),
                      uint32_t stack_words, const char *name);
-void     task_yield(void);
-void     task_delay(uint32_t ticks);
-void     task_sleep_until(uint32_t *last_wake, uint32_t period);
+void     ktask_yield(void);
+void     ktask_delay(uint32_t ticks);
+void     ktask_sleep_until(uint32_t *last_wake, uint32_t period);
 void     set_time_slice_ticks(uint32_t ticks);
 
 void semaphore_init(semaphore_t *sem, int32_t initial_count);

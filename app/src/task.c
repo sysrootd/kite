@@ -91,18 +91,20 @@ static void led1_task(void)
 {
     while (1) {
         gpio_toggle(GPIOB, GREEN_LED);
-        task_delay(500);
+        ktask_delay(500);
     }
 }
 
 static void led2_task(void)
 {
     while (1) {
-        if(led_flag)
-            task_yield();
+        if(led_flag) {
+            gpio_write(GPIOB, RED_LED, 1);
+            ktask_yield();
+        }
         else {
             gpio_toggle(GPIOB, RED_LED);
-            task_delay(250);
+            ktask_delay(250);
         }
     }
 }
@@ -117,7 +119,7 @@ static void temp_log_task(void)
         uart_printf(USART2, "ADC: %lu | Temp: %lu C\n\r", raw, temp);
         mutex_unlock(&uart_mutex);
         
-        task_delay(SAMPLE_DELAY);
+        ktask_delay(SAMPLE_DELAY);
     }
 }
 
@@ -146,7 +148,7 @@ static void producer_task(void)
         uart_print_locked("producer");
 
         /* Yield the CPU for the rest of the sampling period */
-        task_delay(SAMPLE_DELAY);
+        ktask_delay(SAMPLE_DELAY);
     }
 }
 
@@ -213,11 +215,11 @@ void tasks_init(void)
 
     mutex_init(&uart_mutex);
 
-    create_task(4, led1_task,       128U,  "led1");
-    create_task(4, led2_task,       128U,  "led2");
-    create_task(3, temp_log_task,   128U,  "temp_log");
-    create_task(2, producer_task,   128U,  "producer");
-    create_task(1, consumer_task,   128U,  "consumer");
+    ktask_create(4, led1_task,       128U,  "led1");
+    ktask_create(4, led2_task,       128U,  "led2");
+    ktask_create(3, temp_log_task,   128U,  "temp_log");
+    ktask_create(2, producer_task,   128U,  "producer");
+    ktask_create(1, consumer_task,   128U,  "consumer");
 
     uart_printf(USART2, ">>>>>BOOTING: KITE RTOS<<<<\n\r");
     uart_printf(USART2, "SYSTEM CLOCK: %luHz\n\r\n", SystemCoreClock);

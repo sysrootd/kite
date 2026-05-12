@@ -59,7 +59,7 @@ static void mpu_update_stack_guard(TCB_t *t);
 
 static uint32_t *find_stack_area(uint32_t stack_words, uint32_t **guard_base_out);
 static TCB_t    *alloc_new_tcb_node(void);
-static void      create_idle_task(void);
+static void      idle_ktask_create(void);
 static void __attribute__((used)) task_stack_init(void);
 static void __attribute__((used, noreturn)) kernel_panic(void);
 static void idle_task(void);
@@ -515,7 +515,7 @@ static TCB_t *alloc_new_tcb_node(void)
 }
 
 
-static void __attribute((used)) create_idle_task(void)
+static void __attribute((used)) idle_ktask_create(void)
 {
     TCB_t *idle = alloc_new_tcb_node();
     if (idle == NULL)
@@ -581,7 +581,7 @@ static void __attribute__((used)) task_stack_init(void)
 }
 
 
-uint8_t create_task(uint8_t priority, void (*handler)(void),
+uint8_t ktask_create(uint8_t priority, void (*handler)(void),
                     uint32_t stack_words, const char *name)
 {
     if (handler == NULL)
@@ -632,7 +632,7 @@ uint8_t create_task(uint8_t priority, void (*handler)(void),
 
 void kite_start(void)
 {
-    create_idle_task();
+    idle_ktask_create();
     scheduler_init();
 }
 
@@ -863,20 +863,20 @@ static void __attribute__((used)) scheduler(void)
 }
 
 
-void task_yield(void)
+void ktask_yield(void)
 {
     __asm volatile("svc 1" ::: "memory");
 }
 
 
-void task_delay(uint32_t ticks)
+void ktask_delay(uint32_t ticks)
 {
     register uint32_t r0 __asm("r0") = ticks;
     __asm volatile("svc 2" : : "r"(r0) : "memory");
 }
 
 
-void task_sleep_until(uint32_t *last_wake, uint32_t period)
+void ktask_sleep_until(uint32_t *last_wake, uint32_t period)
 {
     register uint32_t *r0 __asm("r0") = last_wake;
     register uint32_t  r1 __asm("r1") = period;
