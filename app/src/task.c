@@ -82,16 +82,16 @@ static uint32_t lm35_read_celsius(GPIO_TypeDef *port, int pin)
 
 static void uart_print_locked(const char *msg)
 {
-    kmutex_lock(&uart_mutex);
+    mutex_lock(&uart_mutex);
     uart_printf(USART2, "%s\n\r", msg);
-    kmutex_unlock(&uart_mutex);
+    mutex_unlock(&uart_mutex);
 }
 
 static void led1_task(void)
 {
     while (1) {
         gpio_toggle(GPIOB, GREEN_LED);
-        ktask_delay(500);
+        task_delay(500);
     }
 }
 
@@ -100,11 +100,11 @@ static void led2_task(void)
     while (1) {
         if(led_flag) {
             gpio_write(GPIOB, RED_LED, 1);
-            ktask_yield();
+            task_yield();
         }
         else {
             gpio_toggle(GPIOB, RED_LED);
-            ktask_delay(250);
+            task_delay(250);
         }
     }
 }
@@ -115,11 +115,11 @@ static void temp_log_task(void)
         uint32_t raw = adc_read_pin(GPIOC, LM35);
         uint32_t temp = (raw * 120U) / 4095U;
         
-        kmutex_lock(&uart_mutex);
+        mutex_lock(&uart_mutex);
         uart_printf(USART2, "ADC: %lu | Temp: %lu C\n\r", raw, temp);
-        kmutex_unlock(&uart_mutex);
+        mutex_unlock(&uart_mutex);
         
-        ktask_delay(SAMPLE_DELAY);
+        task_delay(SAMPLE_DELAY);
     }
 }
 
@@ -136,19 +136,19 @@ static void producer_task(void)
 {
     while (1) {
         /* Wait for the consumer to have consumed the previous value */
-        ksem_wait(&sem_empty);
+        sem_wait(&sem_empty);
 
         /* Critical section: update the shared buffer */
         shared_temp = lm35_read_celsius(GPIOC, LM35);
 
         /* Notify the consumer that new data is available */
-        ksem_post(&sem_full);
+        sem_post(&sem_full);
 
         /* UART log – mutex ensures no overlap with consumer's log line */
         uart_print_locked("producer");
 
         /* Yield the CPU for the rest of the sampling period */
-        ktask_delay(SAMPLE_DELAY);
+        task_delay(SAMPLE_DELAY);
     }
 }
 
@@ -171,7 +171,7 @@ static void consumer_task(void)
 
     while (1) {
         /* Block until the producer has deposited a new value */
-        ksem_wait(&sem_full);
+        sem_wait(&sem_full);
 
         /* Safe to read: producer is now blocked on sem_empty */
         itoa(shared_temp, temp_str);
@@ -183,7 +183,7 @@ static void consumer_task(void)
         lcd_write_data(0x00);          /* custom degree symbol             */
 
         /* Release the slot so the producer can write the next sample */
-        ksem_post(&sem_empty);
+        sem_post(&sem_empty);
 
         /* UART log – mutex ensures no overlap with producer's log line */
         uart_print_locked("consumer");
@@ -208,18 +208,18 @@ void EXTI9_5_IRQHandler(void)
 void tasks_init(void)
 {
     /* sem_empty = 1  → one free slot exists in the shared buffer          */
-    ksem_init(&sem_empty, 1);
+    sem_init(&sem_empty, 1);
 
     /* sem_full  = 0  → nothing ready to consume yet                       */
-    ksem_init(&sem_full,  0);
+    sem_init(&sem_full,  0);
 
-    kmutex_init(&uart_mutex);
+    mutex_init(&uart_mutex);
 
-    ktask_create(4, led1_task,       128U,  "led1");
-    ktask_create(4, led2_task,       128U,  "led2");
-    ktask_create(3, temp_log_task,   128U,  "temp_log");
-    ktask_create(2, producer_task,   128U,  "producer");
-    ktask_create(1, consumer_task,   128U,  "consumer");
+    create_task(4, led1_task,       128U,  "led1");
+    create_task(4, led2_task,       128U,  "led2");
+    create_task(3, temp_log_task,   128U,  "temp_log");
+    create_task(2, producer_task,   128U,  "producer");
+    create_task(1, consumer_task,   128U,  "consumer");
 
     uart_printf(USART2, ">>>>>BOOTING: KITE RTOS<<<<\n\r");
     uart_printf(USART2, "SYSTEM CLOCK: %luHz\n\r\n", SystemCoreClock);

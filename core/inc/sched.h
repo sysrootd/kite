@@ -88,6 +88,7 @@ struct TCB {
     uint16_t   held_mutex_bitmap;
     void      *waiting_on;
     uint32_t  *stack_guard_base;
+    uint8_t    tcb_idx;
     TCB_t     *next_tcb_node;
     TCB_t     *rq_next;
     TCB_t     *rq_prev;
@@ -119,24 +120,19 @@ struct TCB {
 
 void    kite_start(void);
 uint32_t get_systick_counter(void);
-uint8_t  ktask_create(uint8_t priority, void (*handler)(void),
+uint8_t  create_task(uint8_t priority, void (*handler)(void),
                      uint32_t stack_words, const char *name);
-void     ktask_yield(void);
-void     ktask_delay(uint32_t ticks);
-void     ktask_sleep_until(uint32_t *last_wake, uint32_t period);
+void     task_yield(void);
+void     task_delay(uint32_t ticks);
+void     task_sleep_until(uint32_t *last_wake, uint32_t period);
 void     set_time_slice_ticks(uint32_t ticks);
 
-void ksem_init(semaphore_t *sem, int32_t initial_count);
-void ksem_wait(semaphore_t *sem);
-void ksem_post(semaphore_t *sem);
+void sem_init(semaphore_t *sem, int32_t initial_count);
+void sem_wait(semaphore_t *sem);
+void sem_post(semaphore_t *sem);
 
-void kmutex_init(mutex_t *m);
-void kmutex_lock(mutex_t *m);
-void kmutex_unlock(mutex_t *m);
-
-void hardfault(uint32_t *stack);
-void MemManage_Handler(void);
-void BusFault_Handler(void);
-void UsageFault_Handler(void);
+void mutex_init(mutex_t *m);
+void mutex_lock(mutex_t *m);
+void mutex_unlock(mutex_t *m);
 
 #endif
