@@ -43,9 +43,7 @@
 
 // Shared buffer
 static uint32_t shared_temp;
-static uint8_t led_flag;
-
-/* Task.c Testing ************ */
+static uint8_t 
 
 
 /*
