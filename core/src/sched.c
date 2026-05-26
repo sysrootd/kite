@@ -91,7 +91,13 @@ void sched_enter_critical(void)
 
 void sched_exit_critical(void)
 {
+    if (critical_nesting == 0U)
+    {
+        kernel_panic();
+    }
+
     critical_nesting--;
+
     if (critical_nesting == 0U)
     {
         __asm volatile (
@@ -374,6 +380,13 @@ static void mpu_update_stack_guard(TCB_t *t)
 
 static void core_faults_init(void)
 {
+
+#if defined(__FPU_PRESENT) && (__FPU_PRESENT == 1)
+    SCB->CPACR |= (0xFU << 20U);
+    __DSB();
+    __ISB();
+#endif
+ 
     SCB->SHCSR |= SCB_SHCSR_MEMFAULTENA_Msk
                |  SCB_SHCSR_BUSFAULTENA_Msk
                |  SCB_SHCSR_USGFAULTENA_Msk;

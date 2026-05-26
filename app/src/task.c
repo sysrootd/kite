@@ -105,7 +105,7 @@ static void led2_task(void)
         }
         else {
             gpio_toggle(GPIOB, RED_LED);
-            task_delay(250);
+            task_delay(500);
         }
     }
 }
