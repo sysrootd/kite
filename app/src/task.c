@@ -1,22 +1,4 @@
-#include "task.h"
-#include "sched.h"
-#include "gpio.h"
-#include "uart.h"
-#include "adc.h"
-#include "lcd.h"
-
-#define LM35        0
-#define UP_SWITCH   8U
-#define DN_SWITCH   9U
-#define BUZZER      12U
-#define RED_LED     13U
-#define GREEN_LED   14U
-
-#define LM35_VREF_MV    1200U   
-#define LM35_ADC_MAX    4095U   
-#define LM35_MV_PER_DEG   10U  
-
-#define SAMPLE_DELAY    5000U   
+#include "task.h"  
 
 static uint32_t shared_temp;
 static uint8_t led_flag;
