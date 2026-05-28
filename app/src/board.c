@@ -1,3 +1,9 @@
+#include "gpio.h"
+#include "uart.h"
+#include "adc.h"
+#include "lcd.h"
+#include "sched.h"
+
 #include "board.h"
 
 void board_init(void)

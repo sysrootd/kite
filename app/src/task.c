@@ -1,4 +1,39 @@
-#include "task.h"  
+/*
+ * task.c - Application Tasks for KITE RTOS
+ *
+ * Overview:
+ *   This file implements the main application tasks for a temperature monitoring
+ *   system using the KITE real-time operating system. The system reads temperature
+ *   data from an LM35 temperature sensor, displays it on an LCD, controls LEDs,
+ *   and logs data via UART.
+ *
+ * Main Tasks:
+ *   - led1_task:      Toggles GREEN_LED at 500ms intervals (heartbeat)
+ *   - led2_task:      Controls RED_LED based on led_flag (conditional blinking)
+ *   - temp_log_task:  Reads ADC and logs temperature via UART at regular intervals
+ *   - producer_task:  Reads temperature sensor and places data in shared buffer
+ *   - consumer_task:  Retrieves temperature from shared buffer and displays on LCD
+ *
+ * Synchronization:
+ *   - sem_empty:      Semaphore tracking free slots in shared buffer (init=1)
+ *   - sem_full:       Semaphore tracking filled slots in shared buffer (init=0)
+ *   - uart_mutex:     Mutex protecting UART output to prevent line interleaving
+ *
+ * Shared Resources:
+ *   - shared_temp:    Temperature value shared between producer and consumer tasks
+ *   - led_flag:       Flag to control RED_LED behavior from interrupt handler
+ *
+ * Interrupt Handler:
+ *   - EXTI9_5_IRQHandler: Handles GPIO interrupts from UP_SWITCH and DN_SWITCH buttons
+ */
+
+#include "gpio.h"
+#include "uart.h"
+#include "adc.h"
+#include "lcd.h"
+#include "sched.h"  
+
+#include "task.h"
 
 static uint32_t shared_temp;
 static uint8_t led_flag;
