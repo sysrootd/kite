@@ -1,17 +1,4 @@
 #include "board.h"
-#include "gpio.h"
-#include "uart.h"
-#include "sched.h"
-#include "adc.h"
-#include "lcd.h"
-
-#define LM35       0
-#define UP_SWITCH  8U
-#define DN_SWITCH  9U
-#define BUZZER     12U
-#define RED_LED    13U
-#define GREEN_LED  14U
-#define BAUD_RATE  115200U
 
 void board_init(void)
 {

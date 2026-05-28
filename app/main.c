@@ -1,7 +1,5 @@
-#include "mcu.h"
 #include "board.h"
 #include "task.h"
-#include "sched.h"
 
 int main(void)
 {
