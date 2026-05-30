@@ -917,15 +917,31 @@ graph TB
     </div>
     <div>
       <p><strong>The <code>state_prio</code> field</strong> is a clever 16-bit packing — three pieces of data in one word:</p>
-      <div class="diagram-wrap" style="margin:0.75rem 0">
-        <div class="mermaid">
-packet-beta
-0-1: "state (2b)"
-2-6: "base_prio (5b)"
-7-11: "eff_prio (5b)"
-12-15: "unused (4b)"
+      <div class="diagram-wrap" style="margin:0.75rem 0; padding:1.25rem 1rem 0.75rem;">
+        <div style="font-family:var(--mono);font-size:0.7rem;color:var(--muted);text-align:center;margin-bottom:0.4rem;">bit 15 ──────────────────────────────────────────── bit 0</div>
+        <div style="display:flex;width:100%;border-radius:8px;overflow:hidden;border:1px solid var(--border);">
+          <div style="width:25%;background:#f1f5f9;border-right:1px solid var(--border);padding:0.5rem 0.4rem;text-align:center;">
+            <div style="font-family:var(--mono);font-size:0.68rem;color:var(--muted);font-weight:600;">[15:12]</div>
+            <div style="font-size:0.78rem;font-weight:700;color:#94a3b8;margin-top:0.2rem;">unused</div>
+            <div style="font-family:var(--mono);font-size:0.65rem;color:#cbd5e1;">4 bits</div>
+          </div>
+          <div style="width:31.25%;background:#ede9fe;border-right:1px solid var(--border);padding:0.5rem 0.4rem;text-align:center;">
+            <div style="font-family:var(--mono);font-size:0.68rem;color:#7c3aed;font-weight:600;">[11:7]</div>
+            <div style="font-size:0.78rem;font-weight:700;color:#6d28d9;margin-top:0.2rem;">eff_prio</div>
+            <div style="font-family:var(--mono);font-size:0.65rem;color:#a78bfa;">5 bits</div>
+          </div>
+          <div style="width:31.25%;background:#dbeafe;border-right:1px solid var(--border);padding:0.5rem 0.4rem;text-align:center;">
+            <div style="font-family:var(--mono);font-size:0.68rem;color:#1d4ed8;font-weight:600;">[6:2]</div>
+            <div style="font-size:0.78rem;font-weight:700;color:#1e40af;margin-top:0.2rem;">base_prio</div>
+            <div style="font-family:var(--mono);font-size:0.65rem;color:#93c5fd;">5 bits</div>
+          </div>
+          <div style="width:12.5%;background:#dcfce7;padding:0.5rem 0.4rem;text-align:center;">
+            <div style="font-family:var(--mono);font-size:0.68rem;color:#166534;font-weight:600;">[1:0]</div>
+            <div style="font-size:0.78rem;font-weight:700;color:#15803d;margin-top:0.2rem;">state</div>
+            <div style="font-family:var(--mono);font-size:0.65rem;color:#86efac;">2 bits</div>
+          </div>
         </div>
-        <div class="caption">Figure 2 — state_prio bit layout</div>
+        <div class="caption" style="margin-top:0.6rem;">Figure 2 — state_prio bit layout (16-bit packed field)</div>
       </div>
       <ul style="font-size:0.85rem; margin-left:1.2rem; color:#334155;">
         <li style="padding:0.3rem 0"><strong>bits [1:0]</strong> — state: <code>SLEEP=0</code>, <code>WAKE=1</code>, <code>BLOCKED=2</code></li>
