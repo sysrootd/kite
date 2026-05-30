@@ -74,7 +74,7 @@ static void led1_task(void)
 {
     while (1) {
         gpio_toggle(GPIOB, GREEN_LED);
-        task_delay(500);
+        task_delay(100);
     }
 }
 
