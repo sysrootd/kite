@@ -1,0 +1,5 @@
+{
+  "cortex-debug.gdbPath": "/usr/bin/gdb-multiarch",
+  "cortex-debug.objdumpPath": "/usr/bin/objdump",
+  "cortex-debug.nmPath": "/usr/bin/nm"
+}
