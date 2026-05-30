@@ -973,9 +973,9 @@ stateDiagram-v2
   WAKE --> RUNNING : scheduler picks it
   RUNNING --> WAKE : time slice expires / yield
   RUNNING --> SLEEP : task_delay() / sleep_until()
-  RUNNING --> BLOCKED : semaphore_wait() / mutex_lock() (blocked)
+  RUNNING --> BLOCKED : sem_wait() / mutex_lock() (blocked)
   SLEEP --> WAKE : SysTick — block_count reached
-  BLOCKED --> WAKE : semaphore_post() / mutex_unlock()
+  BLOCKED --> WAKE : sem_post() / mutex_unlock()
     </div>
     <div class="caption">Figure 3 — Task state machine</div>
   </div>
@@ -1392,8 +1392,8 @@ flowchart LR
   F -->|1| H["request_context_switch\n(yield)"]
   F -->|2| I["svc_task_delay"]
   F -->|3| J["svc_task_sleep_until"]
-  F -->|4| K["svc_semaphore_wait"]
-  F -->|5| L["svc_semaphore_post"]
+  F -->|4| K["svc_sem_wait"]
+  F -->|5| L["svc_sem_post"]
   F -->|6| M["svc_mutex_lock"]
   F -->|7| N["svc_mutex_unlock"]
     </div>
@@ -1408,8 +1408,8 @@ flowchart LR
       <tr><td><span class="svc-num">1</span></td><td>YIELD</td><td><code>task_yield()</code></td><td>Voluntarily triggers PendSV — moves to back of ready queue at same priority</td></tr>
       <tr><td><span class="svc-num">2</span></td><td>DELAY</td><td><code>task_delay(ticks)</code></td><td>Removes from ready queue, inserts into sleep list with <code>block_count = systick + ticks</code></td></tr>
       <tr><td><span class="svc-num">3</span></td><td>SLEEP_UNTIL</td><td><code>task_sleep_until(*last, period)</code></td><td>Absolute periodic sleep — corrects for execution drift in periodic tasks</td></tr>
-      <tr><td><span class="svc-num">4</span></td><td>SEM_WAIT</td><td><code>semaphore_wait(sem)</code></td><td>Decrements count; if < 0, blocks task in semaphore's wait queue</td></tr>
-      <tr><td><span class="svc-num">5</span></td><td>SEM_POST</td><td><code>semaphore_post(sem)</code></td><td>Increments count; unblocks highest-priority waiter if any</td></tr>
+      <tr><td><span class="svc-num">4</span></td><td>SEM_WAIT</td><td><code>sem_wait(sem)</code></td><td>Decrements count; if < 0, blocks task in semaphore's wait queue</td></tr>
+      <tr><td><span class="svc-num">5</span></td><td>SEM_POST</td><td><code>sem_post(sem)</code></td><td>Increments count; unblocks highest-priority waiter if any</td></tr>
       <tr><td><span class="svc-num">6</span></td><td>MUTEX_LOCK</td><td><code>mutex_lock(m)</code></td><td>Acquires mutex or blocks; triggers priority inheritance if owner is lower priority</td></tr>
       <tr><td><span class="svc-num">7</span></td><td>MUTEX_UNLOCK</td><td><code>mutex_unlock(m)</code></td><td>Releases mutex; hands to highest waiter; restores owner's original priority</td></tr>
     </tbody>
@@ -1445,12 +1445,12 @@ flowchart LR
     </div>
     <div class="card card-green">
       <div class="card-icon">⬇️</div>
-      <h4>semaphore_wait() — P operation</h4>
+      <h4>sem_wait() — P operation</h4>
       <p>Decrements count. If count < 0, task is removed from ready queue and placed in semaphore's wait queue.</p>
     </div>
     <div class="card card-accent">
       <div class="card-icon">⬆️</div>
-      <h4>semaphore_post() — V operation</h4>
+      <h4>sem_post() — V operation</h4>
       <p>Increments count. If count ≤ 0, the highest-priority waiting task is moved to the ready queue.</p>
     </div>
   </div>
@@ -1463,13 +1463,13 @@ sequenceDiagram
   participant SEM as Semaphore (count=0)
   participant SCHED as Scheduler
 
-  TH->>SEM: semaphore_wait(sem)
+  TH->>SEM: sem_wait(sem)
   Note over SEM: count-- → count=-1 (< 0)
   SEM->>SCHED: Block Task High, add to wq_head
   SCHED->>TL: Task Low runs (now highest ready)
 
   TL->>TL: ... does some work ...
-  TL->>SEM: semaphore_post(sem)
+  TL->>SEM: sem_post(sem)
   Note over SEM: count++ → count=0 (≤ 0)
   SEM->>SCHED: Unblock Task High (highest waiter)
   SCHED->>TH: Task High preempts Task Low and runs!
@@ -1483,17 +1483,17 @@ sequenceDiagram
     <pre><span class="tp">semaphore_t</span> data_ready;
 
 <span class="kw">void</span> <span class="fn">producer_task</span>(<span class="kw">void</span>) {
-    <span class="fn">semaphore_init</span>(&data_ready, <span class="num">0</span>); <span class="cmt">/* start at 0 — consumer must wait */</span>
+    <span class="fn">sem_init</span>(&data_ready, <span class="num">0</span>); <span class="cmt">/* start at 0 — consumer must wait */</span>
     <span class="kw">while</span>(<span class="num">1</span>) {
         fill_buffer();              <span class="cmt">/* produce data */</span>
-        <span class="fn">semaphore_post</span>(&data_ready); <span class="cmt">/* signal consumer */</span>
+        <span class="fn">sem_post</span>(&data_ready); <span class="cmt">/* signal consumer */</span>
         <span class="fn">task_delay</span>(<span class="num">100</span>);
     }
 }
 
 <span class="kw">void</span> <span class="fn">consumer_task</span>(<span class="kw">void</span>) {
     <span class="kw">while</span>(<span class="num">1</span>) {
-        <span class="fn">semaphore_wait</span>(&data_ready); <span class="cmt">/* blocks until producer posts */</span>
+        <span class="fn">sem_wait</span>(&data_ready); <span class="cmt">/* blocks until producer posts */</span>
         process_buffer();
     }
 }</pre>
@@ -1786,16 +1786,16 @@ flowchart LR
 
     <div class="acc-item">
       <div class="acc-header" onclick="toggleAcc(this)">
-        <span>🚦 Semaphores — <code>semaphore_init</code>, <code>semaphore_wait</code>, <code>semaphore_post</code></span>
+        <span>🚦 Semaphores — <code>sem_init</code>, <code>sem_wait</code>, <code>sem_post</code></span>
         <span class="arrow">▼</span>
       </div>
       <div class="acc-body">
         <table>
           <thead><tr><th>Function</th><th>Parameters</th><th>Description</th></tr></thead>
           <tbody>
-            <tr><td><code>semaphore_init(sem, count)</code></td><td><code>semaphore_t *sem</code>, <code>int32_t initial_count</code></td><td>Initializes semaphore. Use <code>count=1</code> for binary, <code>count=N</code> for N resources, <code>count=0</code> for signalling.</td></tr>
-            <tr><td><code>semaphore_wait(sem)</code></td><td><code>semaphore_t *sem</code></td><td>Decrements count. If count becomes negative, calling task blocks in the semaphore's wait queue (sorted by priority).</td></tr>
-            <tr><td><code>semaphore_post(sem)</code></td><td><code>semaphore_t *sem</code></td><td>Increments count. If there are waiters (count was negative), the <em>highest-priority</em> waiter is unblocked and moved to ready queue.</td></tr>
+            <tr><td><code>sem_init(sem, count)</code></td><td><code>semaphore_t *sem</code>, <code>int32_t initial_count</code></td><td>Initializes semaphore. Use <code>count=1</code> for binary, <code>count=N</code> for N resources, <code>count=0</code> for signalling.</td></tr>
+            <tr><td><code>sem_wait(sem)</code></td><td><code>semaphore_t *sem</code></td><td>Decrements count. If count becomes negative, calling task blocks in the semaphore's wait queue (sorted by priority).</td></tr>
+            <tr><td><code>sem_post(sem)</code></td><td><code>semaphore_t *sem</code></td><td>Increments count. If there are waiters (count was negative), the <em>highest-priority</em> waiter is unblocked and moved to ready queue.</td></tr>
           </tbody>
         </table>
       </div>
@@ -1889,7 +1889,7 @@ flowchart LR
     <span class="fn">uart_init</span>();
 
     <span class="fn">mutex_init</span>(&uart_mtx);
-    <span class="fn">semaphore_init</span>(&print_sem, <span class="num">1</span>);
+    <span class="fn">sem_init</span>(&print_sem, <span class="num">1</span>);
 
     <span class="fn">create_task</span>(<span class="num">3</span>, led_task,    <span class="num">128</span>, <span class="str">"LED"</span>);
     <span class="fn">create_task</span>(<span class="num">5</span>, sensor_task, <span class="num">256</span>, <span class="str">"SENSOR"</span>);
