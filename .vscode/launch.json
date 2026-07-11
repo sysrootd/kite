@@ -1,0 +1,30 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    
+    {
+      "name": "Debug STM32F401RBT6 (ST-Link + OpenOCD)",
+      "type": "cortex-debug",
+      "request": "launch",
+      "servertype": "openocd",
+      "cwd": "${workspaceFolder}",
+      "executable": "${workspaceFolder}/build/kite.elf",
+      "device": "STM32F401RBTx",
+      "configFiles": [
+        "interface/stlink.cfg",
+        "target/stm32f4x.cfg"
+      ],
+      "runToEntryPoint": "main",
+      "svdFile": "${workspaceFolder}/system/cmsis/STM32F401.svd",
+      "preLaunchTask": "build",
+      "openOCDLaunchCommands": [
+        "init",
+        "reset halt"
+      ],
+      "postRestartCommands": [
+        "monitor reset halt"
+      ],
+      "showDevDebugOutput": true
+    }
+  ]
+}

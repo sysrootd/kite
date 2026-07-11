@@ -19,7 +19,7 @@
 #define ENABLE_FPU 1
 
 /* Enable/disable STOP mode. */
-#define ENABLE_STOP_MODE 1
+#define ENABLE_STOP_MODE 0
 
 /* Enable/disable Debug mode for each task (each task will have a const string as task name)*/
 // Will enable name memeber in tcb of a task stack that holds task name to make debug ease

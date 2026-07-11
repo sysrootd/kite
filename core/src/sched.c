@@ -7,7 +7,7 @@
 
 
 volatile uint32_t global_systick    = 0U;
-TCB_t            *current_running_node = NULL;
+TCB_t    *current_running_task = NULL;
 
 
 static uint32_t *next_task_psp  = STACK_START;
@@ -397,7 +397,7 @@ static void idle_task(void)
 {
     while (1)
     {
-#ifdef ENABLE_STOP_MODE
+#if ENABLE_STOP_MODE
         RCC->APB1ENR |= RCC_APB1ENR_PWREN;
         PWR->CR |= PWR_CR_CWUF;
         PWR->CR |= PWR_CR_LPDS;
@@ -542,7 +542,7 @@ void kite_start(void)
 static void __attribute__((used)) init_helper(void)
 {
     msp_start            = (uint32_t)next_task_psp;
-    current_running_node = rq_highest();
+    current_running_task = rq_highest();
     core_faults_init();
 }
 
@@ -566,7 +566,7 @@ __attribute__((naked, used)) void scheduler_init(void)
 static void scheduler_start(void)
 {
     systick_init();
-    mpu_update_stack_guard(current_running_node);
+    mpu_update_stack_guard(current_running_task);
     __asm volatile ("svc 0");
 }
 
@@ -671,7 +671,7 @@ static void __attribute__((used)) SVC_Handler_C(uint32_t *stack_frame)
 __attribute__((naked)) static void svc_start_first_task(void)
 {
     __asm volatile (
-        "LDR   R0, =current_running_node \n"
+        "LDR   R0, =current_running_task \n"
         "LDR   R0, [R0]                  \n"
         "LDR   R0, [R0, #0]              \n"
         "LDMIA R0!, {R4-R11}             \n"
@@ -691,7 +691,7 @@ __attribute__((naked)) void PendSV_Handler(void)
         "MRS    R0, PSP                      \n"
         "STMDB  R0!, {R4-R11}                \n"
 
-        "LDR    R3, =current_running_node    \n"
+        "LDR    R3, =current_running_task    \n"
         "LDR    R3, [R3]                     \n"
         "STR    R0, [R3, #0]                 \n"
 
@@ -705,7 +705,7 @@ __attribute__((naked)) void PendSV_Handler(void)
         "MSR    BASEPRI, R1                  \n"
         "POP    {R3, LR}                     \n"
 
-        "LDR    R3, =current_running_node    \n"
+        "LDR    R3, =current_running_task    \n"
         "LDR    R3, [R3]                     \n"
         "LDR    R0, [R3, #0]                 \n"
         "LDMIA  R0!, {R4-R11}                \n"
@@ -720,14 +720,14 @@ __attribute__((naked)) void PendSV_Handler(void)
 
 static void __attribute__((used)) scheduler(void)
 {
-    if ((current_running_node != NULL) &&
-        (TCB_STATE(current_running_node) == TASK_WAKE))
+    if ((current_running_task != NULL) &&
+        (TCB_STATE(current_running_task) == TASK_WAKE))
     {
-        rq_remove(current_running_node);
-        rq_add(current_running_node);
+        rq_remove(current_running_task);
+        rq_add(current_running_task);
     }
-    current_running_node = rq_highest();
-    mpu_update_stack_guard(current_running_node);
+    current_running_task = rq_highest();
+    mpu_update_stack_guard(current_running_task);
 }
 
 
@@ -752,15 +752,15 @@ void task_sleep_until(uint32_t *last_wake, uint32_t period)
 
 static void svc_task_delay(uint32_t ticks)
 {
-    if ((current_running_node == NULL) || (ticks == 0U))
+    if ((current_running_task == NULL) || (ticks == 0U))
     {
         request_context_switch();
         return;
     }
     ENTER_CRITICAL();
-    current_running_node->block_count = global_systick + ticks;
-    rq_remove(current_running_node);
-    sl_insert(current_running_node);
+    current_running_task->block_count = global_systick + ticks;
+    rq_remove(current_running_task);
+    sl_insert(current_running_task);
     EXIT_CRITICAL();
     request_context_switch();
 }
@@ -768,7 +768,7 @@ static void svc_task_delay(uint32_t ticks)
 
 static void svc_task_sleep_until(uint32_t *last_wake, uint32_t period)
 {
-    if ((current_running_node == NULL) || (last_wake == NULL))
+    if ((current_running_task == NULL) || (last_wake == NULL))
     {
         return;
     }
@@ -777,9 +777,9 @@ static void svc_task_sleep_until(uint32_t *last_wake, uint32_t period)
     *last_wake         = next_wake;
     if ((int32_t)(next_wake - global_systick) > 0)
     {
-        current_running_node->block_count = next_wake;
-        rq_remove(current_running_node);
-        sl_insert(current_running_node);
+        current_running_task->block_count = next_wake;
+        rq_remove(current_running_task);
+        sl_insert(current_running_task);
     }
     EXIT_CRITICAL();
     request_context_switch();
@@ -816,10 +816,10 @@ static void svc_semaphore_wait(semaphore_t *sem)
     sem->count--;
     if (sem->count < 0)
     {
-        current_running_node->waiting_on = sem;
-        TCB_SET_STATE(current_running_node, TASK_BLOCKED);
-        rq_remove(current_running_node);
-        wq_enqueue(&sem->wq_head, &sem->wq_bitmap, current_running_node);
+        current_running_task->waiting_on = sem;
+        TCB_SET_STATE(current_running_task, TASK_BLOCKED);
+        rq_remove(current_running_task);
+        wq_enqueue(&sem->wq_head, &sem->wq_bitmap, current_running_task);
         EXIT_CRITICAL();
         request_context_switch();
         return;
@@ -947,13 +947,13 @@ static void svc_mutex_lock(mutex_t *m)
     ENTER_CRITICAL();
     if (m->locked == 0U)
     {
-        uint8_t slot = held_alloc_slot(current_running_node);
+        uint8_t slot = held_alloc_slot(current_running_task);
         if (slot < HELD_MUTEX_MAX)
         {
             m->locked               = 1U;
-            m->owner                = current_running_node;
+            m->owner                = current_running_task;
             m->highest_waiting_prio = 0U;
-            held_set(current_running_node, slot, m);
+            held_set(current_running_task, slot, m);
             EXIT_CRITICAL();
         }
         else
@@ -964,15 +964,15 @@ static void svc_mutex_lock(mutex_t *m)
     }
     else
     {
-        uint8_t my_prio = TCB_EFF_PRIO(current_running_node);
-        current_running_node->waiting_on = m;
-        TCB_SET_STATE(current_running_node, TASK_BLOCKED);
+        uint8_t my_prio = TCB_EFF_PRIO(current_running_task);
+        current_running_task->waiting_on = m;
+        TCB_SET_STATE(current_running_task, TASK_BLOCKED);
         if (my_prio > m->highest_waiting_prio)
         {
             m->highest_waiting_prio = my_prio;
         }
-        rq_remove(current_running_node);
-        wq_enqueue(&m->wq_head, &m->wq_bitmap, current_running_node);
+        rq_remove(current_running_task);
+        wq_enqueue(&m->wq_head, &m->wq_bitmap, current_running_task);
         propagate_priority(m, my_prio);
         EXIT_CRITICAL();
         request_context_switch();
@@ -982,12 +982,12 @@ static void svc_mutex_lock(mutex_t *m)
 
 static void svc_mutex_unlock(mutex_t *m)
 {
-    if ((m == NULL) || (m->owner != current_running_node))
+    if ((m == NULL) || (m->owner != current_running_task))
     {
         return;
     }
     ENTER_CRITICAL();
-    held_clear_mutex(current_running_node, m);
+    held_clear_mutex(current_running_task, m);
 
     TCB_t *next_owner = wq_dequeue_highest(&m->wq_head, &m->wq_bitmap);
     if (next_owner != NULL)
@@ -1020,21 +1020,21 @@ static void svc_mutex_unlock(mutex_t *m)
         m->highest_waiting_prio = 0U;
     }
 
-    if (TCB_EFF_PRIO(current_running_node) != TCB_BASE_PRIO(current_running_node))
+    if (TCB_EFF_PRIO(current_running_task) != TCB_BASE_PRIO(current_running_task))
     {
-        uint8_t  max_inh = TCB_BASE_PRIO(current_running_node);
-        uint32_t bm      = (uint32_t)current_running_node->held_mutex_bitmap;
+        uint8_t  max_inh = TCB_BASE_PRIO(current_running_task);
+        uint32_t bm      = (uint32_t)current_running_task->held_mutex_bitmap;
         while (bm != 0U)
         {
             uint8_t  slot = (uint8_t)__builtin_ctz(bm);
-            mutex_t *held = held_get(current_running_node, slot);
+            mutex_t *held = held_get(current_running_task, slot);
             if ((held != NULL) && (held->highest_waiting_prio > max_inh))
             {
                 max_inh = held->highest_waiting_prio;
             }
             bm &= bm - 1U;
         }
-        update_task_priority(current_running_node, max_inh);
+        update_task_priority(current_running_task, max_inh);
     }
 
     EXIT_CRITICAL();
