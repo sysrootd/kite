@@ -21,10 +21,6 @@ https://rawcdn.githack.com/sysrootd/kite/refs/heads/main/doc.html
 ## Requirements
 
 - STM32 development board
-- Copy the STM32CubeIDE/CubeMX-generated `linker.ld` and `startup.S` into the `sys/` directory
-- Update `sys/platform/mcu.h` for your specific STM32 MCU / board peripherals
-- Update `sys/platform/coreM4.h` if Cortex-M4 core register/interrupt definitions need adjustment
-- Tweak `app/config.h` for system clock and startup configuration
 - ARM GCC toolchain (`arm-none-eabi-gcc`)
 - `make`
 - OpenOCD
