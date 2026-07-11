@@ -395,18 +395,23 @@ static void core_faults_init(void)
 
 static void idle_task(void)
 {
+#if ENABLE_STOP_MODE
+
+    RCC->APB1ENR |= RCC_APB1ENR_PWREN;
+
+    PWR->CR |= PWR_CR_CWUF;
+
+    PWR->CR &= ~PWR_CR_PDDS;
+
+    PWR->CR &= ~PWR_CR_LPDS;
+
+    SCB->SCR |= SCB_SCR_SLEEPDEEP_Msk;
+
+#endif
+
     while (1)
     {
-#if ENABLE_STOP_MODE
-        RCC->APB1ENR |= RCC_APB1ENR_PWREN;
-        PWR->CR |= PWR_CR_CWUF;
-        PWR->CR |= PWR_CR_LPDS;
-        PWR->CR &= ~PWR_CR_PDDS;
         __asm volatile ("wfi");
-        PWR->CR &= ~PWR_CR_LPDS;
-#else
-        __asm volatile ("wfi");
-#endif
     }
 }
 

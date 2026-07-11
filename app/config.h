@@ -19,6 +19,7 @@
 #define ENABLE_FPU 1
 
 /* Enable/disable STOP mode. */
+/* IMP: Fully not implemented*/
 #define ENABLE_STOP_MODE 0
 
 /* Enable/disable Debug mode for each task (each task will have a const string as task name)*/
