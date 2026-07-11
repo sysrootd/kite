@@ -29,7 +29,7 @@
 /*>>>>IMP: Don't Define more than 31 tasks(total tasks <= 31) <<<<*/
 #define MAX_TASKS              16U
 
-/* Min Time slice that scheduler give for each task in run time(5ms is idle) */
+/* Min Time slice that scheduler give for each task in run time */
 #define SCHED_TIME_SLICE       5U
 
 /* Maximum number of mutexs that are going to use in a single task(mutex nesting) */
