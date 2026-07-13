@@ -35,6 +35,7 @@ extern uint32_t _estack;
 #define SVC_SEM_POST          5U
 #define SVC_MUTEX_LOCK        6U
 #define SVC_MUTEX_UNLOCK      7U
+#define SVC_ENTER_STOP_MODE   8U
 
 #define KITE_STATIC_ASSERT(expr, msg)  _Static_assert(expr, msg)
 

@@ -4,6 +4,9 @@
 #include "mcu.h"
 #include "sched.h"
 #include "mem.h"
+#include "timer.h"
+
+extern void SystemInit(void);
 
 
 volatile uint32_t global_systick    = 0U;
@@ -32,6 +35,10 @@ static uint8_t           task_init_count = 0U;
 
 static uint32_t critical_nesting = 0U;
 static uint32_t saved_basepri    = 0U;
+
+#if ENABLE_STOP_MODE
+volatile uint8_t tim2_irq_fired = 0U;
+#endif
 
 
 static inline void request_context_switch(void);
@@ -67,6 +74,10 @@ static void svc_semaphore_wait(semaphore_t *sem);
 static void svc_semaphore_post(semaphore_t *sem);
 static void svc_mutex_lock(mutex_t *m);
 static void svc_mutex_unlock(mutex_t *m);
+#if ENABLE_STOP_MODE
+static void svc_enter_stop_mode(uint32_t sleep_ticks);
+static void enter_stop_mode(uint32_t sleep_ticks);
+#endif
 
 
 void sched_enter_critical(void)
@@ -396,23 +407,53 @@ static void core_faults_init(void)
 static void idle_task(void)
 {
 #if ENABLE_STOP_MODE
+    /* Local TIM2 helper defines */
+    #define TIM_CR1_CEN   (1U << 0)
+    #define TIM_CR1_OPM   (1U << 3)
+    #define TIM_DIER_UIE  (1U << 0)
+    #define TIM_SR_UIF    (1U << 0)
 
-    RCC->APB1ENR |= RCC_APB1ENR_PWREN;
+    while (1)
+    {
+        /* If there are no sleepers, just wait for interrupts */
+        if (sleep_list_head == NULL)
+        {
+            __asm volatile ("wfi");
+            continue;
+        }
 
-    PWR->CR |= PWR_CR_CWUF;
+        ENTER_CRITICAL();
+        uint32_t now = global_systick;
+        uint32_t next = sleep_list_head->block_count;
+        if ((int32_t)(next - now) <= 0)
+        {
+            EXIT_CRITICAL();
+            __asm volatile ("wfi");
+            continue;
+        }
 
-    PWR->CR &= ~PWR_CR_PDDS;
+        uint32_t sleep_ticks = next - now;
+        EXIT_CRITICAL();
 
-    PWR->CR &= ~PWR_CR_LPDS;
+        enter_stop_mode(sleep_ticks);
 
-    SCB->SCR |= SCB_SCR_SLEEPDEEP_Msk;
+        ENTER_CRITICAL();
+        uint8_t woke = task_wake();
+        EXIT_CRITICAL();
 
-#endif
+        if (woke)
+        {
+            request_context_switch();
+        }
+    }
+
+#else
 
     while (1)
     {
         __asm volatile ("wfi");
     }
+#endif
 }
 
 
@@ -666,6 +707,9 @@ static void __attribute__((used)) SVC_Handler_C(uint32_t *stack_frame)
                                                           stack_frame[1]);                 break;
         case SVC_SEM_WAIT:          svc_semaphore_wait((semaphore_t *)stack_frame[0]);     break;
         case SVC_SEM_POST:          svc_semaphore_post((semaphore_t *)stack_frame[0]);     break;
+#if ENABLE_STOP_MODE
+        case SVC_ENTER_STOP_MODE:   svc_enter_stop_mode(stack_frame[0]);                   break;
+#endif
         case SVC_MUTEX_LOCK:        svc_mutex_lock((mutex_t *)stack_frame[0]);             break;
         case SVC_MUTEX_UNLOCK:      svc_mutex_unlock((mutex_t *)stack_frame[0]);           break;
         default:                    kernel_panic();                                        break;
@@ -879,6 +923,78 @@ void mutex_unlock(mutex_t *m)
     __asm volatile ("svc 7" : : "r"(r0) : "memory");
 }
 
+#if ENABLE_STOP_MODE
+static void enter_stop_mode(uint32_t sleep_ticks)
+{
+    register uint32_t r0 __asm("r0") = sleep_ticks;
+    __asm volatile ("svc 8" : : "r"(r0) : "memory");
+}
+
+static void svc_enter_stop_mode(uint32_t sleep_ticks)
+{
+    uint32_t saved_systick = global_systick;
+    uint32_t target_systick = saved_systick + sleep_ticks;
+
+    RCC->APB1ENR |= RCC_APB1ENR_PWREN;
+    PWR->CR |= PWR_CR_CWUF;
+    PWR->CR &= ~PWR_CR_PDDS;
+    PWR->CR &= ~PWR_CR_LPDS;
+    /* Use normal sleep mode instead of STOP, because TIM2 cannot reliably wake from STOP on STM32F4. */
+
+    uint64_t us = (uint64_t)sleep_ticks * 1000000ULL / (uint64_t)TICK_HZ;
+    if (us == 0)
+    {
+        us = 1;
+    }
+
+    tim2_irq_fired = 0U;
+
+    RCC->APB1ENR |= (1U << 0); /* TIM2EN */
+
+    TIM2->CR1 &= ~TIM_CR1_CEN;
+    TIM2->PSC = (SystemCoreClock / 1000000U) - 1U;
+    TIM2->ARR = (uint32_t)(us - 1ULL);
+    TIM2->CNT = 0U;
+    TIM2->EGR = 1U;
+    TIM2->SR = 0U;
+    TIM2->DIER |= TIM_DIER_UIE;
+    TIM2->CR1 |= TIM_CR1_OPM;
+    TIM2->CR1 |= TIM_CR1_CEN;
+
+    NVIC_SetPriority(TIM2_IRQn, KERNEL_INTERRUPT_PRIORITY);
+    NVIC_EnableIRQ(TIM2_IRQn);
+
+    SysTick->CTRL &= ~SysTick_CTRL_TICKINT_Msk;
+
+    __DSB();
+    __ISB();
+    __WFI();
+
+    SystemInit();
+    SysTick_Config(SystemCoreClock / TICK_HZ);
+
+    RCC->APB1ENR |= (1U << 0); /* TIM2EN */
+    TIM2->CR1 &= ~TIM_CR1_CEN;
+    TIM2->DIER &= ~TIM_DIER_UIE;
+    TIM2->SR &= ~TIM_SR_UIF;
+    NVIC_DisableIRQ(TIM2_IRQn);
+
+    if (tim2_irq_fired)
+    {
+        global_systick = target_systick;
+    }
+    else
+    {
+        uint32_t elapsed_us = TIM2->CNT;
+        uint32_t adv = (uint32_t)(((uint64_t)elapsed_us * (uint64_t)TICK_HZ + 500000ULL) / 1000000ULL);
+        if (adv == 0U)
+        {
+            adv = 1U;
+        }
+        global_systick = saved_systick + adv;
+    }
+}
+#endif
 
 static uint8_t highest_waiter_priority(mutex_t *m)
 {
@@ -1068,7 +1184,25 @@ __attribute__((naked)) void HardFault_Handler(void)
 
 void hardfault(uint32_t *stack)
 {
-    (void)stack;
+
+    volatile uint32_t hf_r0   = stack[0];
+    volatile uint32_t hf_r1   = stack[1];
+    volatile uint32_t hf_r2   = stack[2];
+    volatile uint32_t hf_r3   = stack[3];
+    volatile uint32_t hf_r12  = stack[4];
+    volatile uint32_t hf_lr   = stack[5];
+    volatile uint32_t hf_pc   = stack[6];
+    volatile uint32_t hf_psr  = stack[7];
+
+    volatile uint32_t hfsr = SCB->HFSR;
+    volatile uint32_t cfsr = SCB->CFSR;
+    volatile uint32_t mmfar = SCB->MMFAR;
+    volatile uint32_t bfar = SCB->BFAR;
+
+    (void)hf_r0; (void)hf_r1; (void)hf_r2; (void)hf_r3;
+    (void)hf_r12; (void)hf_lr; (void)hf_pc; (void)hf_psr;
+    (void)hfsr; (void)cfsr; (void)mmfar; (void)bfar;
+
     while (1) {}
 }
 

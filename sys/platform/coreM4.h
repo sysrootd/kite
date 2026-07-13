@@ -341,6 +341,22 @@ static inline void NVIC_EnableIRQ(IRQn_Type IRQn)
     }
 }
 
+static inline void NVIC_DisableIRQ(IRQn_Type IRQn)
+{
+    if (IRQn < 32)
+    {
+        NVIC->ICER[0] = (1U << IRQn);
+    }
+    else if (IRQn < 64)
+    {
+        NVIC->ICER[1] = (1U << (IRQn - 32));
+    }
+    else
+    {
+        NVIC->ICER[2] = (1U << (IRQn - 64));
+    }
+}
+
 static inline void NVIC_SetPriority(IRQn_Type IRQn, uint32_t priority)
 {
     if ((int32_t)IRQn < 0)
