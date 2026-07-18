@@ -421,7 +421,7 @@ static void idle_task(void)
         EXIT_CRITICAL();
 
         power_enter_stop_mode(sleep_ticks);
-\
+
         ENTER_CRITICAL();
         uint8_t woke = task_wake();
         EXIT_CRITICAL();
